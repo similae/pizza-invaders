@@ -24,18 +24,21 @@
     border: 3px solid #ffcc33;
     border-radius: 16px;
     max-width: 96vw;
-    max-height: 84vh;
+    max-height: 78vh;
     box-shadow: 0 0 34px rgba(255, 204, 51, .25);
     image-rendering: pixelated;
   }
   #mobileControls {
     display: none;
-    gap: 10px;
-    margin-top: 8px;
+    gap: 14px;
+    margin-top: 10px;
+    justify-content: center;
+    width: 100%;
   }
   button {
-    font-size: 24px;
-    padding: 11px 16px;
+    font-size: 30px;
+    padding: 16px 22px;
+    min-width: 76px;
     border-radius: 14px;
     border: 2px solid #ffcc33;
     background: #17172b;
@@ -352,7 +355,7 @@ function startBoss() {
 document.addEventListener("keydown", e => {
   keys[e.code] = true;
   if ((e.code === "Enter" || e.code === "Space") && state !== "play") {
-    resetGame(); state = "play";
+    startOrRestartGame();
   }
   if (e.code === "Space") e.preventDefault();
 });
@@ -367,11 +370,42 @@ function holdButton(id, code) {
 }
 holdButton("leftBtn", "ArrowLeft");
 holdButton("rightBtn", "ArrowRight");
-document.getElementById("shootBtn").addEventListener("touchstart", e => { e.preventDefault(); shoot(); });
-document.getElementById("shootBtn").addEventListener("mousedown", shoot);
+document.getElementById("shootBtn").addEventListener("touchstart", e => {
+  e.preventDefault();
+  keys.Space = true;
+  shoot();
+});
+document.getElementById("shootBtn").addEventListener("touchend", e => {
+  e.preventDefault();
+  keys.Space = false;
+});
+document.getElementById("shootBtn").addEventListener("mousedown", () => {
+  keys.Space = true;
+  shoot();
+});
+document.getElementById("shootBtn").addEventListener("mouseup", () => {
+  keys.Space = false;
+});
+
+canvas.addEventListener("touchstart", e => {
+  e.preventDefault();
+  if (state !== "play") startOrRestartGame();
+}, { passive: false });
+
+canvas.addEventListener("click", () => {
+  if (state !== "play") startOrRestartGame();
+});
+
+function startOrRestartGame() {
+  resetGame();
+  state = "play";
+}
 
 function shoot() {
-  if (state !== "play") return;
+  if (state !== "play") {
+    startOrRestartGame();
+    return;
+  }
   const now = performance.now();
   if (now - lastShot < 170) return;
   lastShot = now;
@@ -621,10 +655,11 @@ function drawStart() {
   ctx.font = "20px Arial";
   ctx.fillText("Sin emojis: sprites pixel-art dibujados en el juego", W/2, 485);
   ctx.fillText("← → mover · Espacio disparar", W/2, 522);
+  ctx.fillText("En móvil: toca 🔥 para empezar y disparar", W/2, 555);
 
   ctx.fillStyle = "#ff78d0";
   ctx.font = "24px Arial";
-  ctx.fillText("ENTER o ESPACIO para empezar", W/2, 610);
+  ctx.fillText("ENTER, ESPACIO o 🔥 para empezar", W/2, 630);
   ctx.textAlign = "left";
 }
 
