@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-<title>Pizza Galaxy - Sprite Version</title>
+<title>Pizza Invaders</title>
 <style>
   * { box-sizing: border-box; }
   body {
@@ -23,29 +23,29 @@
     background: #050510;
     border: 3px solid #ffcc33;
     border-radius: 16px;
-    max-width: 96vw;
-    max-height: 78vh;
+    width: min(100vw, calc(100dvh * 540 / 760));
+    height: min(100dvh, calc(100vw * 760 / 540));
+    max-width: 100vw;
+    max-height: 100dvh;
     box-shadow: 0 0 34px rgba(255, 204, 51, .25);
     image-rendering: pixelated;
+    touch-action: none;
   }
-  #mobileControls {
-    display: none;
-    gap: 14px;
-    margin-top: 10px;
-    justify-content: center;
-    width: 100%;
-  }
-  button {
-    font-size: 30px;
-    padding: 16px 22px;
-    min-width: 76px;
-    border-radius: 14px;
-    border: 2px solid #ffcc33;
-    background: #17172b;
-    color: white;
-  }
+  #mobileControls { display: none; }
+  button { display: none; }
   @media (max-width: 760px) {
-    #mobileControls { display: flex; }
+    #wrap {
+      align-items: center;
+      justify-content: center;
+      background: #050510;
+    }
+    canvas {
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      width: min(100vw, calc(100dvh * 540 / 760));
+      height: min(100dvh, calc(100vw * 760 / 540));
+    }
   }
 </style>
 </head>
@@ -73,6 +73,16 @@ let formationDir = 1, formationOffset = 0, formationTick = 0;
 let lastShot = 0, doubleUntil = 0, shieldUntil = 0, speedUntil = 0;
 let boss = null;
 let attackCooldown = 0;
+
+// Mobile/native controls
+let touchControl = {
+  active: false,
+  targetX: null,
+  autoFire: false,
+  lastAutoShot: 0,
+  fullscreenAsked: false
+};
+const isTouchDevice = window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
 
 const ENEMY = {
   pineapple: { hp:1, points:20, bullet:"pineapple" },
@@ -355,59 +365,67 @@ function startBoss() {
 document.addEventListener("keydown", e => {
   keys[e.code] = true;
   if ((e.code === "Enter" || e.code === "Space") && state !== "play") {
-    startOrRestartGame();
+    resetGame(); state = "play";
   }
   if (e.code === "Space") e.preventDefault();
 });
 document.addEventListener("keyup", e => keys[e.code] = false);
 
-function holdButton(id, code) {
-  const btn = document.getElementById(id);
-  btn.addEventListener("touchstart", e => { e.preventDefault(); keys[code] = true; });
-  btn.addEventListener("touchend", e => { e.preventDefault(); keys[code] = false; });
-  btn.addEventListener("mousedown", () => keys[code] = true);
-  btn.addEventListener("mouseup", () => keys[code] = false);
+function canvasPointFromEvent(e) {
+  const t = e.touches ? e.touches[0] : e;
+  const rect = canvas.getBoundingClientRect();
+  const x = (t.clientX - rect.left) * (canvas.width / rect.width);
+  const y = (t.clientY - rect.top) * (canvas.height / rect.height);
+  return { x, y };
 }
-holdButton("leftBtn", "ArrowLeft");
-holdButton("rightBtn", "ArrowRight");
-document.getElementById("shootBtn").addEventListener("touchstart", e => {
-  e.preventDefault();
-  keys.Space = true;
-  shoot();
-});
-document.getElementById("shootBtn").addEventListener("touchend", e => {
-  e.preventDefault();
-  keys.Space = false;
-});
-document.getElementById("shootBtn").addEventListener("mousedown", () => {
-  keys.Space = true;
-  shoot();
-});
-document.getElementById("shootBtn").addEventListener("mouseup", () => {
-  keys.Space = false;
-});
 
-canvas.addEventListener("touchstart", e => {
+function startFromTouch(e) {
   e.preventDefault();
-  if (state !== "play") startOrRestartGame();
-}, { passive: false });
+  if (!touchControl.fullscreenAsked) {
+    touchControl.fullscreenAsked = true;
+    const el = document.documentElement;
+    if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+  }
 
-canvas.addEventListener("click", () => {
-  if (state !== "play") startOrRestartGame();
-});
+  if (state !== "play") {
+    resetGame();
+    state = "play";
+  }
 
-function startOrRestartGame() {
-  resetGame();
-  state = "play";
+  const pt = canvasPointFromEvent(e);
+  touchControl.active = true;
+  touchControl.autoFire = true;
+  touchControl.targetX = pt.x - player.w / 2;
 }
+
+function moveFromTouch(e) {
+  if (!touchControl.active) return;
+  e.preventDefault();
+  const pt = canvasPointFromEvent(e);
+  touchControl.targetX = pt.x - player.w / 2;
+}
+
+function endTouch(e) {
+  e.preventDefault();
+  touchControl.active = false;
+  // Keep autofire enabled in mobile gameplay: less fatigue, more arcade feeling.
+  touchControl.autoFire = isTouchDevice && state === "play";
+}
+
+canvas.addEventListener("touchstart", startFromTouch, { passive: false });
+canvas.addEventListener("touchmove", moveFromTouch, { passive: false });
+canvas.addEventListener("touchend", endTouch, { passive: false });
+canvas.addEventListener("touchcancel", endTouch, { passive: false });
+
+// Desktop mouse also works: click/drag to move and shoot.
+canvas.addEventListener("mousedown", startFromTouch);
+canvas.addEventListener("mousemove", moveFromTouch);
+window.addEventListener("mouseup", endTouch);
 
 function shoot() {
-  if (state !== "play") {
-    startOrRestartGame();
-    return;
-  }
+  if (state !== "play") return;
   const now = performance.now();
-  if (now - lastShot < 170) return;
+  if (now - lastShot < (isTouchDevice ? 145 : 170)) return;
   lastShot = now;
   const speed = -10;
   if (now < doubleUntil) {
@@ -435,9 +453,27 @@ function addEnemyBullet(x,y,type,vx=0,vy=4.4) {
 
 function updatePlayer() {
   const sp = performance.now() < speedUntil ? 8.5 : player.speed;
+
+  if (touchControl.targetX !== null) {
+    const target = Math.max(0, Math.min(W - player.w, touchControl.targetX));
+    const dx = target - player.x;
+    const maxStep = sp * 1.9;
+    player.x += Math.max(-maxStep, Math.min(maxStep, dx));
+  }
+
   if (keys.ArrowLeft && player.x > 0) player.x -= sp;
   if (keys.ArrowRight && player.x < W-player.w) player.x += sp;
   if (keys.Space) shoot();
+
+  if ((touchControl.autoFire || isTouchDevice) && state === "play") {
+    const now = performance.now();
+    if (now - touchControl.lastAutoShot > 210) {
+      touchControl.lastAutoShot = now;
+      shoot();
+    }
+  }
+
+  player.x = Math.max(0, Math.min(W - player.w, player.x));
 }
 
 function updateEnemies() {
@@ -639,7 +675,7 @@ function drawStart() {
   ctx.textAlign = "center";
   ctx.fillStyle = "#ffcc33";
   ctx.font = "48px Arial";
-  ctx.fillText("PIZZA GALAXY", W/2, 96);
+  ctx.fillText("PIZZA INVADERS", W/2, 96);
 
   drawPizzaShip(W/2-28, 135, 1.35);
   drawPineapple(92, 310, 1.15);
@@ -654,12 +690,11 @@ function drawStart() {
   ctx.fillStyle = "white";
   ctx.font = "20px Arial";
   ctx.fillText("Sin emojis: sprites pixel-art dibujados en el juego", W/2, 485);
-  ctx.fillText("← → mover · Espacio disparar", W/2, 522);
-  ctx.fillText("En móvil: toca 🔥 para empezar y disparar", W/2, 555);
+  ctx.fillText(isTouchDevice ? "Arrastra el dedo para mover · disparo automático" : "← → mover · Espacio disparar", W/2, 522);
 
   ctx.fillStyle = "#ff78d0";
   ctx.font = "24px Arial";
-  ctx.fillText("ENTER, ESPACIO o 🔥 para empezar", W/2, 630);
+  ctx.fillText(isTouchDevice ? "TOCA LA PANTALLA PARA EMPEZAR" : "ENTER o ESPACIO para empezar", W/2, 610);
   ctx.textAlign = "left";
 }
 
@@ -675,7 +710,7 @@ function drawGameOver() {
   ctx.fillText("Puntaje: " + score, W/2, 330);
   ctx.fillText("Oleada alcanzada: " + wave, W/2, 365);
   ctx.fillStyle = "#ffcc33";
-  ctx.fillText("Enter o Espacio para jugar otra vez", W/2, 425);
+  ctx.fillText(isTouchDevice ? "Toca la pantalla para jugar otra vez" : "Enter o Espacio para jugar otra vez", W/2, 425);
   ctx.textAlign = "left";
 }
 
@@ -700,6 +735,12 @@ function loop() {
 
 resetGame();
 loop();
+
+// Avoid mobile browser gestures interfering with the game.
+document.addEventListener("gesturestart", e => e.preventDefault());
+document.addEventListener("touchmove", e => {
+  if (e.target === canvas) e.preventDefault();
+}, { passive: false });
 </script>
 </body>
 </html>
