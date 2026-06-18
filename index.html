@@ -1328,11 +1328,24 @@ function drawTransitionScreen() {
   drawBackground();
 
   const t = transition;
+  if (!t) {
+    state = "play";
+    return;
+  }
+
   const elapsed = performance.now() - t.startedAt;
   const pulse = Math.floor(performance.now() / 180) % 2;
 
-  if (t && t.drawCustom) {
-    t.drawCustom();
+  if (t.drawCustom) {
+    try {
+      t.drawCustom();
+    } catch (err) {
+      console.error("No se pudo dibujar la transición personalizada:", err);
+      t.drawCustom = null;
+      t.title = t.title || "TRANSMISIÓN";
+      t.subtitle = t.subtitle || "CONTINUANDO";
+      return;
+    }
     if (transition && performance.now() - transition.startedAt > transition.duration) finishTransition();
     return;
   }
