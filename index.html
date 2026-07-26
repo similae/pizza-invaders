@@ -478,6 +478,11 @@ let lastShot = 0, doubleUntil = 0, shieldUntil = 0, speedUntil = 0;
 let boss = null;
 let attackCooldown = 0;
 let runnerObstacleTick = 0;
+let runnerDistance = 0;
+let tunnelDistance = 0;
+let tunnelObstacleTick = 0;
+let dashVelocityY = 0;
+let dashJumpQueued = false;
 let combatEntityUid = 0;
 let shipVolleyCount = 0;
 let shipUnlockNotice = null;
@@ -501,12 +506,109 @@ let triviaShown = false;
 let couponCanvasCopied = false;
 let bonusWhatsAppOpened = false;
 let triviaAnswered = false;
+let currentTrivia = null;
+let triviaSelectedIndex = null;
+let triviaContinueAction = null;
 let introIndex = 0;
 let introStartedAt = performance.now();
+let introStoryDone = false;
 let transition = null;
 let bossExplosion = null;
 const COUPON_CODE = "RESCUEGAIA";
 const GAME_URL = "https://www.similae.com/pages/pizza-invaders";
+
+const TRIVIA_QUESTIONS = [
+  {
+    id: "mediterranean",
+    minWave: 1,
+    title: "CULTURA MEDITERRANEA",
+    question: ["QUE DEFINE MEJOR", "COMER MEDITERRANEO?"],
+    answers: ["A) VARIEDAD Y MEDIDA", "B) PROHIBIR ALIMENTOS"],
+    correctIndex: 0,
+    explanation: "No se trata de prohibir. Se trata de comer natural, variado y en porciones contenidas."
+  },
+  {
+    id: "portions",
+    minWave: 6,
+    title: "PORCIONES",
+    question: ["COMO COME ALGUIEN", "CON BUEN CRITERIO?"],
+    answers: ["A) GRANDES EXCESOS", "B) POCO Y VARIADO"],
+    correctIndex: 1,
+    explanation: "Comer varias porciones pequenas y variadas permite disfrutar sin caer en exceso."
+  },
+  {
+    id: "pasta",
+    minWave: 11,
+    title: "PASTA AL DENTE",
+    question: ["POR QUE SE VALORA", "LA PASTA AL DENTE?"],
+    answers: ["A) TEXTURA Y DIGESTION", "B) MAS BLANDA ES MEJOR"],
+    correctIndex: 0,
+    explanation: "La pasta al dente respeta textura, coccion y una digestion mas gradual."
+  },
+  {
+    id: "fermentation",
+    minWave: 16,
+    title: "MASA MADRE",
+    question: ["QUE APORTA UNA MASA", "BIEN FERMENTADA?"],
+    answers: ["A) SABOR Y DIGESTION", "B) SOLO RAPIDEZ"],
+    correctIndex: 0,
+    explanation: "La fermentacion bien hecha desarrolla sabor, textura y una masa mas amable."
+  },
+  {
+    id: "water",
+    minWave: 21,
+    title: "BEBIDAS",
+    question: ["QUE HABITO VA MEJOR", "CON UNA BUENA MESA?"],
+    answers: ["A) BEBIDA A DIARIO", "B) AGUA PRIMERO"],
+    correctIndex: 1,
+    explanation: "La sofisticacion tambien esta en no depender del azucar liquido."
+  },
+  {
+    id: "wine",
+    minWave: 26,
+    title: "VINO Y MESA",
+    question: ["EN CULTURA MEDITERRANEA", "COMO SE ENTIENDE EL VINO?"],
+    answers: ["A) EXCESO", "B) COPA MODERADA"],
+    correctIndex: 1,
+    explanation: "En adultos, si se consume, pertenece a un contexto gastronomico y moderado."
+  },
+  {
+    id: "pizza",
+    minWave: 31,
+    title: "PIZZA MEDITERRANEA",
+    question: ["CUANDO UNA PIZZA", "PUEDE SER CULTURA?"],
+    answers: ["A) BUENA MASA", "B) SOLO EXCESO"],
+    correctIndex: 0,
+    explanation: "Buena masa, tomate, aceite de oliva e ingredientes reales cambian la experiencia."
+  },
+  {
+    id: "industrial",
+    minWave: 36,
+    title: "COMIDA INDUSTRIAL",
+    question: ["QUE ALEJA UN ALIMENTO", "DE UNA BUENA MESA?"],
+    answers: ["A) PRESERVANTES", "B) INGREDIENTES SIMPLES"],
+    correctIndex: 0,
+    explanation: "Ultraprocesados, exceso de sodio y sabor artificial empobrecen gusto y habito."
+  },
+  {
+    id: "status",
+    minWave: 41,
+    title: "FALSO ESTATUS",
+    question: ["QUE DEMUESTRA MAS", "CULTURA AL COMER?"],
+    answers: ["A) GASTAR MAS", "B) ELEGIR MEJOR"],
+    correctIndex: 1,
+    explanation: "Comer mejor no siempre cuesta mas. Muchas veces exige mas cultura que dinero."
+  },
+  {
+    id: "criterion",
+    minWave: 46,
+    title: "ALTO CRITERIO",
+    question: ["COMO COME UNA PERSONA", "CON ALTO CRITERIO?"],
+    answers: ["A) MODA Y EXCESO", "B) MEDIDA Y PLACER"],
+    correctIndex: 1,
+    explanation: "La riqueza cultural esta en saber combinar, medir y disfrutar."
+  }
+];
 
 const SHIP_DEFS = {
   luca: {
@@ -573,6 +675,7 @@ function confirmHangarSelection() {
     return;
   }
   resetGame();
+  introStoryDone = false;
   state = "intro";
   introStartedAt = performance.now();
 }
@@ -675,6 +778,19 @@ colinBossImage.src = "assets/PIZZAINVADERS-POPCOLA-BOSS-COLIN.png";
 const pizzaShipV2Image = new Image();
 pizzaShipV2Image.src = "assets/PIZZAINVADERS-PIZZASHIP-NAVE-V2.png";
 
+const characterImages = {
+  gaia: new Image(),
+  luca: new Image(),
+  gino: new Image(),
+  gian: new Image(),
+  paolo: new Image()
+};
+characterImages.gaia.src = "assets/PIZZAINVADERS-CHARACTER-GAIA.png";
+characterImages.luca.src = "assets/PIZZAINVADERS-CHARACTER-LUCA.png";
+characterImages.gino.src = "assets/PIZZAINVADERS-CHARACTER-GINO.png";
+characterImages.gian.src = "assets/PIZZAINVADERS-CHARACTER-GIAN.png";
+characterImages.paolo.src = "assets/PIZZAINVADERS-CHARACTER-PAOLO.png";
+
 // espacio reservado para futuro boss
 // const popColaBossImage = new Image();
 
@@ -707,7 +823,7 @@ function waitForImage(img) {
   });
 }
 function finishLoadingWhenReady() {
-  const assets = [...introImages, candyPlanetImage, pineappleIntroImage, marshmallowHeadImage, marshmallowBackdropImage, marshmallowBossImage, frozenPizzaEnemyImage, frozenPizzaBossImage, similaePowerImage, similaeFaviconImage, similaeFaviconRINGImage];
+  const assets = [...introImages, ...Object.values(characterImages), candyPlanetImage, pineappleIntroImage, marshmallowHeadImage, marshmallowBackdropImage, marshmallowBossImage, frozenPizzaEnemyImage, frozenPizzaBossImage, similaePowerImage, similaeFaviconImage, similaeFaviconRINGImage];
   Promise.all(assets.map(waitForImage)).then(() => {
     const delay = Math.max(0, LOADING_MIN_MS - (performance.now() - loadingStartedAt));
     setTimeout(() => {
@@ -1376,8 +1492,8 @@ function resetGame() {
   player = { x: W/2 - 28, y: H - 88, w: 56, h: 62, speed: shipDef.speed, frozenUntil: 0 };
   bullets = []; enemyBullets = []; enemies = []; particles = []; powerups = []; runnerObstacles = [];
   boss = null; formationOffset = 0; formationDir = 1; formationTick = 0;
-  doubleUntil = 0; shieldUntil = selectedShipId === "gaia" ? performance.now() + 6500 : 0; speedUntil = 0; similaeModeUntil = 0; attackCooldown = 80; runnerObstacleTick = 0; shipVolleyCount = 0;
-  couponShown = false; pendingBoss = false; triviaShown = false; triviaAnswered = false; pineappleIntroShown = false; candyIntroShown = false; freezerTransmissionShown = false;
+  doubleUntil = 0; shieldUntil = selectedShipId === "gaia" ? performance.now() + 6500 : 0; speedUntil = 0; similaeModeUntil = 0; attackCooldown = 80; runnerObstacleTick = 0; runnerDistance = 0; tunnelObstacleTick = 0; tunnelDistance = 0; dashVelocityY = 0; dashJumpQueued = false; shipVolleyCount = 0;
+  couponShown = false; pendingBoss = false; triviaShown = false; triviaAnswered = false; currentTrivia = null; triviaSelectedIndex = null; triviaContinueAction = null; pineappleIntroShown = false; candyIntroShown = false; freezerTransmissionShown = false;
   candyMarshmallowBackdropStartedAt = 0; candyMarshmallowBackdropPlayed = false; candyMarshmallowThreat = null;
   stars = Array.from({length: 150}, () => {
     const layer = Math.random() < .5 ? 0 : (Math.random() < .72 ? 1 : 2);
@@ -1482,16 +1598,19 @@ function createWave() {
       });
     }
   }
-  if (wave >= 31) {
+  if (wave >= 31 && wave < 36) {
     const lanes = [-1.08, -.36, .36, 1.08];
     enemies.forEach((e, i) => {
       e.mode = "road";
-      e.roadLane = lanes[i % lanes.length] + (Math.random() - .5) * .12;
+      e.roadLaneIndex = i % lanes.length;
+      e.roadLane = lanes[e.roadLaneIndex] + (Math.random() - .5) * .10;
+      e.targetRoadLane = lanes[e.roadLaneIndex];
       e.depth = -0.18 - Math.floor(i / lanes.length) * .16 - Math.random() * .18;
       e.w = 42;
       e.h = 54;
       e.hp = Math.max(e.hp, 2);
       e.shootTimer = 120 + Math.random() * 150;
+      e.laneChangeTimer = 90 + Math.random() * 170;
       e.roadSpeed = 0.0068 + Math.random() * .0025;
     });
   }
@@ -1856,9 +1975,12 @@ function drawWorldMapV12(activeIndex = 0, statusText = "SIGUIENTE DESTINO") {
   ctx.restore();
 }
 
-function showTrivia() {
+function showTrivia(afterAction) {
   triviaShown = true;
   triviaAnswered = false;
+  triviaSelectedIndex = null;
+  currentTrivia = getTriviaForWave(wave);
+  triviaContinueAction = typeof afterAction === "function" ? afterAction : null;
   state = "trivia";
   touchControl.autoFire = false;
   touchControl.active = false;
@@ -1868,15 +1990,32 @@ function showTrivia() {
   if (triviaContinueBtn) triviaContinueBtn.style.display = "none";
 }
 
-function answerTrivia(isCorrect) {
+function showTriviaInterlude(afterAction) {
+  showTransition("TRIVIA SIMILAE", "CULTURA MEDITERRANEA", () => showTrivia(afterAction), 1800);
+  transition.drawCustom = drawTriviaIntroV12;
+}
+
+function getTriviaForWave(targetWave) {
+  let selected = TRIVIA_QUESTIONS[0];
+  for (const question of TRIVIA_QUESTIONS) {
+    if (targetWave >= question.minWave) selected = question;
+  }
+  return selected;
+}
+
+function answerTrivia(choice) {
   if (triviaAnswered) return;
+  const trivia = currentTrivia || getTriviaForWave(wave);
+  const selectedIndex = typeof choice === "number" ? choice : (choice ? 0 : 1);
+  const isCorrect = selectedIndex === trivia.correctIndex;
   triviaAnswered = true;
+  triviaSelectedIndex = selectedIndex;
 
   if (isCorrect) {
     score += 500;
-    if (triviaResult) triviaResult.innerHTML = "★ CORRECTO ★<br>+500 PUNTOS<br><br>Sigues acercándote a Gaia.<br><br>Dato educativo:<br>Un pequeño puñado de frutos secos puede ser una colación saludable.";
+    if (triviaResult) triviaResult.innerHTML = "CORRECTO<br>+500 PUNTOS<br><br>" + trivia.explanation;
   } else {
-    if (triviaResult) triviaResult.innerHTML = "APRENDISTE ALGO NUEVO<br><br>Las nueces y almendras son una mejor opción para cuidar el corazón.<br><br>Sigues en la misión.";
+    if (triviaResult) triviaResult.innerHTML = "APRENDISTE ALGO NUEVO<br><br>" + trivia.explanation;
   }
 
   if (triviaBtnA) triviaBtnA.style.display = "none";
@@ -1990,6 +2129,13 @@ function continueAfterBonusCoupon() {
 
 function continueAfterTrivia() {
   hideOverlays();
+  if (triviaContinueAction) {
+    const action = triviaContinueAction;
+    triviaContinueAction = null;
+    action();
+    return;
+  }
+
   if (!couponShown) {
     couponShown = true;
     couponCanvasCopied = false;
@@ -2343,13 +2489,13 @@ if (state === "popColaIntro") {
   const pt = canvasPointFromEvent(e);
 
   if (!triviaAnswered) {
-    if (pt.x >= 95 && pt.x <= 445 && pt.y >= 525 && pt.y <= 581) {
-      answerTrivia(true);
+    if (pt.x >= 80 && pt.x <= 460 && pt.y >= 430 && pt.y <= 492) {
+      answerTrivia(0);
       return;
     }
 
-    if (pt.x >= 95 && pt.x <= 445 && pt.y >= 600 && pt.y <= 656) {
-      answerTrivia(false);
+    if (pt.x >= 80 && pt.x <= 460 && pt.y >= 515 && pt.y <= 577) {
+      answerTrivia(1);
       return;
     }
   } else {
@@ -2369,6 +2515,10 @@ if (state === "popColaIntro") {
     touchControl.active = false;
     touchControl.targetX = null;
     touchControl.targetY = null;
+    return;
+  }
+  if (state === "play" && isGaiaTunnelStage()) {
+    queueDashJump();
     return;
   }
   if (state !== "play") { resetGame(); state = "play"; }
@@ -2402,8 +2552,8 @@ function endTouch(e) {
 copyCouponBtn && copyCouponBtn.addEventListener("click", copyCoupon);
 couponShareBtn && couponShareBtn.addEventListener("click", shareCouponWhatsApp);
 continueBossBtn && continueBossBtn.addEventListener("click", continueToBoss);
-triviaBtnA && triviaBtnA.addEventListener("click", () => answerTrivia(true));
-triviaBtnB && triviaBtnB.addEventListener("click", () => answerTrivia(false));
+triviaBtnA && triviaBtnA.addEventListener("click", () => answerTrivia(0));
+triviaBtnB && triviaBtnB.addEventListener("click", () => answerTrivia(1));
 triviaContinueBtn && triviaContinueBtn.addEventListener("click", continueAfterTrivia);
 bonusCouponBtn && bonusCouponBtn.addEventListener("click", requestBonusCouponWhatsApp);
 bonusContinueBtn && bonusContinueBtn.addEventListener("click", continueAfterBonusCoupon);
@@ -2708,11 +2858,23 @@ function drawFrozenCircuitWays(now) {
 }
 
 function isRunnerStage() {
-  return wave >= 31 && state === "play" && !boss;
+  return wave >= 31 && wave < 36 && state === "play" && !boss;
+}
+
+function isGaiaTunnelStage() {
+  return false;
+}
+
+function dashGroundY() {
+  return H - 112;
+}
+
+function queueDashJump() {
+  if (isGaiaTunnelStage()) dashJumpQueued = true;
 }
 
 function spawnRunnerObstacle() {
-  const lanes = [-1.15, -.38, .38, 1.15];
+  const lanes = [-1.25, -.42, .42, 1.25];
   const lane = lanes[Math.floor(Math.random() * lanes.length)];
   const depth = 0.08 + Math.random() * 0.08;
   const kindRoll = Math.random();
@@ -2723,23 +2885,29 @@ function spawnRunnerObstacle() {
     y: H * depth,
     w: 28,
     h: 28,
-    vy: 0.008 + Math.min(0.0045, (wave - 31) * 0.00035) + Math.random() * 0.003,
+    vy: 0.009 + Math.min(0.005, (wave - 31) * 0.0004) + Math.random() * 0.003,
     drift: (Math.random() - 0.5) * 0.0009,
     phase: Math.random() * Math.PI * 2,
-    type: kindRoll < 0.45 ? "shrub" : (kindRoll < 0.78 ? "rock" : "barrel")
+    type: kindRoll < 0.34 ? "shrub" : (kindRoll < 0.58 ? "rock" : (kindRoll < 0.80 ? "cone" : "barrel"))
   });
 }
 
 function updateRunnerObstacles() {
+  if (isGaiaTunnelStage()) {
+    updateTunnelObstacles();
+    return;
+  }
   if (!isRunnerStage()) {
     runnerObstacles = [];
     return;
   }
 
   runnerObstacleTick--;
-  if (runnerObstacleTick <= 0 && runnerObstacles.length < 10) {
+  runnerDistance += 0.22 + Math.min(0.08, (wave - 31) * 0.01);
+
+  if (runnerObstacleTick <= 0 && runnerObstacles.length < 12) {
     spawnRunnerObstacle();
-    runnerObstacleTick = 24 + Math.random() * 30;
+    runnerObstacleTick = 18 + Math.random() * 26;
   }
 
   for (const o of runnerObstacles) {
@@ -2749,9 +2917,9 @@ function updateRunnerObstacles() {
     const roadWidth = 42 + perspective * 355;
     const laneX = W / 2 + o.lane * roadWidth * 0.42;
     const scale = 0.42 + perspective * 2.45;
-    const base = o.type === "barrel" ? 24 : (o.type === "rock" ? 30 : 34);
+    const base = o.type === "barrel" ? 24 : (o.type === "cone" ? 22 : (o.type === "rock" ? 30 : 34));
     o.w = base * scale;
-    o.h = (o.type === "shrub" ? 26 : base) * scale;
+    o.h = (o.type === "shrub" ? 26 : (o.type === "cone" ? 34 : base)) * scale;
     o.x = laneX - o.w / 2;
     o.y = H * (0.06 + perspective * 1.08);
   }
@@ -2771,6 +2939,10 @@ function drawRunnerObstacle(o) {
     px(o.x + o.w*.12, o.y + o.h*.22, o.w*.72, o.h*.58, "#6f7370");
     px(o.x + o.w*.24, o.y + o.h*.12, o.w*.44, o.h*.34, "#9aa09b");
     px(o.x + o.w*.58, o.y + o.h*.34, o.w*.22, o.h*.20, "#4b514e");
+  } else if (o.type === "cone") {
+    px(o.x + o.w*.30, o.y + o.h*.16, o.w*.40, o.h*.66, "#ff8a2a");
+    px(o.x + o.w*.18, o.y + o.h*.72, o.w*.64, o.h*.14, "#f2f2df");
+    px(o.x + o.w*.36, o.y + o.h*.42, o.w*.28, o.h*.10, "#f2f2df");
   } else {
     px(o.x + o.w*.18, o.y + o.h*.12, o.w*.64, o.h*.76, "#b45532");
     px(o.x + o.w*.16, o.y + o.h*.08, o.w*.68, o.h*.16, "#f0b05a");
@@ -2780,10 +2952,118 @@ function drawRunnerObstacle(o) {
   ctx.restore();
 }
 
+function spawnTunnelGate() {
+  const roll = Math.random();
+  const ground = dashGroundY();
+  const type = roll < .48 ? "dashSpike" : (roll < .78 ? "dashBlock" : "dashPlatform");
+  const w = type === "dashSpike" ? 38 : (type === "dashPlatform" ? 92 : 46);
+  const h = type === "dashSpike" ? 42 : (type === "dashPlatform" ? 18 : 46);
+  runnerObstacles.push({
+    type,
+    x: W + 40,
+    y: type === "dashPlatform" ? ground - 106 - Math.random() * 42 : ground - h,
+    w,
+    h,
+    vx: 5.6 + Math.min(1.5, tunnelDistance / 420),
+    color: type === "dashSpike" ? "#f25191" : (type === "dashPlatform" ? "#56e8ff" : "#ffcc33")
+  });
+}
+
+function updateTunnelObstacles() {
+  if (!isGaiaTunnelStage()) return;
+  tunnelDistance += .62;
+  tunnelObstacleTick--;
+  if (tunnelObstacleTick <= 0 && runnerObstacles.length < 9) {
+    spawnTunnelGate();
+    tunnelObstacleTick = 46 + Math.random() * 34;
+  }
+
+  for (const o of runnerObstacles) {
+    o.x -= o.vx || 6;
+  }
+  runnerObstacles = runnerObstacles.filter(o => o.x + o.w > -40);
+}
+
+function drawTunnelObstacle(o) {
+  ctx.save();
+  ctx.globalAlpha = .96;
+  px(o.x + 4, o.y + o.h + 4, o.w - 8, 8, "rgba(0,0,0,.28)");
+  if (o.type === "dashSpike") {
+    ctx.fillStyle = o.color;
+    ctx.beginPath();
+    ctx.moveTo(o.x, o.y + o.h);
+    ctx.lineTo(o.x + o.w / 2, o.y);
+    ctx.lineTo(o.x + o.w, o.y + o.h);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  } else {
+    px(o.x, o.y, o.w, o.h, o.color);
+    px(o.x + 4, o.y + 4, Math.max(6, o.w - 8), Math.max(5, o.h - 8), "rgba(5,7,15,.32)");
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(o.x, o.y, o.w, o.h);
+  }
+  ctx.restore();
+}
+
 function drawBackground() {
-  const isRunnerStageBackground = wave >= 31;
+  const isRunnerStageBackground = wave >= 31 && wave < 36;
+  const isGaiaTunnelStageBackground = false;
   const isPopColaStage = wave >= 26;
   const isFrozenPizzaStage = wave >= 21 && wave < 26;
+
+  if (isGaiaTunnelStageBackground) {
+    const now = performance.now();
+    const ground = dashGroundY();
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, "#101034");
+    grad.addColorStop(.58, "#25104d");
+    grad.addColorStop(1, "#070814");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.save();
+    const shift = (now * .18) % 64;
+    ctx.globalAlpha = .24;
+    ctx.strokeStyle = "#56e8ff";
+    ctx.lineWidth = 1;
+    for (let x=-64 + shift; x<W+64; x+=64) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x - 80, ground);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = .16;
+    for (let y=40; y<ground; y+=54) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y);
+      ctx.stroke();
+    }
+
+    ctx.globalAlpha = .95;
+    px(0, ground, W, H - ground, "#050510");
+    px(0, ground, W, 6, "#f25191");
+    px(0, ground + 6, W, 4, "#56e8ff");
+
+    const tileShift = (now * .22) % 48;
+    for (let x=-48 + tileShift; x<W+48; x+=48) {
+      ctx.globalAlpha = .35;
+      px(x, ground + 12, 4, H - ground - 12, "#241047");
+    }
+
+    ctx.globalAlpha = .65;
+    ctx.fillStyle = "#f25191";
+    ctx.font = "bold 15px Courier New";
+    ctx.textAlign = "left";
+    ctx.fillText("GAIA DASH", 18, 108);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    return;
+  }
 
   if (isRunnerStageBackground) {
     const now = performance.now();
@@ -2828,17 +3108,33 @@ function drawBackground() {
     ctx.lineTo(W * .93, H);
     ctx.stroke();
 
+    ctx.strokeStyle = "rgba(255,232,160,.28)";
+    ctx.lineWidth = 2;
+    for (let lane=-1; lane<=1; lane++) {
+      const topX = W / 2 + lane * 18;
+      const bottomX = W / 2 + lane * 150;
+      ctx.beginPath();
+      ctx.moveTo(topX, 0);
+      ctx.lineTo(bottomX, H);
+      ctx.stroke();
+    }
+
     const dashShift = (now * .58) % 150;
-    for (let i=-1; i<8; i++) {
-      const y = i * 150 + dashShift;
+    for (let i=-2; i<9; i++) {
+      const y = i * 126 + dashShift;
       const t = Math.max(.05, Math.min(1, y / H));
-      const dashH = 28 + t * 62;
+      const dashH = 18 + t * 78;
       const dashW = 4 + t * 8;
-      ctx.globalAlpha = .18 + t * .36;
+      ctx.globalAlpha = .14 + t * .45;
       px(W / 2 - dashW / 2, y, dashW, dashH, "#ffe8a0");
       const sideW = 2 + t * 4;
-      px(W / 2 - t * 145, y + 12, sideW, dashH * .8, "#dfffd1");
-      px(W / 2 + t * 145, y + 12, sideW, dashH * .8, "#dfffd1");
+      px(W / 2 - t * 185, y + 12, sideW, dashH * .8, "#dfffd1");
+      px(W / 2 + t * 185, y + 12, sideW, dashH * .8, "#dfffd1");
+      if (i % 2 === 0) {
+        ctx.globalAlpha = .08 + t * .16;
+        px(W / 2 - t * 330, y + dashH, t * 95, 3 + t * 5, "#f5d489");
+        px(W / 2 + t * 235, y + dashH, t * 95, 3 + t * 5, "#f5d489");
+      }
     }
 
     ctx.globalAlpha = .18;
@@ -2998,10 +3294,28 @@ function addEnemyBullet(x,y,type,vx=0,vy=4.4) {
 
 function updatePlayer() {
   const now = performance.now();
+  if (isGaiaTunnelStage()) {
+    const ground = dashGroundY();
+    const grounded = player.y >= ground - player.h - 1;
+    player.x += (104 - player.x) * .12;
+    if ((dashJumpQueued || keys.Space || keys.ArrowUp) && grounded) {
+      dashVelocityY = -14.2;
+      explode(player.x + player.w / 2, player.y + player.h, "#56e8ff", { count: 8, speed: 4, shape: "spark", size: 4, life: 16 });
+    }
+    dashJumpQueued = false;
+    dashVelocityY += .72;
+    player.y += dashVelocityY;
+    if (player.y > ground - player.h) {
+      player.y = ground - player.h;
+      dashVelocityY = 0;
+    }
+    player.x = Math.max(60, Math.min(150, player.x));
+    return;
+  }
   let sp = now < speedUntil ? 8.5 : player.speed;
   if (now < player.frozenUntil) sp *= 0.52;
 
-  const minY = isRunnerStage() ? H * 0.56 : H * 0.72;
+  const minY = (isRunnerStage() || isGaiaTunnelStage()) ? H * 0.56 : H * 0.72;
   const maxY = H - player.h - 8;
   const horizontalWrapActive = wave >= 16;
 
@@ -3043,10 +3357,19 @@ function updatePlayer() {
 
 function updateGroundEnemies() {
   const now = performance.now();
+  const lanes = [-1.08, -.36, .36, 1.08];
   for (let i=enemies.length-1; i>=0; i--) {
     const e = enemies[i];
     e.depth += e.roadSpeed || .007;
-    e.roadLane += Math.sin(now * .0018 + e.phase) * .0016;
+    e.laneChangeTimer--;
+    if (e.laneChangeTimer <= 0 && e.depth > .12 && e.depth < .82) {
+      const direction = Math.random() < .5 ? -1 : 1;
+      e.roadLaneIndex = Math.max(0, Math.min(lanes.length - 1, (e.roadLaneIndex || 0) + direction));
+      e.targetRoadLane = lanes[e.roadLaneIndex];
+      e.laneChangeTimer = 120 + Math.random() * 190;
+    }
+    e.roadLane += ((e.targetRoadLane ?? e.roadLane) - e.roadLane) * .025;
+    e.roadLane += Math.sin(now * .0018 + e.phase) * .0008;
     const t = Math.max(.05, e.depth);
     const perspective = Math.max(.05, t * t);
     const roadWidth = 42 + perspective * 355;
@@ -3065,7 +3388,50 @@ function updateGroundEnemies() {
   }
 }
 
+function updateTunnelEnemies() {
+  const now = performance.now();
+  const lanes = [-.82, -.28, .28, .82];
+  for (let i=enemies.length-1; i>=0; i--) {
+    const e = enemies[i];
+    e.depth += e.tunnelSpeed || .008;
+    e.laneChangeTimer--;
+    if (e.laneChangeTimer <= 0 && e.depth > .08 && e.depth < .76) {
+      const direction = Math.random() < .5 ? -1 : 1;
+      e.tunnelLaneIndex = Math.max(0, Math.min(lanes.length - 1, (e.tunnelLaneIndex || 0) + direction));
+      e.targetTunnelLane = lanes[e.tunnelLaneIndex];
+      e.laneChangeTimer = 95 + Math.random() * 150;
+    }
+    e.tunnelLane += ((e.targetTunnelLane ?? e.tunnelLane) - e.tunnelLane) * .03;
+    e.tunnelLane += Math.sin(now * .002 + e.phase) * .0007;
+    const t = Math.max(.04, e.depth);
+    const perspective = Math.max(.04, t * t);
+    const tunnelWidth = 50 + perspective * 430;
+    const scale = .32 + perspective * 2.2;
+    e.w = (e.type === "frozenpizza" ? 46 : 36) * scale;
+    e.h = (e.type === "frozenpizza" ? 52 : 40) * scale;
+    e.x = W / 2 + e.tunnelLane * tunnelWidth * .42 - e.w / 2;
+    e.y = H * (.07 + perspective * 1.08);
+    e.shootTimer--;
+    if (e.shootTimer < 0 && e.depth > .30 && e.depth < .98) {
+      addEnemyBullet(e.x + e.w / 2, e.y + e.h * .55, e.data.bullet, 0, 3.35);
+      e.shootTimer = 135 + Math.random() * 130;
+    }
+    if (e.depth > 1.20 || e.y > H + 70) enemies.splice(i, 1);
+  }
+}
+
 function updateEnemies() {
+  if (isGaiaTunnelStage()) {
+    if (tunnelDistance >= 1100 && state === "play") {
+      showTransition("GAIA DASH", "SENAL LOCALIZADA", () => {
+        state = "gaiaRescued";
+        touchControl.autoFire = false;
+        touchControl.active = false;
+      }, 1800);
+      transition.drawCustom = () => drawStageCompleteV12("GAIA DASH", "La señal de Gaia fue localizada al final del corredor.");
+    }
+    return;
+  }
   if (isRunnerStage()) {
     updateGroundEnemies();
     if (!enemies.length && !boss && state === "play") {
@@ -3488,30 +3854,38 @@ function updateCollisions() {
           }
 
           if (defeatedBoss.type === "frozenPizzaBoss") {
-            showWorldMapTransition(
-              4,
-              "DESTINO: POPCOLA KING",
-              () => {
-                state = "popColaIntro";
-              },
-              2300
-            );
+            showTriviaInterlude(() => {
+              showWorldMapTransition(
+                4,
+                "DESTINO: POPCOLA KING",
+                () => {
+                  state = "popColaIntro";
+                },
+                2300
+              );
+            });
           } else if (defeatedBoss.type === "popsicleBoss" && !couponShown) {
             showTransition("", "", showTrivia, 3200);
             transition.drawCustom = drawGaiaMessageV12;
           
           } else if (defeatedBoss.type === "colaBoss" && !pineappleIntroShown) {
-            showWorldMapTransition(1, "DESTINO: PLANETA PIÑA", showPineappleIntro, 2300);
+            showTriviaInterlude(() => {
+              showWorldMapTransition(1, "DESTINO: PLANETA PIÑA", showPineappleIntro, 2300);
+            });
           } else if (!candyIntroShown && wave >= 15) {
-            showWorldMapTransition(2, "DESTINO: CANDY PLANET", showCandyPlanetIntro, 2300);
+            showTriviaInterlude(() => {
+              showWorldMapTransition(2, "DESTINO: CANDY PLANET", showCandyPlanetIntro, 2300);
+            });
           } else if (defeatedBoss.type === "marshmallowBoss" && !freezerTransmissionShown) {
-            showTransition("MARSHMALLOW DERROTADO", "BONUS $10.000|DESBLOQUEADO", () => {
-              bonusWhatsAppOpened = false;
-              state = "bonusCoupon";
-              touchControl.autoFire = false;
-              touchControl.active = false;
-            }, 2100);
-            transition.drawCustom = () => drawStageCompleteV12("MARSHMALLOW DERROTADO", "Recompensa desbloqueada. Cupón especial disponible.");
+            showTriviaInterlude(() => {
+              showTransition("MARSHMALLOW DERROTADO", "BONUS $10.000|DESBLOQUEADO", () => {
+                bonusWhatsAppOpened = false;
+                state = "bonusCoupon";
+                touchControl.autoFire = false;
+                touchControl.active = false;
+              }, 2100);
+              transition.drawCustom = () => drawStageCompleteV12("MARSHMALLOW DERROTADO", "Recompensa desbloqueada. Cupón especial disponible.");
+            });
           }
 
            else {
@@ -3562,10 +3936,13 @@ function updateCollisions() {
 
   for (let oi=runnerObstacles.length-1; oi>=0; oi--) {
     const o = runnerObstacles[oi];
-    const obstacleHitbox = { x:o.x + 7, y:o.y + 7, w:o.w - 14, h:o.h - 14 };
+    const inset = o.type && o.type.startsWith("dash") ? 8 : (o.type === "tunnelWall" ? 3 : 7);
+    const obstacleHitbox = o.type === "dashSpike"
+      ? { x:o.x + 9, y:o.y + o.h * .34, w:o.w - 18, h:o.h * .60 }
+      : { x:o.x + inset, y:o.y + inset, w:o.w - inset * 2, h:o.h - inset * 2 };
     if (hitRect(player, obstacleHitbox)) {
       runnerObstacles.splice(oi, 1);
-      explode(o.x + o.w / 2, o.y + o.h / 2, "#72e6ff", { count: 18, speed: 7, shape: "shard", size: 8 });
+      explode(o.x + o.w / 2, o.y + o.h / 2, o.type && o.type.startsWith("dash") ? "#f25191" : (o.type === "tunnelWall" ? "#f25191" : "#72e6ff"), { count: 18, speed: 7, shape: "shard", size: 8 });
       hurtPlayer();
     }
   }
@@ -3722,14 +4099,49 @@ function drawGroundPlayerWheels() {
   ctx.restore();
 }
 
+function drawDashPlayer() {
+  const def = SHIP_DEFS[selectedShipId] || SHIP_DEFS.luca;
+  const cx = player.x + player.w / 2;
+  const cy = player.y + player.h / 2;
+  const ground = dashGroundY();
+  const grounded = player.y >= ground - player.h - 1;
+  const rotation = grounded ? 0 : tunnelDistance * .11;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rotation);
+  px(-25, -25, 50, 50, def.color);
+  px(-20, -20, 40, 40, "#ffd344");
+  px(-17, 13, 34, 8, "#c96c27");
+  px(-18, -22, 36, 6, "#ffffff");
+  px(-12, -4, 8, 8, "#050510");
+  px(7, -4, 8, 8, "#050510");
+  px(-7, 10, 14, 4, "#050510");
+  ctx.strokeStyle = "#050510";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(-25, -25, 50, 50);
+  ctx.restore();
+
+  if (!grounded) {
+    ctx.save();
+    ctx.globalAlpha = .42;
+    px(player.x + 12, player.y + player.h + 4, player.w - 24, 5, "#56e8ff");
+    ctx.restore();
+  }
+}
+
 function drawAll() {
   drawMarshmallowBackdropPass("back");
   if (runnerObstacles && runnerObstacles.length) {
-    for (const o of runnerObstacles) drawRunnerObstacle(o);
+    for (const o of runnerObstacles) {
+      if (o.type === "tunnelWall" || (o.type && o.type.startsWith("dash"))) drawTunnelObstacle(o);
+      else drawRunnerObstacle(o);
+    }
   }
 
-  if (isRunnerStage()) drawGroundPlayerShadow();
-  drawCharacterShip(selectedShipId, player.x, player.y, 1);
+  if (isRunnerStage() || isGaiaTunnelStage()) drawGroundPlayerShadow();
+  if (isGaiaTunnelStage()) drawDashPlayer();
+  else drawCharacterShip(selectedShipId, player.x, player.y, 1);
   if (isRunnerStage()) drawGroundPlayerWheels();
 
   for (const b of bullets) drawShot(b.type || "cheese", b.x, b.y, true);
@@ -3755,6 +4167,39 @@ function drawAll() {
   ctx.fillStyle = "white";
   ctx.font = "19px Arial";
   ctx.fillText("Oleada: " + wave, W-118, 28);
+  if (isRunnerStage()) {
+    const distanceGoal = 1200;
+    const progress = Math.min(1, runnerDistance / distanceGoal);
+    ctx.save();
+    ctx.fillStyle = "rgba(5,7,15,.82)";
+    ctx.fillRect(W - 178, 42, 150, 34);
+    ctx.strokeStyle = "#ffe8a0";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(W - 178, 42, 150, 34);
+    ctx.fillStyle = "#3a9a4e";
+    ctx.fillRect(W - 170, 64, 134 * progress, 5);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 12px Courier New";
+    ctx.textAlign = "center";
+    ctx.fillText("RUTA " + Math.floor(runnerDistance) + "m", W - 103, 58);
+    ctx.restore();
+  }
+  if (isGaiaTunnelStage()) {
+    const progress = Math.min(1, tunnelDistance / 1100);
+    ctx.save();
+    ctx.fillStyle = "rgba(5,7,15,.82)";
+    ctx.fillRect(W - 188, 42, 160, 34);
+    ctx.strokeStyle = "#f25191";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(W - 188, 42, 160, 34);
+    ctx.fillStyle = "#f25191";
+    ctx.fillRect(W - 180, 64, 144 * progress, 5);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 12px Courier New";
+    ctx.textAlign = "center";
+    ctx.fillText("DASH " + Math.floor(progress * 100) + "%", W - 108, 58);
+    ctx.restore();
+  }
   ctx.save();
   ctx.fillStyle = "rgba(5,7,15,.9)";
   ctx.fillRect(220, 8, 100, 36);
@@ -3976,7 +4421,191 @@ function drawCanvasIntroGuide() {
   ctx.restore();
 }
 
+function drawIntroCharacterImage(id, cx, cy, maxW, maxH) {
+  const img = characterImages[id];
+  if (!img || !img.complete || !img.naturalWidth) {
+    drawCharacterShip(id === "gaia" ? "gaia" : id, cx - 42, cy - 42, 1.5, false);
+    return;
+  }
+  const scale = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
+  const iw = img.naturalWidth * scale;
+  const ih = img.naturalHeight * scale;
+  ctx.drawImage(img, cx - iw / 2, cy - ih / 2, iw, ih);
+}
+
+function drawIntroStoryCrawl() {
+  px(0, 0, W, H, "#02040d");
+  drawV12Stars();
+
+  const elapsed = performance.now() - introStartedAt;
+  const pageDuration = 6500;
+  const storyPages = [
+    {
+      title: "GAIA FUE CAPTURADA",
+      lines: [
+        "Gaia es una pizza natural,",
+        "mediterranea y bien hecha.",
+        "",
+        "Pop Cola la quiere transformar."
+      ]
+    },
+    {
+      title: "EL PLAN ENEMIGO",
+      lines: [
+        "Quieren añadirle piña,",
+        "congelarla y casarla con Colin,",
+        "hijo del imperio Pop Cola."
+      ]
+    },
+    {
+      title: "EL COMBO FINAL",
+      lines: [
+        "Si lo logran, Gaia sera parte",
+        "del combo industrial definitivo:",
+        "",
+        "pizza congelada + bebida azucarada."
+      ]
+    },
+    {
+      title: "LOS AMIGOS DE GAIA",
+      lines: [
+        "Luca, Gino, Gian y Paolo",
+        "son pizzas italianas naturales,",
+        "digeribles y con criterio."
+      ]
+    },
+    {
+      title: "LA MISION",
+      lines: [
+        "Rescatar a Gaia es defender",
+        "la cultura de comer bien:",
+        "",
+        "variedad, medida y buenos ingredientes."
+      ]
+    },
+    {
+      character: "gaia",
+      title: "GAIA",
+      subtitle: "LA PIZZA CAPTURADA",
+      color: "#f25191",
+      lines: [
+        "Natural, mediterranea y completa.",
+        "Pop Cola quiere convertirla",
+        "en un combo industrial."
+      ]
+    },
+    {
+      character: "luca",
+      title: "LUCA",
+      subtitle: "PEPPERONI",
+      color: "#e12525",
+      lines: [
+        "Energia directa.",
+        "Dispara con caracter italiano",
+        "y no le teme al frente."
+      ]
+    },
+    {
+      character: "gino",
+      title: "GINO",
+      subtitle: "ALBAHACA",
+      color: "#36b84b",
+      lines: [
+        "Fresco, rapido y aromatico.",
+        "Cree en el equilibrio",
+        "antes que en el exceso."
+      ]
+    },
+    {
+      character: "gian",
+      title: "GIAN",
+      subtitle: "CHAMPIÑON",
+      color: "#1767c7",
+      lines: [
+        "Preciso y resistente.",
+        "Prefiere hacer menos ruido",
+        "y pegar donde importa."
+      ]
+    },
+    {
+      character: "paolo",
+      title: "PAOLO",
+      subtitle: "PROSCIUTTO CRUDO",
+      color: "#7445a7",
+      lines: [
+        "Elegante y decidido.",
+        "Sabe que el verdadero sabor",
+        "no necesita exagerar."
+      ]
+    }
+  ];
+  const pageIndex = Math.min(storyPages.length - 1, Math.floor(elapsed / pageDuration));
+  const page = storyPages[pageIndex];
+  const pageElapsed = elapsed - pageIndex * pageDuration;
+  const fadeIn = Math.min(1, pageElapsed / 650);
+  const fadeOut = Math.min(1, (pageDuration - pageElapsed) / 650);
+  const alpha = Math.max(0, Math.min(fadeIn, fadeOut));
+
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.globalAlpha = alpha;
+
+  ctx.font = "900 34px Courier New";
+  ctx.fillStyle = "#ffcc33";
+  ctx.fillText("PIZZA INVADERS", W / 2, 118);
+
+  if (page.character) {
+    drawIntroCharacterImage(page.character, W / 2, 315, 300, 300);
+    ctx.font = "900 42px Arial Black";
+    ctx.fillStyle = page.color || "#ffffff";
+    ctx.fillText(page.title, W / 2, 522);
+    ctx.font = "900 20px Courier New";
+    ctx.fillStyle = "#ffcc33";
+    ctx.fillText(page.subtitle, W / 2, 558);
+    ctx.font = "bold 21px Arial";
+    ctx.fillStyle = "#ffffff";
+    let y = 612;
+    page.lines.forEach((line) => {
+      ctx.fillText(line, W / 2, y);
+      y += 31;
+    });
+  } else {
+    ctx.font = "900 36px Arial Black";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(page.title, W / 2, 250);
+
+    ctx.font = "bold 25px Arial";
+    ctx.fillStyle = "#ffcc33";
+    let y = 332;
+    page.lines.forEach((line) => {
+      if (line) ctx.fillText(line, W / 2, y);
+      y += 42;
+    });
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.globalAlpha = .78;
+  ctx.font = "bold 15px Arial";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(`${pageIndex + 1}/${storyPages.length}`, W / 2, H - 78);
+  ctx.fillText("La mision comienza...", W / 2, H - 48);
+  ctx.restore();
+
+  if (elapsed > storyPages.length * pageDuration) {
+    introStoryDone = true;
+    introStartedAt = performance.now();
+  }
+}
+
 function drawIntroScreen() {
+  if (!introStoryDone) {
+    drawIntroStoryCrawl();
+    drawFullscreenHint();
+    return;
+  }
+
   if (introIndex === 2) {
     drawCanvasIntroGuide();
     const elapsed = performance.now() - introStartedAt;
@@ -4034,6 +4663,53 @@ function drawV12Backdrop(tint = "rgba(120,0,255,0.20)", darkness = 0.55) {
   g.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
+
+  drawV12Stars();
+}
+
+function drawTriviaBackdropV12() {
+  drawBackground();
+  ctx.fillStyle = "rgba(0,0,0,0.72)";
+  ctx.fillRect(0, 0, W, H);
+
+  const glow = ctx.createRadialGradient(W / 2, 270, 20, W / 2, 270, 380);
+  glow.addColorStop(0, "rgba(122,154,54,0.32)");
+  glow.addColorStop(0.55, "rgba(95,62,22,0.24)");
+  glow.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.save();
+  ctx.globalAlpha = .16;
+  ctx.strokeStyle = "#ffcc33";
+  ctx.lineWidth = 1;
+  for (let x = -W; x < W * 2; x += 38) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x + W, H);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = "#9dbf40";
+  for (let x = 0; x < W * 2; x += 54) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x - W, H);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = .23;
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 8;
+  ctx.beginPath();
+  ctx.arc(W / 2, 156, 54, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(W / 2, 156, 34, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
 
   drawV12Stars();
 }
@@ -4343,21 +5019,47 @@ function drawGaiaMessageV12() {
   ctx.restore();
 }
 
+function drawTriviaIntroV12() {
+  drawTriviaBackdropV12();
+
+  ctx.save();
+  ctx.textAlign = "center";
+
+  if (similaeLogoImage && similaeLogoImage.complete) {
+    ctx.drawImage(similaeLogoImage, W / 2 - 88, 92, 176, 70);
+  }
+
+  ctx.font = "bold 18px Courier New";
+  ctx.fillStyle = "#9dbf40";
+  ctx.fillText("PAUSA DE CRITERIO", W / 2, 235);
+
+  ctx.font = "bold 40px Arial Black";
+  ctx.fillStyle = "#ffcc33";
+  ctx.fillText("TRIVIA", W / 2, 308);
+  ctx.fillText("MEDITERRANEA", W / 2, 358);
+
+  ctx.font = "bold 22px Arial";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText("Comer bien tambien es cultura.", W / 2, 438);
+
+  ctx.font = "bold 18px Arial";
+  ctx.fillStyle = "#9dbf40";
+  ctx.fillText("Variedad, medida y buenos ingredientes.", W / 2, 480);
+  ctx.restore();
+}
+
 /// FUNCTION BOTONES ///
 function drawTriviaButtonV12(x, y, w, h, text) {
   ctx.save();
-  px(x + 6, y + 6, w, h, "rgba(0,0,0,0.5)");
-  ctx.fillStyle = "rgba(4, 7, 18, 0.96)";
+  px(x + 4, y + 5, w, h, "rgba(0,0,0,0.44)");
+  ctx.fillStyle = "#080b18";
   ctx.fillRect(x, y, w, h);
-  px(x, y, w, 5, "#ffcc33");
-  px(x, y + h - 5, w, 5, "#ffcc33");
-  px(x, y, 5, h, "#ffcc33");
-  px(x + w - 5, y, 5, h, "#ffcc33");
-  px(x + 12, y + 12, w - 24, 2, "#56e8ff");
-  px(x + 12, y + h - 14, w - 24, 2, "#ff3f9a");
+  ctx.strokeStyle = "#ffcc33";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(x, y, w, h);
 
   ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 20px Courier New";
+  ctx.font = "bold 19px Arial";
   ctx.textAlign = "center";
   ctx.fillText(text, x + w / 2, y + h / 2 + 7);
   ctx.restore();
@@ -4365,64 +5067,78 @@ function drawTriviaButtonV12(x, y, w, h, text) {
 
 /// FUNCTION TRIVIA ///
 function drawTriviaV12() {
-  drawV12Backdrop("rgba(120,0,255,0.20)", 0.50);
-  drawV12Seal(W / 2, 92, 78);
+  const trivia = currentTrivia || getTriviaForWave(wave);
+  drawTriviaBackdropV12();
 
   ctx.save();
   ctx.textAlign = "center";
 
-  ctx.font = "bold 42px Arial Black";
-  ctx.fillStyle = "#ffcc33";
-  ctx.fillText("TRIVIA", W / 2, 188);
-  ctx.fillText("SIMILAE", W / 2, 238);
-
   if (similaeLogoImage && similaeLogoImage.complete) {
-    ctx.drawImage(similaeLogoImage, W / 2 - 105, 258, 210, 84);
+    ctx.drawImage(similaeLogoImage, W / 2 - 70, 54, 140, 56);
   }
 
-  ctx.font = "bold 23px Arial";
+  ctx.font = "bold 15px Courier New";
   ctx.fillStyle = "#9dbf40";
-  ctx.fillText("AMIGOS DEL CORAZÓN", W / 2, 382);
+  ctx.fillText("CULTURA MEDITERRANEA", W / 2, 140);
+
+  ctx.font = "bold 39px Arial Black";
+  ctx.fillStyle = "#ffcc33";
+  ctx.fillText("TRIVIA", W / 2, 188);
+
+  ctx.font = "bold 18px Courier New";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText("SIMILAE", W / 2, 218);
+
+  ctx.font = "bold 22px Arial";
+  ctx.fillStyle = "#9dbf40";
+  ctx.fillText(trivia.title, W / 2, 272);
 
   if (!triviaAnswered) {
-    ctx.font = "bold 22px Arial";
+    ctx.font = "bold 25px Arial";
     ctx.fillStyle = "#ffffff";
-    ctx.fillText("¿CUÁL DE ESTOS ALIMENTOS", W / 2, 442);
-    ctx.fillText("AYUDA A CUIDAR EL CORAZÓN?", W / 2, 472);
+    ctx.fillText(trivia.question[0], W / 2, 326);
+    ctx.fillText(trivia.question[1], W / 2, 360);
 
-    drawTriviaButtonV12(95, 525, 350, 56, "A) NUECES Y ALMENDRAS");
-    drawTriviaButtonV12(95, 600, 350, 56, "B) PAPAS FRITAS");
+    drawTriviaButtonV12(80, 430, 380, 62, trivia.answers[0]);
+    drawTriviaButtonV12(80, 515, 380, 62, trivia.answers[1]);
+
+    ctx.font = "bold 15px Arial";
+    ctx.fillStyle = "rgba(255,255,255,0.72)";
+    ctx.fillText("Elige con criterio, no por moda.", W / 2, 642);
   } else {
-    const resultText = triviaResult ? triviaResult.textContent : "";
-    const isCorrect = resultText.includes("+500 PUNTOS");
+    const isCorrect = triviaSelectedIndex === trivia.correctIndex;
 
     ctx.font = "bold 18px Courier New";
     ctx.fillStyle = "#56e8ff";
-    ctx.fillText("RESULTADO", W / 2, 444);
+    ctx.fillText("RESULTADO", W / 2, 318);
 
     ctx.font = "bold 34px Arial Black";
     ctx.fillStyle = isCorrect ? "#9dbf40" : "#ff3f9a";
-    ctx.fillText(isCorrect ? "CORRECTO" : "INCORRECTO", W / 2, 490);
+    ctx.fillText(isCorrect ? "CORRECTO" : "INCORRECTO", W / 2, 365);
 
     if (isCorrect) {
       ctx.font = "bold 22px Arial";
       ctx.fillStyle = "#ffcc33";
-      ctx.fillText("+500 PUNTOS", W / 2, 525);
+      ctx.fillText("+500 PUNTOS", W / 2, 405);
+    } else {
+      ctx.font = "bold 16px Arial";
+      ctx.fillStyle = "#ffcc33";
+      ctx.fillText("RESPUESTA CORRECTA", W / 2, 402);
+      ctx.font = "bold 21px Arial";
+      ctx.fillText(trivia.answers[trivia.correctIndex].replace(/^[AB]\)\s*/, ""), W / 2, 432);
     }
 
-    ctx.font = "bold 17px Arial";
+    ctx.font = "bold 20px Arial";
     ctx.fillStyle = "#ffffff";
     drawV12WrappedText(
-      isCorrect
-        ? "Un pequeño puñado de frutos secos puede ser una colación saludable."
-        : "Las nueces y almendras son una mejor opción para cuidar el corazón.",
+      trivia.explanation,
       W / 2,
-      isCorrect ? 565 : 535,
-      390,
-      24
+      492,
+      420,
+      28
     );
 
-    drawTriviaButtonV12(95, 610, 350, 56, "CONTINUAR MISIÓN");
+    drawTriviaButtonV12(95, 620, 350, 58, "CONTINUAR MISION");
   }
 
   ctx.restore();
@@ -4734,7 +5450,7 @@ function drawStageSelect() {
 
   ctx.fillStyle = "#56e8ff";
   ctx.font = "18px Arial";
-  ctx.fillText("V10 STAGE TEST", W/2, 620);
+  ctx.fillText("V10 STAGE TEST", W/2, 680);
 
   ctx.textAlign = "left";
 }
