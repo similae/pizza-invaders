@@ -472,7 +472,7 @@ let devTapCount = 0;
 let lastDevTapAt = 0;
 let keys = {};
 let score = 0, lives = 3, wave = 1;
-let player, bullets, enemyBullets, enemies, particles, powerups, stars, backgroundPlanets, shootingStars, runnerObstacles;
+let player, bullets, enemyBullets, enemies, particles, powerups, stars, backgroundPlanets, shootingStars, runnerObstacles, topBomber;
 let formationDir = 1, formationOffset = 0, formationTick = 0;
 let lastShot = 0, doubleUntil = 0, shieldUntil = 0, speedUntil = 0;
 let boss = null;
@@ -483,14 +483,17 @@ let tunnelDistance = 0;
 let tunnelObstacleTick = 0;
 let dashVelocityY = 0;
 let dashJumpQueued = false;
+let gaiaFloorIndex = 2;
 let combatEntityUid = 0;
 let shipVolleyCount = 0;
 let shipUnlockNotice = null;
+let allyShip = null;
 let hangarReturnState = null;
 let hangarOriginalShipId = null;
 let cheeseCount = 0;
 let tripleUntil = 0;
 let similaeModeUntil = 0;
+let jumpBoostUntil = 0;
 let freezerTransmissionShown = false;
 let freezerTransmissionStartedAt = 0;
 let pineappleIntroShown = false;
@@ -512,10 +515,201 @@ let triviaContinueAction = null;
 let introIndex = 0;
 let introStartedAt = performance.now();
 let introStoryDone = false;
+let lastIntroAdvanceAt = 0;
 let transition = null;
 let bossExplosion = null;
 const COUPON_CODE = "RESCUEGAIA";
 const GAME_URL = "https://www.similae.com/pages/pizza-invaders";
+const INTRO_STORY_PAGE_DURATION = 6500;
+const INTRO_STORY_PAGES = [
+  {
+    title: "GAIA FUE CAPTURADA",
+    lines: [
+      "Gaia es una pizza natural,",
+      "mediterranea y bien hecha.",
+      "",
+      "Pop Cola la quiere transformar."
+    ]
+  },
+  {
+    title: "EL PLAN ENEMIGO",
+    lines: [
+      "Quieren añadirle piña,",
+      "congelarla y casarla con Colin,",
+      "hijo del imperio Pop Cola."
+    ]
+  },
+  {
+    title: "EL COMBO FINAL",
+    lines: [
+      "Si lo logran, Gaia sera parte",
+      "del combo industrial definitivo:",
+      "",
+      "pizza congelada + bebida azucarada."
+    ]
+  },
+  {
+    title: "LOS AMIGOS DE GAIA",
+    lines: [
+      "Luca, Gino, Gian y Paolo",
+      "son pizzas italianas naturales,",
+      "digeribles y con criterio."
+    ]
+  },
+  {
+    title: "LA MISION",
+    lines: [
+      "Rescatar a Gaia es defender",
+      "la cultura de comer bien:",
+      "",
+      "variedad, medida y buenos ingredientes."
+    ]
+  },
+  {
+    character: "gaia",
+    title: "GAIA",
+    subtitle: "LA PIZZA CAPTURADA",
+    color: "#f25191",
+    lines: [
+      "Natural, mediterranea y completa.",
+      "Pop Cola quiere convertirla",
+      "en un combo industrial."
+    ]
+  },
+  {
+    character: "luca",
+    title: "LUCA",
+    subtitle: "PEPPERONI",
+    color: "#e12525",
+    lines: [
+      "Energia directa.",
+      "Dispara con caracter italiano",
+      "y no le teme al frente."
+    ]
+  },
+  {
+    character: "gino",
+    title: "GINO",
+    subtitle: "ALBAHACA",
+    color: "#36b84b",
+    lines: [
+      "Fresco, rapido y aromatico.",
+      "Cree en el equilibrio",
+      "antes que en el exceso."
+    ]
+  },
+  {
+    character: "gian",
+    title: "GIAN",
+    subtitle: "CHAMPIÑON",
+    color: "#1767c7",
+    lines: [
+      "Preciso y resistente.",
+      "Prefiere hacer menos ruido",
+      "y pegar donde importa."
+    ]
+  },
+  {
+    character: "paolo",
+    title: "PAOLO",
+    subtitle: "PROSCIUTTO CRUDO",
+    color: "#7445a7",
+    lines: [
+      "Elegante y decidido.",
+      "Sabe que el verdadero sabor",
+      "no necesita exagerar."
+    ]
+  }
+];
+
+let audioCtx = null;
+let audioMaster = null;
+let audioSfxGain = null;
+let audioStarted = false;
+let audioMuted = localStorage.getItem("pizzaInvadersAudioMuted") === "true";
+let lastHitSoundAt = 0;
+
+function initGameAudio() {
+  if (audioStarted) {
+    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+    return;
+  }
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return;
+  audioCtx = new AudioContext();
+  audioMaster = audioCtx.createGain();
+  audioSfxGain = audioCtx.createGain();
+  audioMaster.gain.value = audioMuted ? 0 : 0.62;
+  audioSfxGain.gain.value = 0.34;
+  audioSfxGain.connect(audioMaster);
+  audioMaster.connect(audioCtx.destination);
+  audioStarted = true;
+}
+
+function setAudioMuted(muted) {
+  audioMuted = muted;
+  localStorage.setItem("pizzaInvadersAudioMuted", muted ? "true" : "false");
+  if (audioMaster) audioMaster.gain.setTargetAtTime(muted ? 0 : 0.62, audioCtx.currentTime, 0.03);
+}
+
+function playTone(freq, duration = 0.08, type = "square", volume = 0.18, destination = null, slideTo = null) {
+  if (!audioCtx || audioMuted) return;
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, now);
+  if (slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), now + duration);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(volume, now + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+  osc.connect(gain);
+  gain.connect(destination || audioSfxGain);
+  osc.start(now);
+  osc.stop(now + duration + 0.02);
+}
+
+function playNoise(duration = 0.08, volume = 0.12, destination = null) {
+  if (!audioCtx || audioMuted) return;
+  const now = audioCtx.currentTime;
+  const buffer = audioCtx.createBuffer(1, Math.max(1, audioCtx.sampleRate * duration), audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+  const source = audioCtx.createBufferSource();
+  const gain = audioCtx.createGain();
+  source.buffer = buffer;
+  gain.gain.setValueAtTime(volume, now);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+  source.connect(gain);
+  gain.connect(destination || audioSfxGain);
+  source.start(now);
+}
+
+function playSfx(name) {
+  if (!audioCtx || audioMuted) return;
+  if (name === "powerup") {
+    playTone(620, 0.08, "triangle", 0.12);
+    setTimeout(() => playTone(930, 0.10, "triangle", 0.11), 60);
+  }
+  if (name === "hurt") {
+    playTone(210, 0.14, "sawtooth", 0.13, audioSfxGain, 70);
+    playNoise(0.10, 0.08);
+  }
+  if (name === "boss") {
+    playTone(110, 0.22, "sawtooth", 0.12, audioSfxGain, 72);
+    setTimeout(() => playTone(82, 0.20, "sawtooth", 0.10), 150);
+  }
+  if (name === "bossDown") {
+    playTone(74, 0.46, "sawtooth", 0.18, audioSfxGain, 38);
+    playNoise(0.34, 0.15);
+    setTimeout(() => playTone(196, 0.12, "square", 0.11, audioSfxGain, 147), 80);
+    setTimeout(() => playTone(247, 0.12, "square", 0.11, audioSfxGain, 185), 170);
+    setTimeout(() => playTone(330, 0.14, "square", 0.12, audioSfxGain, 392), 280);
+    setTimeout(() => playTone(523, 0.22, "triangle", 0.14, audioSfxGain, 784), 430);
+    setTimeout(() => playNoise(0.52, 0.18), 520);
+    setTimeout(() => playTone(98, 0.32, "sawtooth", 0.12, audioSfxGain, 55), 720);
+  }
+}
 
 const TRIVIA_QUESTIONS = [
   {
@@ -676,6 +870,7 @@ function confirmHangarSelection() {
   }
   resetGame();
   introStoryDone = false;
+  lastIntroAdvanceAt = 0;
   state = "intro";
   introStartedAt = performance.now();
 }
@@ -810,6 +1005,9 @@ similaeFaviconRINGImage.src = "assets/PIZZAINVADERS-FAVICON-RING-SIMILAE.png";
 const similaeLogoImage = new Image();
 similaeLogoImage.src = "assets/PIZZAINVADERS-LOGO-SIMILAE.png";
 
+const freezeAdImage = new Image();
+freezeAdImage.src = "assets/PIZZAINVADERS-FREEZE-AD-SIMILAE.png";
+
 
 const LOADING_MIN_MS = 900;
 const loadingStartedAt = performance.now();
@@ -823,7 +1021,7 @@ function waitForImage(img) {
   });
 }
 function finishLoadingWhenReady() {
-  const assets = [...introImages, ...Object.values(characterImages), candyPlanetImage, pineappleIntroImage, marshmallowHeadImage, marshmallowBackdropImage, marshmallowBossImage, frozenPizzaEnemyImage, frozenPizzaBossImage, similaePowerImage, similaeFaviconImage, similaeFaviconRINGImage];
+  const assets = [...introImages, ...Object.values(characterImages), candyPlanetImage, pineappleIntroImage, marshmallowHeadImage, marshmallowBackdropImage, marshmallowBossImage, frozenPizzaEnemyImage, frozenPizzaBossImage, similaePowerImage, similaeFaviconImage, similaeFaviconRINGImage, freezeAdImage];
   Promise.all(assets.map(waitForImage)).then(() => {
     const delay = Math.max(0, LOADING_MIN_MS - (performance.now() - loadingStartedAt));
     setTimeout(() => {
@@ -859,6 +1057,7 @@ const BOSSES = [
   { type:"colinBoss", name:"COLIN", hp:80, points:900, bullet:"popcola" },
   { type:"popColaBoss", name:"POPCOLA KING", hp:110, points:2200, bullet:"popcola" }
 ];
+const MARSHMALLOW_MAN_BOSS = { type:"marshmallowBoss", name:"MARSHMALLOW MAN", hp:125, points:2600, bullet:"syrup" };
 
 function px(x, y, w, h, color) {
   ctx.fillStyle = color;
@@ -980,14 +1179,24 @@ function drawShipLeaf(x, y, size, rotation=0) {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(rotation);
-  ctx.fillStyle = "#36b84b";
-  ctx.strokeStyle = "#126b2b";
-  ctx.lineWidth = 1.5;
+  ctx.fillStyle = "#2fb84a";
+  ctx.strokeStyle = "#0f5e23";
+  ctx.lineWidth = 1.6;
   ctx.beginPath();
   ctx.moveTo(0, -size);
-  ctx.quadraticCurveTo(size, 0, 0, size);
-  ctx.quadraticCurveTo(-size, 0, 0, -size);
+  ctx.bezierCurveTo(size * 1.15, -size * .42, size * .82, size * .70, 0, size);
+  ctx.bezierCurveTo(-size * .82, size * .70, -size * 1.15, -size * .42, 0, -size);
   ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = "#b8ff8d";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, -size * .70);
+  ctx.lineTo(0, size * .72);
+  ctx.moveTo(0, -size * .05);
+  ctx.lineTo(size * .48, -size * .38);
+  ctx.moveTo(0, size * .18);
+  ctx.lineTo(-size * .44, size * .42);
   ctx.stroke();
   ctx.restore();
 }
@@ -997,16 +1206,22 @@ function drawShipMushroom(x, y, size, rotation=0) {
   ctx.translate(x, y);
   ctx.rotate(rotation);
   ctx.fillStyle = "#f2c997";
-  ctx.fillRect(-size*.2, 0, size*.4, size*.65);
+  roundRect(-size*.26, -size*.02, size*.52, size*.72, size*.12);
+  ctx.fill();
   ctx.strokeStyle = "#714224";
-  ctx.lineWidth = 1.4;
-  ctx.strokeRect(-size*.2, 0, size*.4, size*.65);
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
   ctx.fillStyle = "#b9784a";
   ctx.beginPath();
   ctx.arc(0, 0, size, Math.PI, 0);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
+  ctx.fillStyle = "#f3d6b8";
+  ctx.beginPath();
+  ctx.arc(-size*.32, -size*.14, size*.16, 0, Math.PI*2);
+  ctx.arc(size*.28, -size*.18, size*.13, 0, Math.PI*2);
+  ctx.fill();
   ctx.restore();
 }
 
@@ -1041,72 +1256,130 @@ function drawShipPepperoni(x, y, r) {
   ctx.arc(x, y, r, 0, Math.PI*2);
   ctx.fill();
   ctx.stroke();
+  ctx.fillStyle = "rgba(255,181,94,.65)";
+  ctx.beginPath(); ctx.arc(x-r*.28, y-r*.18, r*.18, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x+r*.28, y+r*.20, r*.14, 0, Math.PI*2); ctx.fill();
 }
 
 function drawCharacterShip(id, x, y, s=1, showShield=true) {
   const def = SHIP_DEFS[id] || SHIP_DEFS.luca;
+  const now = performance.now();
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(s, s);
 
-  // Cuatro propulsores salen directamente desde el borde de masa.
-  [6, 20, 34, 48].forEach((tx, index) => {
-    px(tx, 47, 8, 12, "#98a5b8");
-    px(tx+1, 48, 6, 4, def.color);
-    px(tx+2, 57, 4, 9 + ((performance.now()/90 + index) % 4), index % 2 ? "#56e8ff" : "#ff8b22");
+  ctx.save();
+  ctx.globalAlpha = .34;
+  px(4, 58, 50, 8, "rgba(0,0,0,.42)");
+  ctx.restore();
+
+  [5, 19, 33, 47].forEach((tx, index) => {
+    const flame = 8 + Math.sin(now * .03 + index) * 3;
+    px(tx, 47, 9, 13, "#728295");
+    px(tx + 2, 49, 5, 5, "#e9f4ff");
+    ctx.fillStyle = index % 2 ? "#56e8ff" : "#ff8b22";
+    ctx.beginPath();
+    ctx.moveTo(tx + 2, 59);
+    ctx.lineTo(tx + 7, 59);
+    ctx.lineTo(tx + 4.5, 59 + flame);
+    ctx.closePath();
+    ctx.fill();
   });
 
-  ctx.fillStyle = "#ffd344";
-  ctx.strokeStyle = "#71370d";
-  ctx.lineWidth = 4;
+  ctx.fillStyle = "#6d340f";
   ctx.beginPath();
-  ctx.moveTo(28, 0);
-  ctx.lineTo(57, 49);
-  ctx.lineTo(-1, 49);
+  ctx.moveTo(28, -3);
+  ctx.lineTo(62, 52);
+  ctx.lineTo(-6, 52);
   ctx.closePath();
   ctx.fill();
+
+  const cheeseGrad = ctx.createLinearGradient(8, 4, 48, 50);
+  cheeseGrad.addColorStop(0, "#fff06b");
+  cheeseGrad.addColorStop(.46, "#ffd344");
+  cheeseGrad.addColorStop(1, "#f0a72f");
+  ctx.fillStyle = cheeseGrad;
+  ctx.beginPath();
+  ctx.moveTo(28, 1);
+  ctx.lineTo(56, 47);
+  ctx.lineTo(0, 47);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.strokeStyle = "#15100b";
+  ctx.lineWidth = 2.4;
   ctx.stroke();
 
-  px(0, 45, 56, 10, "#c96c27");
-  px(5, 45, 46, 4, "#e9983d");
-  px(2, 51, 52, 3, def.color);
+  ctx.fillStyle = "#c96c27";
+  ctx.beginPath();
+  ctx.moveTo(-1, 44);
+  ctx.quadraticCurveTo(28, 55, 57, 44);
+  ctx.lineTo(55, 54);
+  ctx.quadraticCurveTo(28, 63, 1, 54);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "#4d250e";
+  ctx.lineWidth = 2.2;
+  ctx.stroke();
+  px(6, 45, 44, 4, "#e9983d");
+  px(6, 53, 44, 3, def.color);
 
   ctx.save();
   ctx.beginPath();
-  ctx.moveTo(28, 3);
-  ctx.lineTo(54, 45);
-  ctx.lineTo(2, 45);
+  ctx.moveTo(28, 2);
+  ctx.lineTo(53, 44);
+  ctx.lineTo(3, 44);
   ctx.closePath();
   ctx.clip();
 
+  ctx.globalAlpha = .35;
+  px(18, 10, 6, 26, "#fff7a2");
+  px(37, 22, 5, 18, "#fff7a2");
+  px(9, 34, 34, 3, "#ffe173");
+  ctx.globalAlpha = 1;
+
   if (id === "luca") {
-    drawShipPepperoni(27, 15, 4.5);
-    drawShipPepperoni(16, 31, 5.5);
-    drawShipPepperoni(43, 35, 6);
+    drawShipPepperoni(30, 14, 7);
+    drawShipPepperoni(14, 34, 7);
+    drawShipPepperoni(45, 35, 7);
+    drawShipPepperoni(2, 45, 6);
+    drawShipPepperoni(56, 45, 6);
   }
   if (id === "gino") {
-    drawShipLeaf(29, 23, 5, .35);
-    drawShipLeaf(10, 39, 6, -.55);
-    drawShipLeaf(46, 29, 5.5, .7);
+    drawShipLeaf(29, 16, 8, .36);
+    drawShipLeaf(14, 34, 8, -.58);
+    drawShipLeaf(45, 32, 8, .72);
+    drawShipLeaf(27, 43, 6.5, -.20);
   }
   if (id === "gian") {
-    drawShipMushroom(29, 22, 5, .1);
-    drawShipMushroom(14, 38, 6, -.25);
-    drawShipMushroom(45, 35, 6, .28);
+    drawShipMushroom(29, 17, 8, .1);
+    drawShipMushroom(14, 36, 8, -.25);
+    drawShipMushroom(44, 34, 8, .28);
+    drawShipMushroom(28, 43, 6.5, .06);
   }
   if (id === "paolo") {
-    drawShipProsciutto(28, 18, 12, 7, .15);
-    drawShipProsciutto(15, 35, 15, 8, -.35);
-    drawShipProsciutto(43, 34, 15, 8, .3);
+    drawShipProsciutto(29, 15, 17, 10, .15);
+    drawShipProsciutto(15, 35, 19, 11, -.35);
+    drawShipProsciutto(43, 34, 19, 11, .3);
+    drawShipProsciutto(31, 42, 15, 8, -.08);
   }
   if (id === "gaia") {
-    drawShipPepperoni(28, 15, 4.5);
-    drawShipLeaf(14, 34, 5.5, -.5);
-    drawShipMushroom(43, 34, 5.5, .25);
+    drawShipPepperoni(28, 15, 6.5);
+    drawShipLeaf(13, 34, 7, -.5);
+    drawShipMushroom(43, 34, 7.2, .25);
+    drawShipPepperoni(4, 43, 5.5);
+    drawShipLeaf(28, 42, 5.5, .15);
   }
   ctx.restore();
 
-  if (showShield && performance.now() < shieldUntil) {
+  ctx.strokeStyle = def.color;
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.moveTo(4, 46);
+  ctx.lineTo(52, 46);
+  ctx.stroke();
+
+  if (showShield && now < shieldUntil) {
     ctx.strokeStyle = id === "gaia" ? "rgba(255,120,208,.9)" : "rgba(95,255,120,.8)";
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -1334,19 +1607,23 @@ function drawRoadEnemy(e) {
   const x = e.x, y = e.y, w = e.w, h = e.h;
   const color = e.type === "popcola" ? "#b31f28" : (e.type === "frozenpizza" ? "#d5fbff" : "#8a44c7");
   const trim = e.type === "frozenpizza" ? "#56e8ff" : "#ffcc33";
-  ctx.globalAlpha = Math.min(.96, .28 + Math.max(.1, e.depth) * .72);
-  px(x + w * .14, y + h * .78, w * .72, Math.max(4, h * .14), "rgba(0,0,0,.35)");
-  px(x + w * .12, y + h * .24, w * .76, h * .54, color);
-  px(x + w * .22, y + h * .10, w * .56, h * .24, trim);
-  px(x + w * .22, y + h * .38, w * .18, h * .17, "#111923");
-  px(x + w * .60, y + h * .38, w * .18, h * .17, "#111923");
-  px(x + w * .05, y + h * .70, w * .20, h * .16, "#151515");
-  px(x + w * .75, y + h * .70, w * .20, h * .16, "#151515");
-  px(x + w * .28, y + h * .82, w * .13, h * .08, "#ffef9a");
-  px(x + w * .59, y + h * .82, w * .13, h * .08, "#ffef9a");
+  ctx.globalAlpha = .96;
+  px(x + w * .12, y + h * .76, w * .76, Math.max(4, h * .14), "rgba(0,0,0,.35)");
+  px(x + w * .16, y + h * .22, w * .68, h * .56, color);
+  px(x + w * .24, y + h * .06, w * .52, h * .25, trim);
+  px(x + w * .25, y + h * .36, w * .50, h * .22, "#111923");
+  px(x + w * .04, y + h * .66, w * .21, h * .18, "#151515");
+  px(x + w * .75, y + h * .66, w * .21, h * .18, "#151515");
+  px(x + w * .27, y + h * .82, w * .15, h * .08, "#ffef9a");
+  px(x + w * .58, y + h * .82, w * .15, h * .08, "#ffef9a");
+  px(x + w * .42, y + h * .12, w * .16, h * .12, "#ffffff");
   if (e.type === "popcola") {
-    px(x + w * .41, y + h * .43, w * .18, h * .18, "#ffffff");
-    px(x + w * .45, y + h * .47, w * .10, h * .10, "#d51c28");
+    px(x + w * .42, y + h * .41, w * .16, h * .16, "#ffffff");
+    px(x + w * .46, y + h * .45, w * .08, h * .08, "#d51c28");
+  } else if (e.type === "frozenpizza") {
+    px(x + w * .36, y + h * .40, w * .28, h * .14, "#9beeff");
+  } else {
+    px(x + w * .38, y + h * .40, w * .24, h * .15, "#ff3f76");
   }
   ctx.restore();
 }
@@ -1454,6 +1731,26 @@ function drawShot(type, x, y, friendly=false) {
     ctx.fillStyle = "#72e6ff";
     ctx.beginPath(); ctx.moveTo(x+8,y); ctx.lineTo(x+16,y+10); ctx.lineTo(x+8,y+20); ctx.lineTo(x,y+10); ctx.closePath(); ctx.fill();
     ctx.strokeStyle = "#d5fbff"; ctx.stroke();
+  } else if (type === "snowflake") {
+    ctx.save();
+    ctx.translate(x + 25, y + 25);
+    ctx.strokeStyle = "#d5fbff";
+    ctx.lineWidth = 4;
+    for (let i = 0; i < 6; i++) {
+      ctx.rotate(Math.PI / 3);
+      ctx.beginPath();
+      ctx.moveTo(0, -22);
+      ctx.lineTo(0, 22);
+      ctx.stroke();
+      px(-4, -20, 8, 8, "#72e6ff");
+      px(7, -10, 9, 4, "#d5fbff");
+      px(-16, -10, 9, 4, "#d5fbff");
+    }
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(0, 0, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
 }
 
@@ -1476,6 +1773,23 @@ function drawPowerup(p) {
     ctx.bezierCurveTo(p.x+23,p.y,p.x+30,p.y+12,p.x+14,p.y+26);
     ctx.fill();
   }
+  if (p.type === "ally") {
+    const pulse = 1 + Math.sin(performance.now() * .009) * .10;
+    ctx.save();
+    ctx.translate(p.x + 14, p.y + 14);
+    ctx.scale(pulse, pulse);
+    px(-12, -12, 24, 24, "#050510");
+    ctx.strokeStyle = "#ffcc33";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(-12, -12, 24, 24);
+    ctx.strokeStyle = "#56e8ff";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, 15, 0, Math.PI * 2);
+    ctx.stroke();
+    drawCharacterShip(chooseAllyShipId(), -10, -13, .36, false);
+    ctx.restore();
+  }
   if (p.type === "similae") {
     const pulse = 1 + Math.sin(performance.now() * .008) * .08;
     drawSimilaeRingSprite(p.x + 14, p.y + 14, 36 * pulse, performance.now() * .004);
@@ -1490,9 +1804,9 @@ function resetGame() {
   hideOverlays();
   const shipDef = SHIP_DEFS[selectedShipId] || SHIP_DEFS.luca;
   player = { x: W/2 - 28, y: H - 88, w: 56, h: 62, speed: shipDef.speed, frozenUntil: 0 };
-  bullets = []; enemyBullets = []; enemies = []; particles = []; powerups = []; runnerObstacles = [];
+  bullets = []; enemyBullets = []; enemies = []; particles = []; powerups = []; runnerObstacles = []; topBomber = null;
   boss = null; formationOffset = 0; formationDir = 1; formationTick = 0;
-  doubleUntil = 0; shieldUntil = selectedShipId === "gaia" ? performance.now() + 6500 : 0; speedUntil = 0; similaeModeUntil = 0; attackCooldown = 80; runnerObstacleTick = 0; runnerDistance = 0; tunnelObstacleTick = 0; tunnelDistance = 0; dashVelocityY = 0; dashJumpQueued = false; shipVolleyCount = 0;
+  doubleUntil = 0; shieldUntil = selectedShipId === "gaia" ? performance.now() + 6500 : 0; speedUntil = 0; similaeModeUntil = 0; jumpBoostUntil = 0; attackCooldown = 80; runnerObstacleTick = 0; runnerDistance = 0; tunnelObstacleTick = 0; tunnelDistance = 0; dashVelocityY = 0; dashJumpQueued = false; gaiaFloorIndex = 2; shipVolleyCount = 0; allyShip = null;
   couponShown = false; pendingBoss = false; triviaShown = false; triviaAnswered = false; currentTrivia = null; triviaSelectedIndex = null; triviaContinueAction = null; pineappleIntroShown = false; candyIntroShown = false; freezerTransmissionShown = false;
   candyMarshmallowBackdropStartedAt = 0; candyMarshmallowBackdropPlayed = false; candyMarshmallowThreat = null;
   stars = Array.from({length: 150}, () => {
@@ -1516,16 +1830,39 @@ function resetGame() {
 function createWave() {
   enemies = [];
   runnerObstacles = [];
+  topBomber = null;
   boss = null;
   if (wave >= 16 && wave < 21 && !candyMarshmallowBackdropPlayed && !candyMarshmallowBackdropStartedAt) {
     candyMarshmallowBackdropStartedAt = performance.now();
   }
   let rows;
-  if (wave >= 31) {
-    // Nueva etapa: corredor industrial. Pocos enemigos, muchos obstaculos.
+  if (isGaiaDashWave()) {
+    enemies = [];
+    runnerObstacles = [];
+    tunnelObstacleTick = 12;
+    tunnelDistance = 0;
+    dashVelocityY = 0;
+    gaiaFloorIndex = 2;
+    if (player) {
+      player.x = 76;
+      player.y = gaiaFloorY(gaiaFloorIndex) - player.h;
+    }
+    return;
+  } else if (isIceCubeStage()) {
+    // Etapa 7: cubo de hielo errante. Cruza la pantalla y dispara copos perseguidores.
     rows = [
-      [null, "popcola", null, "frozenpizza", null, "popcola"],
-      ["cola", null, null, null, "icepizza", null]
+      ["frozenpizza","icepizza","frozenpizza","icepizza","frozenpizza","icepizza"],
+      ["icepizza","frozenpizza","icepizza","frozenpizza","icepizza","frozenpizza"],
+      ["frozenpizza","icepizza","frozenpizza","icepizza","frozenpizza","icepizza"]
+    ];
+    updateTopBomber.nextAt = performance.now() + 2600;
+  } else if (isInvertedMarshmallowStage()) {
+    // Etapa 6: mundo invertido. Escuadron aliado contra Marshmallow Man.
+    rows = [
+      ["marshmallow","marshmallow","marshmallow","marshmallow","marshmallow","marshmallow"],
+      ["popcola","marshmallow","popcola","marshmallow","popcola","marshmallow"],
+      ["marshmallow","cola","marshmallow","cola","marshmallow","cola"],
+      ["frozenpizza","marshmallow","frozenpizza","marshmallow","frozenpizza","marshmallow"]
     ];
   } else if (wave >= 26) {
 
@@ -1574,7 +1911,7 @@ function createWave() {
       ["icepizza","icepizza","icepizza","icepizza","icepizza","icepizza"]
     ];
   }
-  const startX = 86, startY = 100, gapX = 70, gapY = 58;
+  const startX = 86, startY = isIceCubeStage() ? 142 : 100, gapX = 70, gapY = 58;
   for (let r=0; r<rows.length; r++) {
     for (let c=0; c<rows[r].length; c++) {
       const type = rows[r][c];
@@ -1598,26 +1935,29 @@ function createWave() {
       });
     }
   }
-  if (wave >= 31 && wave < 36) {
-    const lanes = [-1.08, -.36, .36, 1.08];
+  if (isInvertedMarshmallowStage() && wave === 36) {
+    powerups.push({type:"ally", x:W/2 - 14, y:H*.52, w:28, h:28});
+  }
+  if (false && wave >= 31 && wave < 36) {
+    const lanes = [0, 1, 2, 3];
     enemies.forEach((e, i) => {
       e.mode = "road";
-      e.roadLaneIndex = i % lanes.length;
-      e.roadLane = lanes[e.roadLaneIndex] + (Math.random() - .5) * .10;
-      e.targetRoadLane = lanes[e.roadLaneIndex];
-      e.depth = -0.18 - Math.floor(i / lanes.length) * .16 - Math.random() * .18;
-      e.w = 42;
-      e.h = 54;
+      e.roadLaneIndex = lanes[i % lanes.length];
+      e.targetRoadLaneIndex = e.roadLaneIndex;
+      e.x = W + 110 + Math.floor(i / lanes.length) * 190 + Math.random() * 130;
+      e.y = conveyorLaneY(e.roadLaneIndex) - 31;
+      e.w = 58;
+      e.h = 62;
       e.hp = Math.max(e.hp, 2);
-      e.shootTimer = 120 + Math.random() * 150;
-      e.laneChangeTimer = 90 + Math.random() * 170;
-      e.roadSpeed = 0.0068 + Math.random() * .0025;
+      e.shootTimer = 90 + Math.random() * 140;
+      e.laneChangeTimer = 120 + Math.random() * 190;
+      e.roadSpeed = 2.55 + Math.random() * .85;
     });
   }
 }
 
 function startBoss() {
-  const b = BOSSES[Math.min(BOSSES.length-1, Math.floor((wave-1)/5))];
+  const b = isIceCubeBossWave() ? BOSSES.find(bossDef => bossDef.type === "frozenPizzaBoss") : (isInvertedMarshmallowStage() ? MARSHMALLOW_MAN_BOSS : BOSSES[Math.min(BOSSES.length-1, Math.floor((wave-1)/5))]);
   const fixedBossDifficulty = wave <= 10; // Jefe 1 y Jefe 2 misma dificultad.
   const bossHp = fixedBossDifficulty ? 52 : b.hp;
   const bossW = b.type === "frozenPizzaBoss" ? 230 : (b.type === "marshmallowBoss" ? 170 : 110);
@@ -1636,15 +1976,21 @@ function startBoss() {
     hp: bossHp,
     maxHp: bossHp,
     fixedDifficulty: fixedBossDifficulty,
-    t: 0, shootTimer: 45
+    iceCubeStageBoss: isIceCubeBossWave(),
+    t: 0, shootTimer: 45, iceWaveStep: 0
   };
   enemies = [];
   
 }
 
 document.addEventListener("keydown", e => {
+  initGameAudio();
   keys[e.code] = true;
   if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) e.preventDefault();
+  if (e.code === "KeyM") {
+    setAudioMuted(!audioMuted);
+    return;
+  }
   if (state === "play" && e.code === "KeyH") {
     hangarReturnState = "play";
     hangarOriginalShipId = selectedShipId;
@@ -1668,11 +2014,13 @@ document.addEventListener("keydown", e => {
   if ((e.code === "Enter" || e.code === "Space") && state === "gaiaRescued") {
     selectShip("gaia");
     resetGame();
-    state = "hangar";
+    wave = 36;
+    createWave();
+    state = "play";
     return;
   }
   if ((e.code === "Enter" || e.code === "Space") && state === "intro") {
-    // Intros obligatorias: no se pueden saltar.
+    advanceIntroStep();
     return;
   }
   if ((e.code === "Enter" || e.code === "Space") && state === "pineappleIntro") {
@@ -1728,6 +2076,25 @@ function advanceIntro() {
     resetGame();
     state = "play";
   }
+}
+
+function advanceIntroStep() {
+  if (state !== "intro") return;
+  const now = performance.now();
+  if (now - lastIntroAdvanceAt < 250) return;
+  lastIntroAdvanceAt = now;
+  if (!introStoryDone) {
+    const elapsed = now - introStartedAt;
+    const pageIndex = Math.min(INTRO_STORY_PAGES.length - 1, Math.floor(elapsed / INTRO_STORY_PAGE_DURATION));
+    if (pageIndex < INTRO_STORY_PAGES.length - 1) {
+      introStartedAt = now - (pageIndex + 1) * INTRO_STORY_PAGE_DURATION;
+    } else {
+      introStoryDone = true;
+      introStartedAt = now;
+    }
+    return;
+  }
+  advanceIntro();
 }
 
 function hideOverlays() {
@@ -2311,6 +2678,7 @@ function pointHitsFullscreenChip(pt) {
 
 function startFromTouch(e) {
   e.preventDefault();
+  initGameAudio();
   canvas.focus();1
 
   if (state === "coupon") {
@@ -2435,13 +2803,26 @@ if (state === "stageSelect") {
 
   if (pt.y >= 480 && pt.y <= 530) {
       resetGame();
-      wave = 31;
-      createWave();
+      wave = 35;
+      startBoss();
       state = "play";
       return;
   }
 
   if (pt.y >= 540 && pt.y <= 590) {
+      resetGame();
+      wave = 36;
+      createWave();
+      state = "play";
+      return;
+  }
+
+  if (pt.y >= 600 && pt.y <= 650) {
+      state = "devMenu";
+      return;
+  }
+
+  if (pt.y >= 660 && pt.y <= 710) {
       state = "devMenu";
       return;
   }
@@ -2449,7 +2830,10 @@ if (state === "stageSelect") {
   return;
 }
 
-  if (state === "intro") { return; }
+  if (state === "intro") {
+    advanceIntroStep();
+    return;
+  }
   if (state === "pineappleIntro") {
     // No permitir avanzar con toque/clic: esta escena debe leerse completa.
     return;
@@ -2475,7 +2859,9 @@ if (state === "stageSelect") {
     if (pt.x >= 95 && pt.x <= 445 && pt.y >= 590 && pt.y <= 646) {
       selectShip("gaia");
       resetGame();
-      state = "hangar";
+      wave = 36;
+      createWave();
+      state = "play";
     }
     return;
   }
@@ -2518,7 +2904,9 @@ if (state === "popColaIntro") {
     return;
   }
   if (state === "play" && isGaiaTunnelStage()) {
-    queueDashJump();
+    touchControl.active = true;
+    touchControl.autoFire = true;
+    setTouchTarget(pt);
     return;
   }
   if (state !== "play") { resetGame(); state = "play"; }
@@ -2628,16 +3016,116 @@ function shoot() {
 
   for (const offset of copies) {
     for (const shot of volley) {
+      const sideMode = isRunnerStage() || isGaiaTunnelStage();
       bullets.push({
         ...shot,
-        x: player.x + shot.x + offset,
-        y: player.y + shot.y,
-        originX: player.x + shot.x + offset,
+        x: sideMode ? player.x + player.w - 2 : player.x + shot.x + offset,
+        y: sideMode ? player.y + player.h * .48 + offset : player.y + shot.y,
+        vx: sideMode ? Math.max(8.2, Math.abs(shot.vy || 9.4)) : shot.vx,
+        vy: sideMode ? (shot.vx || 0) * .18 : shot.vy,
+        originX: sideMode ? player.x + player.w - 2 : player.x + shot.x + offset,
         age: 0,
         hitIds: []
       });
     }
   }
+}
+
+function chooseAllyShipId() {
+  const available = SHIP_ORDER.filter(id => id !== selectedShipId && id !== "gaia" && (unlockedShips.has(id) || id === "gino"));
+  return available[0] || "gino";
+}
+
+function bulletPatternForShip(id) {
+  if (id === "gino") {
+    return [
+      { type:"basil", x:21, y:2, w:12, h:18, vx:-1.35, vy:-8.6, damage:.32, spin:-.08 },
+      { type:"basil", x:23, y:1, w:12, h:18, vx:1.35, vy:-8.6, damage:.32, spin:.08 }
+    ];
+  }
+  if (id === "gian") return [{ type:"mushroom", x:18, y:0, w:20, h:20, vx:0, vy:-7.2, damage:1.35, pierce:1 }];
+  if (id === "paolo") {
+    return [
+      { type:"prosciutto", x:17, y:2, w:18, h:14, vx:-.35, vy:-8.5, damage:.46, waveDir:-1 },
+      { type:"prosciutto", x:22, y:0, w:18, h:14, vx:.35, vy:-8.5, damage:.46, waveDir:1 }
+    ];
+  }
+  if (id === "gaia") {
+    return [
+      { type:"pepperoni", x:20, y:0, w:14, h:14, vx:0, vy:-9.3, damage:.38 },
+      { type:"basil", x:25, y:2, w:12, h:18, vx:.9, vy:-8.4, damage:.18, spin:.08 }
+    ];
+  }
+  return [{ type:"pepperoni", x:20, y:0, w:14, h:14, vx:0, vy:-9.0, damage:.62 }];
+}
+
+function activateAllyShip() {
+  const id = chooseAllyShipId();
+  const def = SHIP_DEFS[id] || SHIP_DEFS.gino;
+  const now = performance.now();
+  allyShip = {
+    id,
+    x: player.x - 78,
+    y: player.y + 16,
+    w: 56,
+    h: 62,
+    until: now + 14500,
+    lastShot: 0,
+    noticeUntil: now + 2600,
+    side: player.x < W / 2 ? 1 : -1,
+    color: def.color
+  };
+  explode(player.x + player.w / 2, player.y, def.color, { count: 22, speed: 6, shape: "spark", size: 5, life: 26 });
+}
+
+function updateAllyShip() {
+  if (!allyShip || state !== "play") return;
+  const now = performance.now();
+  if (now > allyShip.until) {
+    explode(allyShip.x + 28, allyShip.y + 31, allyShip.color || "#56e8ff", { count: 14, speed: 4, shape: "spark", size: 4, life: 18 });
+    allyShip = null;
+    return;
+  }
+
+  const offsetX = player.x > W * .58 ? -72 : 72;
+  const offsetY = player.y > H * .82 ? -58 : 42;
+  const targetX = Math.max(12, Math.min(W - 68, player.x + offsetX));
+  const targetY = Math.max(92, Math.min(H - 92, player.y + offsetY + Math.sin(now * .004) * 12));
+  allyShip.x += (targetX - allyShip.x) * .085;
+  allyShip.y += (targetY - allyShip.y) * .085;
+
+  const cooldown = Math.max(240, ((SHIP_DEFS[allyShip.id] || SHIP_DEFS.gino).cooldown || 220) + 120);
+  if (now - allyShip.lastShot > cooldown) {
+    allyShip.lastShot = now;
+    for (const shot of bulletPatternForShip(allyShip.id)) {
+      bullets.push({
+        ...shot,
+        x: allyShip.x + shot.x,
+        y: allyShip.y + shot.y,
+        damage: (shot.damage || 1) * .78,
+        originX: allyShip.x + shot.x,
+        age: 0,
+        hitIds: [],
+        ally: true
+      });
+    }
+  }
+}
+
+function drawAllyShip() {
+  if (!allyShip) return;
+  const now = performance.now();
+  const remaining = Math.max(0, allyShip.until - now);
+  ctx.save();
+  ctx.globalAlpha = remaining < 1600 ? .55 + Math.sin(now * .03) * .28 : .92;
+  drawCharacterShip(allyShip.id, allyShip.x, allyShip.y, .82, false);
+  ctx.globalAlpha = .85;
+  ctx.fillStyle = (SHIP_DEFS[allyShip.id] || SHIP_DEFS.gino).color;
+  ctx.font = "bold 10px Courier New";
+  ctx.textAlign = "center";
+  ctx.fillText((SHIP_DEFS[allyShip.id] || SHIP_DEFS.gino).name, allyShip.x + 23, allyShip.y - 7);
+  ctx.restore();
+  ctx.textAlign = "left";
 }
 
 function drawDistantPlanet(p) {
@@ -2858,15 +3346,118 @@ function drawFrozenCircuitWays(now) {
 }
 
 function isRunnerStage() {
-  return wave >= 31 && wave < 36 && state === "play" && !boss;
+  return false;
+}
+
+function isInvertedMarshmallowStage() {
+  return false;
+}
+
+function isIceCubeStage() {
+  return wave >= 36 && wave <= 40;
+}
+
+function isIceCubeBossWave() {
+  return wave === 40;
+}
+
+function isGaiaDashWave() {
+  return false;
 }
 
 function isGaiaTunnelStage() {
-  return false;
+  return isGaiaDashWave() && state === "play" && !boss;
+}
+
+function conveyorLaneY(index) {
+  const lanes = [238, 334, 430, 526];
+  return lanes[Math.max(0, Math.min(lanes.length - 1, index))];
 }
 
 function dashGroundY() {
   return H - 112;
+}
+
+function gaiaFloorY(index) {
+  const floors = [208, 318, 428, 538];
+  return floors[Math.max(0, Math.min(floors.length - 1, index))];
+}
+
+function nearestGaiaFloor(y) {
+  let best = 0;
+  let bestDist = Infinity;
+  for (let i = 0; i < 4; i++) {
+    const dist = Math.abs(y - gaiaFloorY(i));
+    if (dist < bestDist) {
+      best = i;
+      bestDist = dist;
+    }
+  }
+  return best;
+}
+
+function spawnTopBomber() {
+  const fromLeft = Math.random() < .5;
+  topBomber = {
+    x: fromLeft ? -86 : W + 86,
+    y: 54 + Math.random() * 210,
+    w: 58,
+    h: 58,
+    vx: fromLeft ? 2.2 : -2.2,
+    hp: 27,
+    maxHp: 27,
+    dropped: false,
+    phase: Math.random() * Math.PI * 2,
+    nextAt: performance.now() + 4800 + Math.random() * 2600
+  };
+}
+
+function updateTopBomber() {
+  if (!isIceCubeStage() || boss || state !== "play") {
+    topBomber = null;
+    return;
+  }
+  const now = performance.now();
+  if (!topBomber) {
+    if (now > (updateTopBomber.nextAt || 0)) spawnTopBomber();
+    return;
+  }
+  topBomber.x += topBomber.vx;
+  topBomber.y += Math.sin(now * .006 + topBomber.phase) * .35;
+  const crossingCenter = topBomber.vx > 0 ? topBomber.x > W * .45 : topBomber.x < W * .55;
+  if (!topBomber.dropped && crossingCenter) {
+    topBomber.dropped = true;
+    addEnemyBullet(topBomber.x + topBomber.w / 2 - 24, topBomber.y + topBomber.h - 2, "snowflake", 0, 3.8);
+    explode(topBomber.x + topBomber.w / 2, topBomber.y + topBomber.h, "#72e6ff", { count: 10, speed: 4.8, shape: "spark", size: 4, life: 14 });
+  }
+  if (topBomber.x > W + 110 || topBomber.x + topBomber.w < -110) {
+    updateTopBomber.nextAt = now + 5200 + Math.random() * 3200;
+    topBomber = null;
+  }
+}
+
+function drawTopBomber() {
+  if (!topBomber || boss || !isIceCubeStage()) return;
+  ctx.save();
+  ctx.translate(topBomber.x, topBomber.y);
+  if (topBomber.vx < 0) {
+    ctx.translate(topBomber.w, 0);
+    ctx.scale(-1, 1);
+  }
+  ctx.globalAlpha = .96;
+  px(5, 5, 48, 48, "#72e6ff");
+  px(9, 9, 40, 40, "#d5fbff");
+  px(14, 14, 30, 30, "#8adfff");
+  px(8, 8, 8, 8, "#ffffff");
+  px(36, 34, 10, 10, "#4fa8d8");
+  ctx.globalAlpha = .72;
+  px(0, 23, 9, 8, "#d5fbff");
+  px(49, 23, 9, 8, "#d5fbff");
+  ctx.globalAlpha = .85;
+  const hpRatio = Math.max(0, topBomber.hp / topBomber.maxHp);
+  px(6, 58, 46, 4, "rgba(255,255,255,.25)");
+  px(6, 58, 46 * hpRatio, 4, "#72e6ff");
+  ctx.restore();
 }
 
 function queueDashJump() {
@@ -2874,21 +3465,20 @@ function queueDashJump() {
 }
 
 function spawnRunnerObstacle() {
-  const lanes = [-1.25, -.42, .42, 1.25];
-  const lane = lanes[Math.floor(Math.random() * lanes.length)];
-  const depth = 0.08 + Math.random() * 0.08;
+  const laneIndex = Math.floor(Math.random() * 4);
   const kindRoll = Math.random();
+  const type = kindRoll < 0.28 ? "crate" : (kindRoll < 0.52 ? "iceBlock" : (kindRoll < 0.76 ? "colaCan" : "pineappleBin"));
+  const baseW = type === "colaCan" ? 34 : (type === "iceBlock" ? 50 : (type === "pineappleBin" ? 54 : 48));
+  const baseH = type === "colaCan" ? 66 : (type === "pineappleBin" ? 46 : 50);
   runnerObstacles.push({
-    lane,
-    depth,
-    x: W / 2,
-    y: H * depth,
-    w: 28,
-    h: 28,
-    vy: 0.009 + Math.min(0.005, (wave - 31) * 0.0004) + Math.random() * 0.003,
-    drift: (Math.random() - 0.5) * 0.0009,
+    laneIndex,
+    x: W + 40 + Math.random() * 160,
+    y: conveyorLaneY(laneIndex) - baseH / 2,
+    w: baseW,
+    h: baseH,
+    vx: 3.8 + Math.min(1.3, (wave - 31) * .18) + Math.random() * 1.1,
     phase: Math.random() * Math.PI * 2,
-    type: kindRoll < 0.34 ? "shrub" : (kindRoll < 0.58 ? "rock" : (kindRoll < 0.80 ? "cone" : "barrel"))
+    type
   });
 }
 
@@ -2903,83 +3493,91 @@ function updateRunnerObstacles() {
   }
 
   runnerObstacleTick--;
-  runnerDistance += 0.22 + Math.min(0.08, (wave - 31) * 0.01);
+  runnerDistance += 0.24 + Math.min(0.10, (wave - 31) * 0.012);
 
   if (runnerObstacleTick <= 0 && runnerObstacles.length < 12) {
     spawnRunnerObstacle();
-    runnerObstacleTick = 18 + Math.random() * 26;
+    runnerObstacleTick = 22 + Math.random() * 30;
   }
 
   for (const o of runnerObstacles) {
-    o.depth += o.vy;
-    o.lane += Math.sin(performance.now() * 0.0015 + o.phase) * 0.0009 + o.drift;
-    const perspective = Math.max(0.08, o.depth * o.depth);
-    const roadWidth = 42 + perspective * 355;
-    const laneX = W / 2 + o.lane * roadWidth * 0.42;
-    const scale = 0.42 + perspective * 2.45;
-    const base = o.type === "barrel" ? 24 : (o.type === "cone" ? 22 : (o.type === "rock" ? 30 : 34));
-    o.w = base * scale;
-    o.h = (o.type === "shrub" ? 26 : (o.type === "cone" ? 34 : base)) * scale;
-    o.x = laneX - o.w / 2;
-    o.y = H * (0.06 + perspective * 1.08);
+    o.x -= o.vx;
+    o.y = conveyorLaneY(o.laneIndex) - o.h / 2 + Math.sin(performance.now() * .006 + o.phase) * 2.2;
   }
-  runnerObstacles = runnerObstacles.filter(o => o.depth < 1.18);
+  runnerObstacles = runnerObstacles.filter(o => o.x + o.w > -80);
 }
 
 function drawRunnerObstacle(o) {
   ctx.save();
-  ctx.globalAlpha = Math.min(0.92, 0.32 + o.depth * 0.58);
+  ctx.globalAlpha = .96;
   px(o.x + o.w * .18, o.y + o.h * .76, o.w * .64, Math.max(4, o.h * .16), "rgba(0,0,0,.28)");
-  if (o.type === "shrub") {
-    px(o.x + o.w*.18, o.y + o.h*.34, o.w*.64, o.h*.48, "#215c33");
-    px(o.x + o.w*.05, o.y + o.h*.42, o.w*.42, o.h*.34, "#2d7d41");
-    px(o.x + o.w*.48, o.y + o.h*.20, o.w*.42, o.h*.46, "#3a9a4e");
-    px(o.x + o.w*.40, o.y + o.h*.48, o.w*.16, o.h*.32, "#14351e");
-  } else if (o.type === "rock") {
-    px(o.x + o.w*.12, o.y + o.h*.22, o.w*.72, o.h*.58, "#6f7370");
-    px(o.x + o.w*.24, o.y + o.h*.12, o.w*.44, o.h*.34, "#9aa09b");
-    px(o.x + o.w*.58, o.y + o.h*.34, o.w*.22, o.h*.20, "#4b514e");
-  } else if (o.type === "cone") {
-    px(o.x + o.w*.30, o.y + o.h*.16, o.w*.40, o.h*.66, "#ff8a2a");
-    px(o.x + o.w*.18, o.y + o.h*.72, o.w*.64, o.h*.14, "#f2f2df");
-    px(o.x + o.w*.36, o.y + o.h*.42, o.w*.28, o.h*.10, "#f2f2df");
+  if (o.type === "crate") {
+    px(o.x + o.w*.08, o.y + o.h*.10, o.w*.84, o.h*.76, "#b87638");
+    px(o.x + o.w*.08, o.y + o.h*.10, o.w*.84, o.h*.12, "#f0b45a");
+    px(o.x + o.w*.14, o.y + o.h*.24, o.w*.72, o.h*.08, "#7c4a24");
+    px(o.x + o.w*.20, o.y + o.h*.44, o.w*.60, o.h*.08, "#7c4a24");
+    px(o.x + o.w*.42, o.y + o.h*.18, o.w*.12, o.h*.64, "#6a3d20");
+  } else if (o.type === "iceBlock") {
+    px(o.x + o.w*.06, o.y + o.h*.12, o.w*.88, o.h*.72, "#dffbff");
+    px(o.x + o.w*.14, o.y + o.h*.20, o.w*.64, o.h*.14, "#ffffff");
+    px(o.x + o.w*.18, o.y + o.h*.54, o.w*.48, o.h*.08, "#8deeff");
+    px(o.x + o.w*.70, o.y + o.h*.22, o.w*.12, o.h*.46, "#91dce8");
+  } else if (o.type === "colaCan") {
+    px(o.x + o.w*.20, o.y + o.h*.08, o.w*.60, o.h*.84, "#c41b2d");
+    px(o.x + o.w*.18, o.y + o.h*.10, o.w*.64, o.h*.10, "#f5d7c8");
+    px(o.x + o.w*.18, o.y + o.h*.78, o.w*.64, o.h*.10, "#6d0c16");
+    px(o.x + o.w*.34, o.y + o.h*.34, o.w*.32, o.h*.22, "#ffffff");
+    px(o.x + o.w*.43, o.y + o.h*.40, o.w*.14, o.h*.10, "#c41b2d");
   } else {
-    px(o.x + o.w*.18, o.y + o.h*.12, o.w*.64, o.h*.76, "#b45532");
-    px(o.x + o.w*.16, o.y + o.h*.08, o.w*.68, o.h*.16, "#f0b05a");
-    px(o.x + o.w*.16, o.y + o.h*.72, o.w*.68, o.h*.16, "#7e2c24");
-    px(o.x + o.w*.34, o.y + o.h*.28, o.w*.32, o.h*.30, "#ffcc33");
+    px(o.x + o.w*.10, o.y + o.h*.26, o.w*.80, o.h*.52, "#687064");
+    px(o.x + o.w*.16, o.y + o.h*.14, o.w*.68, o.h*.20, "#8b9389");
+    px(o.x + o.w*.36, o.y + o.h*.02, o.w*.28, o.h*.22, "#355d2d");
+    px(o.x + o.w*.28, o.y + o.h*.42, o.w*.16, o.h*.18, "#ffcc33");
+    px(o.x + o.w*.56, o.y + o.h*.42, o.w*.16, o.h*.18, "#ffcc33");
   }
   ctx.restore();
 }
 
 function spawnTunnelGate() {
   const roll = Math.random();
-  const ground = dashGroundY();
-  const type = roll < .48 ? "dashSpike" : (roll < .78 ? "dashBlock" : "dashPlatform");
-  const w = type === "dashSpike" ? 38 : (type === "dashPlatform" ? 92 : 46);
-  const h = type === "dashSpike" ? 42 : (type === "dashPlatform" ? 18 : 46);
+  const floorIndex = Math.floor(Math.random() * 4);
+  const floorY = gaiaFloorY(floorIndex);
+  const type = roll < .16 ? "dashJumpBoost" : (roll < .40 ? "dashPineapple" : (roll < .62 ? "dashCola" : (roll < .82 ? "dashFrozenPizza" : "dashMarshmallow")));
+  const w = type === "dashJumpBoost" ? 30 : (type === "dashCola" ? 34 : (type === "dashFrozenPizza" ? 54 : (type === "dashMarshmallow" ? 48 : 42)));
+  const h = type === "dashJumpBoost" ? 30 : (type === "dashCola" ? 58 : (type === "dashFrozenPizza" ? 48 : (type === "dashMarshmallow" ? 44 : 50)));
   runnerObstacles.push({
     type,
+    floorIndex,
     x: W + 40,
-    y: type === "dashPlatform" ? ground - 106 - Math.random() * 42 : ground - h,
+    y: type === "dashJumpBoost" ? floorY - 86 : floorY - h,
     w,
     h,
-    vx: 5.6 + Math.min(1.5, tunnelDistance / 420),
-    color: type === "dashSpike" ? "#f25191" : (type === "dashPlatform" ? "#56e8ff" : "#ffcc33")
+    hp: type === "dashJumpBoost" ? 0 : (type === "dashMarshmallow" ? 3 : (type === "dashFrozenPizza" ? 2 : 1)),
+    shootTimer: 38 + Math.random() * 90,
+    vx: 3.2 + Math.min(1.7, tunnelDistance / 520) + Math.random() * .45,
+    color: type === "dashJumpBoost" ? "#56e8ff" : "#ffcc33"
   });
 }
 
 function updateTunnelObstacles() {
   if (!isGaiaTunnelStage()) return;
-  tunnelDistance += .62;
+  tunnelDistance += .58;
   tunnelObstacleTick--;
   if (tunnelObstacleTick <= 0 && runnerObstacles.length < 9) {
     spawnTunnelGate();
-    tunnelObstacleTick = 46 + Math.random() * 34;
+    tunnelObstacleTick = 54 + Math.random() * 38;
   }
 
   for (const o of runnerObstacles) {
     o.x -= o.vx || 6;
+    if (o.type === "dashCola" || o.type === "dashFrozenPizza" || o.type === "dashMarshmallow") {
+      o.shootTimer--;
+      if (o.shootTimer <= 0 && o.x > 150 && o.x < W - 35) {
+        const bulletType = o.type === "dashFrozenPizza" ? "ice" : (o.type === "dashCola" ? "cola" : "marshmallow");
+        addEnemyBullet(o.x + 2, o.y + o.h * .52, bulletType, -3.6 - Math.min(1.0, tunnelDistance / 700), 0);
+        o.shootTimer = 92 + Math.random() * 95;
+      }
+    }
   }
   runnerObstacles = runnerObstacles.filter(o => o.x + o.w > -40);
 }
@@ -2988,17 +3586,21 @@ function drawTunnelObstacle(o) {
   ctx.save();
   ctx.globalAlpha = .96;
   px(o.x + 4, o.y + o.h + 4, o.w - 8, 8, "rgba(0,0,0,.28)");
-  if (o.type === "dashSpike") {
-    ctx.fillStyle = o.color;
-    ctx.beginPath();
-    ctx.moveTo(o.x, o.y + o.h);
-    ctx.lineTo(o.x + o.w / 2, o.y);
-    ctx.lineTo(o.x + o.w, o.y + o.h);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 2;
-    ctx.stroke();
+  if (o.type === "dashJumpBoost") {
+    const pulse = 1 + Math.sin(performance.now() * .01) * .1;
+    ctx.save();
+    ctx.translate(o.x + o.w / 2, o.y + o.h / 2);
+    ctx.scale(pulse, pulse);
+    drawSimilaeRingSprite(0, 0, 38, performance.now() * .008);
+    ctx.restore();
+  } else if (o.type === "dashPineapple") {
+    drawPineapple(o.x - 2, o.y - 2, 1.12);
+  } else if (o.type === "dashCola") {
+    drawCola(o.x - 2, o.y + 4, .92, false);
+  } else if (o.type === "dashFrozenPizza") {
+    drawIcePizza(o.x + 2, o.y + 2, 1.12);
+  } else if (o.type === "dashMarshmallow") {
+    drawMarshmallowEnemy(o.x, o.y, 3);
   } else {
     px(o.x, o.y, o.w, o.h, o.color);
     px(o.x + 4, o.y + 4, Math.max(6, o.w - 8), Math.max(5, o.h - 8), "rgba(5,7,15,.32)");
@@ -3010,56 +3612,152 @@ function drawTunnelObstacle(o) {
 }
 
 function drawBackground() {
-  const isRunnerStageBackground = wave >= 31 && wave < 36;
-  const isGaiaTunnelStageBackground = false;
+  const isRunnerStageBackground = false;
+  const isGaiaTunnelStageBackground = isGaiaDashWave();
+  const isIceCubeStageBackground = isIceCubeStage();
+  const isInvertedStageBackground = isInvertedMarshmallowStage();
   const isPopColaStage = wave >= 26;
   const isFrozenPizzaStage = wave >= 21 && wave < 26;
 
   if (isGaiaTunnelStageBackground) {
     const now = performance.now();
-    const ground = dashGroundY();
     const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, "#101034");
-    grad.addColorStop(.58, "#25104d");
-    grad.addColorStop(1, "#070814");
+    grad.addColorStop(0, "#090912");
+    grad.addColorStop(.55, "#151026");
+    grad.addColorStop(1, "#06070c");
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
 
     ctx.save();
-    const shift = (now * .18) % 64;
-    ctx.globalAlpha = .24;
-    ctx.strokeStyle = "#56e8ff";
+    const shift = (now * .13) % 92;
+    ctx.globalAlpha = .18;
+    ctx.strokeStyle = "#4bffbd";
     ctx.lineWidth = 1;
-    for (let x=-64 + shift; x<W+64; x+=64) {
+    for (let x=-92 + shift; x<W+92; x+=92) {
       ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x - 80, ground);
+      ctx.moveTo(x, 70);
+      ctx.lineTo(x - 46, H - 82);
       ctx.stroke();
     }
-    ctx.globalAlpha = .16;
-    for (let y=40; y<ground; y+=54) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(W, y);
-      ctx.stroke();
-    }
-
-    ctx.globalAlpha = .95;
-    px(0, ground, W, H - ground, "#050510");
-    px(0, ground, W, 6, "#f25191");
-    px(0, ground + 6, W, 4, "#56e8ff");
 
     const tileShift = (now * .22) % 48;
-    for (let x=-48 + tileShift; x<W+48; x+=48) {
-      ctx.globalAlpha = .35;
-      px(x, ground + 12, 4, H - ground - 12, "#241047");
+    for (let floor = 0; floor < 4; floor++) {
+      const y = gaiaFloorY(floor);
+      ctx.globalAlpha = floor === gaiaFloorIndex ? .62 : .34;
+      px(0, y, W, 6, floor === gaiaFloorIndex ? "#ffcc33" : "#3b3950");
+      ctx.globalAlpha = .20;
+      px(0, y + 6, W, 18, "#050510");
+      for (let x=-48 + tileShift; x<W+48; x+=48) {
+        px(x, y + 10, 22, 4, floor === gaiaFloorIndex ? "#ffcc33" : "#56e8ff");
+      }
+      ctx.globalAlpha = .12;
+      ctx.strokeStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.moveTo(0, y - 58);
+      ctx.lineTo(W, y - 58);
+      ctx.stroke();
     }
 
     ctx.globalAlpha = .65;
     ctx.fillStyle = "#f25191";
     ctx.font = "bold 15px Courier New";
     ctx.textAlign = "left";
-    ctx.fillText("GAIA DASH", 18, 108);
+    ctx.fillText("", 18, 108);
+    ctx.fillStyle = "#56e8ff";
+    ctx.fillText("", 18, 128);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    return;
+  }
+
+  if (isIceCubeStageBackground) {
+    const now = performance.now();
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, "#050510");
+    grad.addColorStop(.55, "#0d1326");
+    grad.addColorStop(1, "#09070e");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    for (const s of stars) {
+      s.y += 0.48 + s.v * 0.45;
+      if (s.y > H + 12) {
+        s.y = -12;
+        s.x = Math.random() * W;
+      }
+      ctx.globalAlpha = .42 + Math.min(.35, s.s / 7);
+      px(s.x, s.y, Math.max(1, s.s), Math.max(1, s.s), "#ffffff");
+    }
+
+    ctx.save();
+    ctx.globalAlpha = .62;
+    ctx.fillStyle = "#ffcc33";
+    ctx.font = "bold 15px Courier New";
+    ctx.textAlign = "left";
+    ctx.fillText("ETAPA 6 · CUBO DE HIELO", 18, 108);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(boss ? "FROZEN PIZZA · ONDAS DE 3 COPOS" : "DISPARA AL CUBO · ESQUIVA EL COPO PERSEGUIDOR", 18, 128);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    return;
+  }
+
+  if (isInvertedStageBackground) {
+    const now = performance.now();
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, "#fffdf2");
+    grad.addColorStop(.48, "#f0f6ff");
+    grad.addColorStop(1, "#ffe8f4");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    for (const s of stars) {
+      s.y += 0.62 + s.v * .35;
+      if (s.y > H + 12) {
+        s.y = -12;
+        s.x = Math.random() * W;
+      }
+      ctx.globalAlpha = .18 + Math.min(.38, s.s / 5);
+      px(s.x, s.y, Math.max(1, s.s * 1.25), Math.max(1, s.s * 1.25), "#050510");
+      if ((s.layer || 0) === 2) {
+        ctx.globalAlpha = .18;
+        px(s.x - 7, s.y, 14, 1, "#f25191");
+        px(s.x, s.y - 7, 1, 14, "#56e8ff");
+      }
+    }
+
+    ctx.save();
+    ctx.globalAlpha = .12;
+    ctx.strokeStyle = "#050510";
+    ctx.lineWidth = 2;
+    const shift = (now * .035) % 80;
+    for (let y=-80 + shift; y<H+80; y+=80) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y + 42);
+      ctx.stroke();
+    }
+    for (let x=-80 + shift; x<W+80; x+=80) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x - 38, H);
+      ctx.stroke();
+    }
+
+    if (marshmallowBackdropImage && marshmallowBackdropImage.complete && marshmallowBackdropImage.naturalWidth) {
+      ctx.globalAlpha = .13 + Math.sin(now * .002) * .035;
+      ctx.filter = "invert(1) saturate(1.25) contrast(1.08)";
+      ctx.drawImage(marshmallowBackdropImage, W - 245, 72, 210, 250);
+      ctx.filter = "none";
+    }
+
+    ctx.globalAlpha = .90;
+    ctx.fillStyle = "#050510";
+    ctx.font = "bold 15px Courier New";
+    ctx.textAlign = "left";
+    ctx.fillText("ETAPA 6 · MUNDO INVERTIDO", 16, 108);
+    ctx.fillStyle = "#f25191";
+    ctx.fillText("POWER UP ALIADO ACTIVO", 16, 128);
     ctx.restore();
     ctx.globalAlpha = 1;
     return;
@@ -3068,83 +3766,61 @@ function drawBackground() {
   if (isRunnerStageBackground) {
     const now = performance.now();
     const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, "#07131c");
-    grad.addColorStop(.45, "#173529");
-    grad.addColorStop(1, "#0b1510");
+    grad.addColorStop(0, "#11161c");
+    grad.addColorStop(.58, "#1a2027");
+    grad.addColorStop(1, "#090d12");
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
 
     ctx.save();
-    ctx.globalAlpha = .34;
-    ctx.fillStyle = "#244a2c";
-    ctx.beginPath();
-    ctx.moveTo(0, H);
-    ctx.lineTo(W * .36, 0);
-    ctx.lineTo(W * .64, 0);
-    ctx.lineTo(W, H);
-    ctx.closePath();
-    ctx.fill();
-
-    const roadGrad = ctx.createLinearGradient(0, 0, 0, H);
-    roadGrad.addColorStop(0, "#25221d");
-    roadGrad.addColorStop(.62, "#4a3b2a");
-    roadGrad.addColorStop(1, "#726047");
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = roadGrad;
-    ctx.beginPath();
-    ctx.moveTo(W * .43, 0);
-    ctx.lineTo(W * .57, 0);
-    ctx.lineTo(W * .93, H);
-    ctx.lineTo(W * .07, H);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.strokeStyle = "rgba(255,235,170,.62)";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(W * .43, 0);
-    ctx.lineTo(W * .07, H);
-    ctx.moveTo(W * .57, 0);
-    ctx.lineTo(W * .93, H);
-    ctx.stroke();
-
-    ctx.strokeStyle = "rgba(255,232,160,.28)";
-    ctx.lineWidth = 2;
-    for (let lane=-1; lane<=1; lane++) {
-      const topX = W / 2 + lane * 18;
-      const bottomX = W / 2 + lane * 150;
-      ctx.beginPath();
-      ctx.moveTo(topX, 0);
-      ctx.lineTo(bottomX, H);
-      ctx.stroke();
+    ctx.globalAlpha = .22;
+    for (let x = -20 + (now * .05) % 90; x < W + 60; x += 90) {
+      px(x, 96, 34, H - 146, "#222b34");
+      px(x + 12, 106, 4, H - 166, "#3b4650");
     }
 
-    const dashShift = (now * .58) % 150;
-    for (let i=-2; i<9; i++) {
-      const y = i * 126 + dashShift;
-      const t = Math.max(.05, Math.min(1, y / H));
-      const dashH = 18 + t * 78;
-      const dashW = 4 + t * 8;
-      ctx.globalAlpha = .14 + t * .45;
-      px(W / 2 - dashW / 2, y, dashW, dashH, "#ffe8a0");
-      const sideW = 2 + t * 4;
-      px(W / 2 - t * 185, y + 12, sideW, dashH * .8, "#dfffd1");
-      px(W / 2 + t * 185, y + 12, sideW, dashH * .8, "#dfffd1");
-      if (i % 2 === 0) {
-        ctx.globalAlpha = .08 + t * .16;
-        px(W / 2 - t * 330, y + dashH, t * 95, 3 + t * 5, "#f5d489");
-        px(W / 2 + t * 235, y + dashH, t * 95, 3 + t * 5, "#f5d489");
+    const beltShift = (now * .16) % 42;
+    for (let i = 0; i < 4; i++) {
+      const cy = conveyorLaneY(i);
+      const y = cy - 34;
+      const belt = ctx.createLinearGradient(0, y, 0, y + 68);
+      belt.addColorStop(0, "#4f585d");
+      belt.addColorStop(.50, "#303840");
+      belt.addColorStop(1, "#111820");
+      ctx.globalAlpha = 1;
+      px(0, y - 7, W, 82, "#0b0f14");
+      ctx.fillStyle = belt;
+      ctx.fillRect(0, y, W, 68);
+
+      ctx.globalAlpha = .72;
+      px(0, y, W, 4, "#c8d0d2");
+      px(0, y + 64, W, 4, "#05070a");
+
+      ctx.globalAlpha = .45;
+      for (let x = -42 + beltShift; x < W + 42; x += 42) {
+        px(x, y + 8, 5, 52, "#8f9ba0");
+        px(x + 16, y + 29, 12, 5, "#ffcc33");
+      }
+
+      ctx.globalAlpha = .24;
+      for (let x = -60 + (now * .11) % 120; x < W + 80; x += 120) {
+        ctx.beginPath();
+        ctx.arc(x, cy, 16, 0, Math.PI * 2);
+        ctx.fillStyle = "#a8b2b6";
+        ctx.fill();
+        ctx.fillStyle = "#29323a";
+        ctx.fillRect(x - 3, cy - 14, 6, 28);
       }
     }
 
-    ctx.globalAlpha = .18;
-    for (let i=0; i<34; i++) {
-      const y = (i * 72 + now * .44) % H;
-      const t = Math.max(.12, y / H);
-      const side = i % 2 === 0 ? -1 : 1;
-      const x = W / 2 + side * (70 + t * 260 + (i % 5) * 9);
-      px(x, y, 3 + t * 7, 8 + t * 18, i % 3 ? "#5aa65a" : "#86c66d");
-    }
+    ctx.globalAlpha = .90;
+    ctx.fillStyle = "#ffcc33";
+    ctx.font = "bold 15px Courier New";
+    ctx.textAlign = "left";
+    ctx.fillText("CINTA TRANSPORTADORA", 16, 108);
+    ctx.globalAlpha = .62;
+    ctx.font = "12px Courier New";
+    ctx.fillText("ESQUIVA CARGA / DESTRUYE VEHICULOS", 16, 126);
     ctx.restore();
     ctx.globalAlpha = 1;
     return;
@@ -3289,38 +3965,60 @@ function drawBackground() {
 }
 
 function addEnemyBullet(x,y,type,vx=0,vy=4.4) {
-  enemyBullets.push({x,y,w:18,h:20,type,vx,vy});
+  const largeSnowflake = type === "snowflake";
+  enemyBullets.push({x,y,w:largeSnowflake ? 50 : 18,h:largeSnowflake ? 50 : 20,type,vx,vy,age:0});
 }
 
 function updatePlayer() {
   const now = performance.now();
   if (isGaiaTunnelStage()) {
-    const ground = dashGroundY();
-    const grounded = player.y >= ground - player.h - 1;
-    player.x += (104 - player.x) * .12;
-    if ((dashJumpQueued || keys.Space || keys.ArrowUp) && grounded) {
-      dashVelocityY = -14.2;
-      explode(player.x + player.w / 2, player.y + player.h, "#56e8ff", { count: 8, speed: 4, shape: "spark", size: 4, life: 16 });
+    const boosted = now < jumpBoostUntil;
+    const laneStepReady = now - (player.lastFloorChangeAt || 0) > (boosted ? 115 : 185);
+
+    if (touchControl.targetY !== null) {
+      gaiaFloorIndex = nearestGaiaFloor(touchControl.targetY + player.h * .35);
+    } else if (laneStepReady && keys.ArrowUp) {
+      gaiaFloorIndex = Math.max(0, gaiaFloorIndex - 1);
+      player.lastFloorChangeAt = now;
+      explode(player.x + player.w / 2, player.y + player.h / 2, "#56e8ff", { count: 6, speed: 3.8, shape: "spark", size: 4, life: 12 });
+    } else if (laneStepReady && keys.ArrowDown) {
+      gaiaFloorIndex = Math.min(3, gaiaFloorIndex + 1);
+      player.lastFloorChangeAt = now;
+      explode(player.x + player.w / 2, player.y + player.h / 2, "#56e8ff", { count: 6, speed: 3.8, shape: "spark", size: 4, life: 12 });
     }
-    dashJumpQueued = false;
-    dashVelocityY += .72;
-    player.y += dashVelocityY;
-    if (player.y > ground - player.h) {
-      player.y = ground - player.h;
-      dashVelocityY = 0;
+
+    const targetX = touchControl.targetX !== null ? Math.max(52, Math.min(176, touchControl.targetX - player.w * .5)) : 82;
+    const targetY = gaiaFloorY(gaiaFloorIndex) - player.h;
+    const move = boosted ? 17 : 11;
+    player.x += Math.max(-move, Math.min(move, targetX - player.x));
+    player.y += Math.max(-move, Math.min(move, targetY - player.y));
+    if (keys.ArrowLeft) player.x -= boosted ? 6 : 4;
+    if (keys.ArrowRight) player.x += boosted ? 6 : 4;
+    player.x = Math.max(48, Math.min(184, player.x));
+    if (keys.Space || touchControl.autoFire || isTouchDevice) {
+      if (now - touchControl.lastAutoShot > 92) {
+        touchControl.lastAutoShot = now;
+        shoot();
+      }
     }
-    player.x = Math.max(60, Math.min(150, player.x));
     return;
   }
   let sp = now < speedUntil ? 8.5 : player.speed;
-  if (now < player.frozenUntil) sp *= 0.52;
 
-  const minY = (isRunnerStage() || isGaiaTunnelStage()) ? H * 0.56 : H * 0.72;
+  const minY = isIceCubeStage() ? 0 : (isRunnerStage() ? 190 : (isGaiaTunnelStage() ? H * 0.56 : H * 0.72));
   const maxY = H - player.h - 8;
+  const maxX = isRunnerStage() ? W * .42 : W - player.w;
   const horizontalWrapActive = wave >= 16;
+  if (now < player.frozenUntil) {
+    player.x = Math.max(horizontalWrapActive ? -player.w * .55 : 0, Math.min(maxX, player.x));
+    player.y = Math.max(minY, Math.min(maxY, player.y));
+    return;
+  }
 
   if (touchControl.targetX !== null) {
-    const targetX = horizontalWrapActive ? touchControl.targetX : Math.max(0, Math.min(W - player.w, touchControl.targetX));
+    const targetX = isRunnerStage()
+      ? Math.max(12, Math.min(maxX, touchControl.targetX))
+      : (horizontalWrapActive ? touchControl.targetX : Math.max(0, Math.min(W - player.w, touchControl.targetX)));
     const dx = targetX - player.x;
     const maxStep = sp * 2.1;
     player.x += Math.max(-maxStep, Math.min(maxStep, dx));
@@ -3347,44 +4045,37 @@ function updatePlayer() {
   }
 
   if (horizontalWrapActive) {
-    if (player.x < -player.w * .55) player.x = W - player.w * .45;
-    if (player.x > W - player.w * .45) player.x = -player.w * .55;
+    if (isRunnerStage()) {
+      player.x = Math.max(12, Math.min(maxX, player.x));
+    } else {
+      if (player.x < -player.w * .55) player.x = W - player.w * .45;
+      if (player.x > W - player.w * .45) player.x = -player.w * .55;
+    }
   } else {
-    player.x = Math.max(0, Math.min(W - player.w, player.x));
+    player.x = Math.max(0, Math.min(maxX, player.x));
   }
   player.y = Math.max(minY, Math.min(maxY, player.y));
 }
 
 function updateGroundEnemies() {
-  const now = performance.now();
-  const lanes = [-1.08, -.36, .36, 1.08];
+  const lanes = [0, 1, 2, 3];
   for (let i=enemies.length-1; i>=0; i--) {
     const e = enemies[i];
-    e.depth += e.roadSpeed || .007;
+    e.x -= e.roadSpeed || 3;
     e.laneChangeTimer--;
-    if (e.laneChangeTimer <= 0 && e.depth > .12 && e.depth < .82) {
+    if (e.laneChangeTimer <= 0 && e.x > W * .35 && e.x < W + 40) {
       const direction = Math.random() < .5 ? -1 : 1;
-      e.roadLaneIndex = Math.max(0, Math.min(lanes.length - 1, (e.roadLaneIndex || 0) + direction));
-      e.targetRoadLane = lanes[e.roadLaneIndex];
+      e.targetRoadLaneIndex = Math.max(0, Math.min(lanes.length - 1, (e.targetRoadLaneIndex || e.roadLaneIndex || 0) + direction));
       e.laneChangeTimer = 120 + Math.random() * 190;
     }
-    e.roadLane += ((e.targetRoadLane ?? e.roadLane) - e.roadLane) * .025;
-    e.roadLane += Math.sin(now * .0018 + e.phase) * .0008;
-    const t = Math.max(.05, e.depth);
-    const perspective = Math.max(.05, t * t);
-    const roadWidth = 42 + perspective * 355;
-    const laneX = W / 2 + e.roadLane * roadWidth * .42;
-    const scale = .42 + perspective * 2.25;
-    e.w = (e.type === "frozenpizza" ? 48 : 40) * scale;
-    e.h = (e.type === "frozenpizza" ? 50 : 44) * scale;
-    e.x = laneX - e.w / 2;
-    e.y = H * (.05 + perspective * 1.12);
+    const targetY = conveyorLaneY(e.targetRoadLaneIndex ?? e.roadLaneIndex ?? 0) - e.h / 2;
+    e.y += (targetY - e.y) * .045;
     e.shootTimer--;
-    if (e.shootTimer < 0 && e.depth > .34 && e.depth < 1.02) {
-      addEnemyBullet(e.x + e.w / 2, e.y + e.h * .42, e.data.bullet, 0, 3.2);
+    if (e.shootTimer < 0 && e.x > 120 && e.x < W + 10) {
+      addEnemyBullet(e.x + 4, e.y + e.h * .48, e.data.bullet, -4.1, 0);
       e.shootTimer = 150 + Math.random() * 140;
     }
-    if (e.depth > 1.22 || e.y > H + 70) enemies.splice(i, 1);
+    if (e.x + e.w < -90) enemies.splice(i, 1);
   }
 }
 
@@ -3421,21 +4112,40 @@ function updateTunnelEnemies() {
 }
 
 function updateEnemies() {
+  updateTopBomber();
   if (isGaiaTunnelStage()) {
-    if (tunnelDistance >= 1100 && state === "play") {
-      showTransition("GAIA DASH", "SENAL LOCALIZADA", () => {
-        state = "gaiaRescued";
+    if (tunnelDistance >= 1250 && state === "play") {
+      showTransition("", "", () => {
+        runnerObstacles = [];
+        enemyBullets = [];
+        bullets = [];
+        wave = 46;
+        resetGame();
+        state = "hangar";
         touchControl.autoFire = false;
         touchControl.active = false;
-      }, 1800);
-      transition.drawCustom = () => drawStageCompleteV12("GAIA DASH", "La señal de Gaia fue localizada al final del corredor.");
+      }, 2000);
+      transition.drawCustom = () => drawStageCompleteV12("", "");
     }
     return;
   }
   if (isRunnerStage()) {
+    if (runnerDistance >= 1200 && state === "play") {
+      showTransition("CINTA SUPERADA", "SALIDA DE FABRICA", () => {
+        runnerObstacles = [];
+        enemyBullets = [];
+        bullets = [];
+        runnerDistance = 0;
+        wave = 36;
+        createWave();
+        state = "play";
+      }, 1800);
+      transition.drawCustom = () => drawStageCompleteV12("CINTA SUPERADA", "La nave escapo de la linea industrial.");
+      return;
+    }
     updateGroundEnemies();
     if (!enemies.length && !boss && state === "play") {
-      wave++;
+      wave = Math.min(35, wave + 1);
       createWave();
     }
     return;
@@ -3527,6 +4237,16 @@ function updateBoss() {
   boss.x = W/2 - boss.w/2 + Math.sin(boss.t*.025)*110;
   boss.shootTimer--;
   if (boss.shootTimer < 0) {
+    if (boss.type === "frozenPizzaBoss" && isIceCubeBossWave()) {
+      const baseX = boss.x + boss.w / 2 - 25;
+      const baseY = boss.y + boss.h * .78;
+      addEnemyBullet(baseX - 58, baseY, "snowflake", -1.45, 3.25);
+      addEnemyBullet(baseX, baseY + 10, "snowflake", 0, 3.45);
+      addEnemyBullet(baseX + 58, baseY, "snowflake", 1.45, 3.25);
+      explode(boss.x + boss.w / 2, baseY, "#d5fbff", { count: 16, speed: 5.8, shape: "spark", size: 5, life: 16 });
+      boss.shootTimer = 118;
+      return;
+    }
     const bulletSpeed = boss.fixedDifficulty ? 3.05 : 3.35;
     for (let i=-2; i<=2; i++) addEnemyBullet(boss.x + boss.w/2, boss.y + boss.h*.78, boss.bullet, i*.75, bulletSpeed);
     boss.shootTimer = boss.fixedDifficulty ? 72 : Math.max(48, 105 - Math.min(wave, 8)*3);
@@ -3541,8 +4261,27 @@ function updateBullets() {
     b.y += b.vy;
   });
   bullets = bullets.filter(b => b.y > -40 && b.x > -60 && b.x < W + 60);
-  enemyBullets.forEach(b => { b.x += b.vx; b.y += b.vy; });
-  enemyBullets = enemyBullets.filter(b => b.y < H+40 && b.x > -50 && b.x < W+50);
+  enemyBullets.forEach(b => {
+    b.age = (b.age || 0) + 1;
+    if (b.type === "snowflake" && player) {
+      const tx = player.x + player.w / 2;
+      const ty = player.y + player.h / 2;
+      const bx = b.x + b.w / 2;
+      const by = b.y + b.h / 2;
+      const dx = tx - bx;
+      const dy = ty - by;
+      const dist = Math.max(1, Math.hypot(dx, dy));
+      const speed = 3.35 + Math.min(1.35, b.age / 170);
+      b.vx += (dx / dist) * .16;
+      b.vy += (dy / dist) * .16;
+      const current = Math.max(1, Math.hypot(b.vx, b.vy));
+      b.vx = (b.vx / current) * Math.min(speed, current + .08);
+      b.vy = (b.vy / current) * Math.min(speed, current + .08);
+    }
+    b.x += b.vx;
+    b.y += b.vy;
+  });
+  enemyBullets = enemyBullets.filter(b => b.y < H+60 && b.x > -70 && b.x < W+70);
 }
 
 function ensureCandyMarshmallowThreat() {
@@ -3680,6 +4419,7 @@ function bossExplosionStyle(type) {
 }
 
 function startBossExplosion(defeatedBoss, next) {
+  playSfx("bossDown");
   const colors = bossExplosionPalette(defeatedBoss.type);
   const style = bossExplosionStyle(defeatedBoss.type);
   bossExplosion = {
@@ -3783,6 +4523,10 @@ function drawBossExplosionScreen() {
 }
 
 function maybePowerup(x,y) {
+  if (isInvertedMarshmallowStage() && !allyShip && Math.random() < .16) {
+    powerups.push({type:"ally", x, y, w:28, h:28});
+    return;
+  }
   const canDropSimilae = wave >= 26;
   const similaeDropRate = .08;
   if (canDropSimilae && Math.random() < similaeDropRate) {
@@ -3805,6 +4549,19 @@ function updateCollisions() {
     const b = bullets[bi];
     let removed = false;
     let hitThisFrame = false;
+    if (topBomber && isIceCubeStage() && hitRect({x:b.x, y:b.y, w:b.w, h:b.h}, topBomber)) {
+      topBomber.hp -= b.damage || 1;
+      bullets.splice(bi, 1);
+      removed = true;
+      explode(b.x + b.w / 2, b.y + b.h / 2, "#d5fbff", { count: 8, speed: 4.5, shape: "spark", size: 4, life: 12 });
+      if (topBomber.hp <= 0) {
+        score += 240;
+        explode(topBomber.x + topBomber.w / 2, topBomber.y + topBomber.h / 2, "#72e6ff", { count: 38, speed: 8, shape: "shard", size: 7, life: 26 });
+        topBomber = null;
+        updateTopBomber.nextAt = performance.now() + 5200 + Math.random() * 2800;
+      }
+    }
+    if (removed) continue;
     for (let ei=enemies.length-1; ei>=0; ei--) {
       const e = enemies[ei];
       if (b.hitIds && b.hitIds.includes(e.uid)) continue;
@@ -3853,7 +4610,32 @@ function updateCollisions() {
             return;
           }
 
-          if (defeatedBoss.type === "frozenPizzaBoss") {
+          if (defeatedBoss.name === "MARSHMALLOW MAN") {
+            showTransition("MARSHMALLOW MAN", "DERROTADO", () => {
+              wave = 41;
+              runnerObstacles = [];
+              enemyBullets = [];
+              bullets = [];
+              tunnelDistance = 0;
+              tunnelObstacleTick = 20;
+              dashVelocityY = 0;
+              createWave();
+              state = "play";
+            }, 2200);
+            transition.drawCustom = () => drawStageCompleteV12("MUNDO INVERTIDO", "Marshmallow Man cae. Un cubo de hielo patrulla la ruta.");
+          } else if (defeatedBoss.type === "frozenPizzaBoss" && defeatedBoss.iceCubeStageBoss) {
+            showTransition("CUBO DE HIELO", "ETAPA SUPERADA", () => {
+              topBomber = null;
+              enemyBullets = [];
+              bullets = [];
+              powerups = [];
+              resetGame();
+              state = "hangar";
+              touchControl.autoFire = false;
+              touchControl.active = false;
+            }, 2200);
+            transition.drawCustom = () => drawStageCompleteV12("CUBO DE HIELO", "Frozen Pizza cae. Gaia rompe la ultima onda helada.");
+          } else if (defeatedBoss.type === "frozenPizzaBoss") {
             showTriviaInterlude(() => {
               showWorldMapTransition(
                 4,
@@ -3924,6 +4706,26 @@ function updateCollisions() {
         candyMarshmallowThreat = null;
       }
     }
+
+    if (!removed && !hitThisFrame && isGaiaTunnelStage()) {
+      for (let oi=runnerObstacles.length-1; oi>=0; oi--) {
+        const o = runnerObstacles[oi];
+        if (o.type === "dashJumpBoost") continue;
+        const inset = 7;
+        if (hitRect({x:b.x,y:b.y,w:b.w,h:b.h}, {x:o.x+inset,y:o.y+inset,w:o.w-inset*2,h:o.h-inset*2})) {
+          o.hp = (o.hp || 1) - (b.damage || 1);
+          bullets.splice(bi, 1);
+          removed = true;
+          explode(b.x + b.w / 2, b.y + b.h / 2, "#ffcc33", { count: 7, speed: 4.5, shape: "spark", size: 4, life: 12 });
+          if (o.hp <= 0) {
+            score += o.type === "dashMarshmallow" ? 90 : 55;
+            explode(o.x + o.w / 2, o.y + o.h / 2, o.type === "dashFrozenPizza" ? "#9be8ff" : "#f25191", { count: 22, speed: 7, shape: "shard", size: 7, life: 22 });
+            runnerObstacles.splice(oi, 1);
+          }
+          break;
+        }
+      }
+    }
   }
 
   for (let ei=enemies.length-1; ei>=0; ei--) {
@@ -3942,8 +4744,15 @@ function updateCollisions() {
       : { x:o.x + inset, y:o.y + inset, w:o.w - inset * 2, h:o.h - inset * 2 };
     if (hitRect(player, obstacleHitbox)) {
       runnerObstacles.splice(oi, 1);
-      explode(o.x + o.w / 2, o.y + o.h / 2, o.type && o.type.startsWith("dash") ? "#f25191" : (o.type === "tunnelWall" ? "#f25191" : "#72e6ff"), { count: 18, speed: 7, shape: "shard", size: 8 });
-      hurtPlayer();
+      if (o.type === "dashJumpBoost") {
+        jumpBoostUntil = performance.now() + 6500;
+        playSfx("powerup");
+        score += 80;
+        explode(o.x + o.w / 2, o.y + o.h / 2, "#56e8ff", { count: 24, speed: 7, shape: "spark", size: 6 });
+      } else {
+        explode(o.x + o.w / 2, o.y + o.h / 2, o.type && o.type.startsWith("dash") ? "#f25191" : (o.type === "tunnelWall" ? "#f25191" : "#72e6ff"), { count: 18, speed: 7, shape: "shard", size: 8 });
+        hurtPlayer();
+      }
     }
   }
 
@@ -3951,7 +4760,13 @@ function updateCollisions() {
     const b = enemyBullets[bi];
     if (hitRect(player, {x:b.x,y:b.y,w:b.w,h:b.h})) {
       enemyBullets.splice(bi,1);
-      if (b.type === "ice") player.frozenUntil = performance.now() + 3000;
+      if (b.type === "snowflake") {
+        if (performance.now() >= player.frozenUntil) {
+          player.frozenUntil = performance.now() + 3000;
+          explode(player.x + player.w / 2, player.y + player.h / 2, "#d5fbff", { count: 18, speed: 5, shape: "spark", size: 5, life: 18 });
+        }
+        continue;
+      }
       hurtPlayer();
     }
   }
@@ -3961,6 +4776,7 @@ function updateCollisions() {
     p.y += 2.2;
     if (hitRect(player,p)) {
       const now = performance.now();
+      playSfx("powerup");
       if (p.type==="double") {
         cheeseCount++;
         if (wave >= 6 && cheeseCount >= 2) {
@@ -3978,6 +4794,10 @@ function updateCollisions() {
         similaeModeUntil = now + 9000;
         score += 100;
       }
+      if (p.type==="ally") {
+        activateAllyShip();
+        score += 120;
+      }
       explode(p.x,p.y,"#57e76a");
       powerups.splice(pi,1);
     } else if (p.y > H+30) powerups.splice(pi,1);
@@ -3989,7 +4809,12 @@ function hurtPlayer() {
   lives--;
   explode(player.x+28, player.y+28, "#ff4f7b");
   shieldUntil = performance.now() + 1500;
-  if (lives <= 0) { state = "gameover"; touchControl.autoFire = false; touchControl.active = false; }
+  if (lives <= 0) {
+    playSfx("hurt");
+    state = "gameover";
+    touchControl.autoFire = false;
+    touchControl.active = false;
+  }
 }
 
 function updateParticles() {
@@ -4100,34 +4925,62 @@ function drawGroundPlayerWheels() {
 }
 
 function drawDashPlayer() {
-  const def = SHIP_DEFS[selectedShipId] || SHIP_DEFS.luca;
   const cx = player.x + player.w / 2;
   const cy = player.y + player.h / 2;
-  const ground = dashGroundY();
-  const grounded = player.y >= ground - player.h - 1;
-  const rotation = grounded ? 0 : tunnelDistance * .11;
+  const thrust = Math.sin(performance.now() * .018) * 3;
 
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.rotate(rotation);
-  px(-25, -25, 50, 50, def.color);
-  px(-20, -20, 40, 40, "#ffd344");
-  px(-17, 13, 34, 8, "#c96c27");
-  px(-18, -22, 36, 6, "#ffffff");
-  px(-12, -4, 8, 8, "#050510");
-  px(7, -4, 8, 8, "#050510");
-  px(-7, 10, 14, 4, "#050510");
-  ctx.strokeStyle = "#050510";
-  ctx.lineWidth = 4;
-  ctx.strokeRect(-25, -25, 50, 50);
+  drawCharacterShip(selectedShipId, -28, -32, 1, false);
+  ctx.globalAlpha = .72;
+  px(-34, 10 + thrust, 18, 5, "#56e8ff");
+  px(-38, 19 - thrust, 22, 5, "#ffcc33");
   ctx.restore();
 
-  if (!grounded) {
-    ctx.save();
-    ctx.globalAlpha = .42;
-    px(player.x + 12, player.y + player.h + 4, player.w - 24, 5, "#56e8ff");
-    ctx.restore();
+  ctx.save();
+  ctx.globalAlpha = .32;
+  px(player.x + 8, gaiaFloorY(gaiaFloorIndex) + 8, player.w - 16, 5, "#56e8ff");
+  ctx.restore();
+}
+
+function drawFreezeAd() {
+  if (!player || performance.now() >= player.frozenUntil) return;
+  const remaining = player.frozenUntil - performance.now();
+  const alpha = Math.min(1, remaining / 260);
+  const adRatio = (freezeAdImage.naturalWidth && freezeAdImage.naturalHeight)
+    ? freezeAdImage.naturalHeight / freezeAdImage.naturalWidth
+    : 1074 / 2054;
+  const adW = Math.min(W - 32, 500);
+  const adH = adW * adRatio;
+  const adX = (W - adW) / 2;
+  const adY = Math.max(108, H * .22);
+
+  ctx.save();
+  ctx.globalAlpha = .42 * alpha;
+  ctx.fillStyle = "#d5fbff";
+  ctx.fillRect(0, 0, W, H);
+  ctx.globalAlpha = alpha;
+  ctx.shadowColor = "rgba(213,251,255,.75)";
+  ctx.shadowBlur = 24;
+  if (freezeAdImage.complete && freezeAdImage.naturalWidth) {
+    ctx.drawImage(freezeAdImage, adX, adY, adW, adH);
+  } else {
+    ctx.fillStyle = "#f8fbff";
+    roundRect(adX, adY, adW, adH, 10);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#000000";
+    ctx.font = "bold 30px Arial";
+    ctx.fillText("Horneamos todos los dias.", W / 2, adY + adH * .45);
+    ctx.fillStyle = "#f5bd2e";
+    ctx.fillText("No congelamos.", W / 2, adY + adH * .65);
   }
+  ctx.shadowBlur = 0;
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "rgba(213,251,255,.9)";
+  ctx.strokeRect(adX, adY, adW, adH);
+  ctx.restore();
 }
 
 function drawAll() {
@@ -4141,14 +4994,33 @@ function drawAll() {
 
   if (isRunnerStage() || isGaiaTunnelStage()) drawGroundPlayerShadow();
   if (isGaiaTunnelStage()) drawDashPlayer();
-  else drawCharacterShip(selectedShipId, player.x, player.y, 1);
+  else if (performance.now() < player.frozenUntil) {
+    ctx.save();
+    ctx.filter = "brightness(1.35) saturate(.45) hue-rotate(155deg)";
+    drawCharacterShip(selectedShipId, player.x, player.y, 1);
+    ctx.filter = "none";
+    ctx.globalAlpha = .42 + Math.sin(performance.now() * .018) * .08;
+    px(player.x + 3, player.y + 4, player.w - 6, player.h - 8, "#d5fbff");
+    ctx.globalAlpha = .75;
+    px(player.x + 7, player.y + 8, 10, 24, "#ffffff");
+    px(player.x + player.w - 18, player.y + 18, 8, 28, "#72e6ff");
+    ctx.restore();
+  } else drawCharacterShip(selectedShipId, player.x, player.y, 1);
+  drawAllyShip();
   if (isRunnerStage()) drawGroundPlayerWheels();
+  drawTopBomber();
 
   for (const b of bullets) drawShot(b.type || "cheese", b.x, b.y, true);
+  ctx.save();
+  if (isInvertedMarshmallowStage()) ctx.filter = "invert(1) hue-rotate(180deg) saturate(1.18)";
   for (const e of enemies) drawEnemy(e);
   drawBoss();
+  ctx.restore();
   drawMarshmallowBackdropPass("front");
+  ctx.save();
+  if (isInvertedMarshmallowStage()) ctx.filter = "invert(1) hue-rotate(180deg) saturate(1.18)";
   for (const b of enemyBullets) drawShot(b.type, b.x, b.y, false);
+  ctx.restore();
   for (const p of powerups) drawPowerup(p);
 
   for (const p of particles) {
@@ -4167,6 +5039,9 @@ function drawAll() {
   ctx.fillStyle = "white";
   ctx.font = "19px Arial";
   ctx.fillText("Oleada: " + wave, W-118, 28);
+  ctx.font = "bold 12px Courier New";
+  ctx.fillStyle = audioMuted ? "#ff78d0" : "#9dbf40";
+  ctx.fillText(audioMuted ? "M: SFX OFF" : "M: SFX ON", W - 108, 158);
   if (isRunnerStage()) {
     const distanceGoal = 1200;
     const progress = Math.min(1, runnerDistance / distanceGoal);
@@ -4185,19 +5060,23 @@ function drawAll() {
     ctx.restore();
   }
   if (isGaiaTunnelStage()) {
-    const progress = Math.min(1, tunnelDistance / 1100);
+    const progress = Math.min(1, tunnelDistance / 1250);
     ctx.save();
     ctx.fillStyle = "rgba(5,7,15,.82)";
     ctx.fillRect(W - 188, 42, 160, 34);
-    ctx.strokeStyle = "#f25191";
+    ctx.strokeStyle = "#ffcc33";
     ctx.lineWidth = 2;
     ctx.strokeRect(W - 188, 42, 160, 34);
-    ctx.fillStyle = "#f25191";
+    ctx.fillStyle = "#4bffbd";
     ctx.fillRect(W - 180, 64, 144 * progress, 5);
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 12px Courier New";
     ctx.textAlign = "center";
-    ctx.fillText("DASH " + Math.floor(progress * 100) + "%", W - 108, 58);
+    ctx.fillText("PISOS " + Math.floor(progress * 100) + "%", W - 108, 58);
+    if (performance.now() < jumpBoostUntil) {
+      ctx.fillStyle = "#56e8ff";
+      ctx.fillText("IMPULSO", W - 108, 73);
+    }
     ctx.restore();
   }
   ctx.save();
@@ -4219,7 +5098,22 @@ function drawAll() {
     ctx.fillStyle = "#56e8ff";
     ctx.fillText("ANILLO SIMILAE", W-178, 134);
   }
+  if (allyShip) {
+    const allyDef = SHIP_DEFS[allyShip.id] || SHIP_DEFS.gino;
+    const remaining = Math.ceil(Math.max(0, allyShip.until - performance.now()) / 1000);
+    ctx.fillStyle = allyDef.color;
+    ctx.fillText("ALIADO " + allyDef.name + " " + remaining + "s", W-190, 134);
+    if (performance.now() < allyShip.noticeUntil) {
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.font = "bold 24px Courier New";
+      ctx.fillStyle = "#ffcc33";
+      ctx.fillText(allyDef.name + " ENTRA AL COMBATE", W/2, 128);
+      ctx.restore();
+    }
+  }
   if (performance.now() < player.frozenUntil) ctx.fillText("Congelado", W-116, 108);
+  drawFreezeAd();
   if (shipUnlockNotice) {
     if (!shipUnlockNotice.shownAt) shipUnlockNotice.shownAt = performance.now();
     const unlocked = SHIP_DEFS[shipUnlockNotice.id];
@@ -4242,9 +5136,11 @@ function drawAll() {
       shipUnlockNotice = null;
     }
   }
-  ctx.globalAlpha = .18;
-  px(0, H*.72, W, 2, "#56e8ff");
-  ctx.globalAlpha = 1;
+  if (!isIceCubeStage()) {
+    ctx.globalAlpha = .18;
+    px(0, H*.72, W, 2, "#56e8ff");
+    ctx.globalAlpha = 1;
+  }
 }
 
 
@@ -4438,124 +5334,27 @@ function drawIntroStoryCrawl() {
   drawV12Stars();
 
   const elapsed = performance.now() - introStartedAt;
-  const pageDuration = 6500;
-  const storyPages = [
-    {
-      title: "GAIA FUE CAPTURADA",
-      lines: [
-        "Gaia es una pizza natural,",
-        "mediterranea y bien hecha.",
-        "",
-        "Pop Cola la quiere transformar."
-      ]
-    },
-    {
-      title: "EL PLAN ENEMIGO",
-      lines: [
-        "Quieren añadirle piña,",
-        "congelarla y casarla con Colin,",
-        "hijo del imperio Pop Cola."
-      ]
-    },
-    {
-      title: "EL COMBO FINAL",
-      lines: [
-        "Si lo logran, Gaia sera parte",
-        "del combo industrial definitivo:",
-        "",
-        "pizza congelada + bebida azucarada."
-      ]
-    },
-    {
-      title: "LOS AMIGOS DE GAIA",
-      lines: [
-        "Luca, Gino, Gian y Paolo",
-        "son pizzas italianas naturales,",
-        "digeribles y con criterio."
-      ]
-    },
-    {
-      title: "LA MISION",
-      lines: [
-        "Rescatar a Gaia es defender",
-        "la cultura de comer bien:",
-        "",
-        "variedad, medida y buenos ingredientes."
-      ]
-    },
-    {
-      character: "gaia",
-      title: "GAIA",
-      subtitle: "LA PIZZA CAPTURADA",
-      color: "#f25191",
-      lines: [
-        "Natural, mediterranea y completa.",
-        "Pop Cola quiere convertirla",
-        "en un combo industrial."
-      ]
-    },
-    {
-      character: "luca",
-      title: "LUCA",
-      subtitle: "PEPPERONI",
-      color: "#e12525",
-      lines: [
-        "Energia directa.",
-        "Dispara con caracter italiano",
-        "y no le teme al frente."
-      ]
-    },
-    {
-      character: "gino",
-      title: "GINO",
-      subtitle: "ALBAHACA",
-      color: "#36b84b",
-      lines: [
-        "Fresco, rapido y aromatico.",
-        "Cree en el equilibrio",
-        "antes que en el exceso."
-      ]
-    },
-    {
-      character: "gian",
-      title: "GIAN",
-      subtitle: "CHAMPIÑON",
-      color: "#1767c7",
-      lines: [
-        "Preciso y resistente.",
-        "Prefiere hacer menos ruido",
-        "y pegar donde importa."
-      ]
-    },
-    {
-      character: "paolo",
-      title: "PAOLO",
-      subtitle: "PROSCIUTTO CRUDO",
-      color: "#7445a7",
-      lines: [
-        "Elegante y decidido.",
-        "Sabe que el verdadero sabor",
-        "no necesita exagerar."
-      ]
-    }
-  ];
-  const pageIndex = Math.min(storyPages.length - 1, Math.floor(elapsed / pageDuration));
-  const page = storyPages[pageIndex];
-  const pageElapsed = elapsed - pageIndex * pageDuration;
-  const fadeIn = Math.min(1, pageElapsed / 650);
-  const fadeOut = Math.min(1, (pageDuration - pageElapsed) / 650);
+  const pageIndex = Math.min(INTRO_STORY_PAGES.length - 1, Math.floor(elapsed / INTRO_STORY_PAGE_DURATION));
+  const page = INTRO_STORY_PAGES[pageIndex];
+  const pageElapsed = elapsed - pageIndex * INTRO_STORY_PAGE_DURATION;
+  const fadeIn = Math.min(1, pageElapsed / 500);
+  const fadeOut = Math.min(1, (INTRO_STORY_PAGE_DURATION - pageElapsed) / 500);
   const alpha = Math.max(0, Math.min(fadeIn, fadeOut));
 
   ctx.save();
   ctx.textAlign = "center";
   ctx.globalAlpha = alpha;
 
-  ctx.font = "900 34px Courier New";
+  if (similaeLogoImage && similaeLogoImage.complete) {
+    ctx.drawImage(similaeLogoImage, W / 2 - 78, 34, 156, 62);
+  }
+
+  ctx.font = "900 29px Courier New";
   ctx.fillStyle = "#ffcc33";
-  ctx.fillText("PIZZA INVADERS", W / 2, 118);
+  ctx.fillText("PIZZA INVADERS", W / 2, 132);
 
   if (page.character) {
-    drawIntroCharacterImage(page.character, W / 2, 315, 300, 300);
+    drawIntroCharacterImage(page.character, W / 2, 322, 300, 300);
     ctx.font = "900 42px Arial Black";
     ctx.fillStyle = page.color || "#ffffff";
     ctx.fillText(page.title, W / 2, 522);
@@ -4589,11 +5388,12 @@ function drawIntroStoryCrawl() {
   ctx.globalAlpha = .78;
   ctx.font = "bold 15px Arial";
   ctx.fillStyle = "#ffffff";
-  ctx.fillText(`${pageIndex + 1}/${storyPages.length}`, W / 2, H - 78);
+  ctx.fillText(`${pageIndex + 1}/${INTRO_STORY_PAGES.length}`, W / 2, H - 102);
+  ctx.fillText("Click / tap para continuar", W / 2, H - 74);
   ctx.fillText("La mision comienza...", W / 2, H - 48);
   ctx.restore();
 
-  if (elapsed > storyPages.length * pageDuration) {
+  if (elapsed > INTRO_STORY_PAGES.length * INTRO_STORY_PAGE_DURATION) {
     introStoryDone = true;
     introStartedAt = performance.now();
   }
@@ -4778,6 +5578,8 @@ function drawV12BrandFooter() {
 }
 
 function getBossForWaveV12() {
+  if (isIceCubeBossWave()) return BOSSES.find(bossDef => bossDef.type === "frozenPizzaBoss");
+  if (isInvertedMarshmallowStage()) return MARSHMALLOW_MAN_BOSS;
   return BOSSES[Math.min(BOSSES.length - 1, Math.floor((wave - 1) / 5))] || BOSSES[0];
 }
 
@@ -4989,8 +5791,8 @@ function drawGaiaRescuedV12() {
 
   ctx.fillStyle = "#9dbf40";
   ctx.font = "bold 17px Courier New";
-  ctx.fillText("DISPONIBLE DESDE LA PROXIMA PARTIDA", W/2, 526);
-  drawTriviaButtonV12(95, 590, 350, 56, "IR AL HANGAR");
+  ctx.fillText("EL ESCUADRON SIMILAE ESTA LISTO", W/2, 526);
+  drawTriviaButtonV12(95, 590, 350, 56, "ETAPA 6");
   ctx.restore();
 }
 
@@ -5399,6 +6201,9 @@ function drawStart() {
   ctx.font = "20px Arial";
   ctx.fillText("Sprites pixel-art dibujados en el juego", W/2, 485);
   ctx.fillText(isTouchDevice ? "Arrastra el dedo para mover" : "← → mover · Espacio disparar", W/2, 522);
+  ctx.fillStyle = "#9dbf40";
+  ctx.font = "16px Arial";
+  ctx.fillText("M activa o silencia los sonidos", W/2, 548);
   ctx.fillStyle = "#ffcc33";
 ctx.font = "28px Arial";
 ctx.fillText("START GAME", W/2, 570);
@@ -5445,12 +6250,13 @@ function drawStageSelect() {
   ctx.fillText("2. CANDY PLANET", W/2, 320);
   ctx.fillText("3. FROZEN PIZZA", W/2, 380);
   ctx.fillText("4. POP COLA", W/2, 440);
-  ctx.fillText("5. CORREDOR", W/2, 500);
-  ctx.fillText("6. BACK TO DEV MENU", W/2, 560);
+  ctx.fillText("5. POPCOLA KING", W/2, 500);
+  ctx.fillText("6. CUBO DE HIELO", W/2, 560);
+  ctx.fillText("7. BACK TO DEV MENU", W/2, 620);
 
   ctx.fillStyle = "#56e8ff";
   ctx.font = "18px Arial";
-  ctx.fillText("V10 STAGE TEST", W/2, 680);
+  ctx.fillText("V10 STAGE TEST", W/2, 720);
 
   ctx.textAlign = "left";
 }
@@ -5499,6 +6305,7 @@ function loop() {
     updateEnemies();
     updateBoss();
     updateBullets();
+    updateAllyShip();
     updateCandyMarshmallowThreat();
     updateRunnerObstacles();
     updateCollisions();
