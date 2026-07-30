@@ -2,7 +2,16 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#050510" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Pizza Invaders" />
+<meta name="description" content="Pizza Invaders: rescata a Gaia y defiende la cultura mediterránea." />
+<link rel="manifest" href="./manifest.webmanifest" />
+<link rel="icon" type="image/png" sizes="192x192" href="./assets/pwa-icon-192.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="./assets/apple-touch-icon.png" />
 <title>Pizza Invaders</title>
 <style>
   * { box-sizing: border-box; }
@@ -109,7 +118,7 @@
     text-align: center;
     text-transform: uppercase;
   }
-  .ui-card button, #fullscreenBtn {
+  .ui-card button, #fullscreenBtn, #installPwaBtn {
     display: block;
     width: 100%;
     margin: 10px 0 0;
@@ -247,6 +256,61 @@
     background: #050510;
     box-shadow: 4px 4px 0 #000;
   }
+  #installPwaBtn {
+    position: fixed;
+    z-index: 200000;
+    top: max(12px, env(safe-area-inset-top));
+    right: max(12px, env(safe-area-inset-right));
+    left: auto;
+    width: auto;
+    min-width: 154px;
+    min-height: 58px;
+    display: none;
+    pointer-events: auto;
+    touch-action: manipulation;
+    padding: 13px 15px;
+    font-size: 14px;
+    background: #2b1a63;
+    color: #ffcc33;
+  }
+  #installOverlay {
+    background: rgba(5, 5, 16, .88);
+  }
+  #installOverlay .install-steps {
+    margin: 14px 0;
+    padding: 14px;
+    border: 3px solid #56e8ff;
+    background: #000;
+    color: #fff;
+    line-height: 1.55;
+    text-align: left;
+  }
+  #updatePwaBanner {
+    position: fixed;
+    z-index: 250000;
+    left: 50%;
+    bottom: max(14px, env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    width: min(92vw, 440px);
+    display: none;
+    padding: 12px;
+    border: 3px solid #56e8ff;
+    background: #050510;
+    color: #fff;
+    text-align: center;
+    font: bold 14px "Courier New", monospace;
+    box-shadow: 5px 5px 0 #000, 0 0 20px rgba(86, 232, 255, .35);
+  }
+  #updatePwaBanner button {
+    display: block;
+    width: 100%;
+    margin-top: 9px;
+    padding: 10px;
+    border: 3px solid #ffcc33;
+    background: #2b1a63;
+    color: #ffcc33;
+    font: bold 15px "Courier New", monospace;
+  }
   body.fake-fullscreen #wrap {
     position: fixed;
     inset: 0;
@@ -270,6 +334,15 @@
       min-height: 52px;
       font-size: 14px;
       padding: 12px 13px;
+    }
+    #installPwaBtn {
+      top: auto;
+      right: max(10px, env(safe-area-inset-right));
+      bottom: max(10px, env(safe-area-inset-bottom));
+      min-width: 150px;
+      min-height: 48px;
+      padding: 10px 12px;
+      font-size: 13px;
     }
   }
 
@@ -371,6 +444,7 @@
   <canvas id="game" width="540" height="760" tabindex="0"></canvas>
 </div>
 <button id="fullscreenBtn" type="button">[ ] FULL SCREEN</button>
+<button id="installPwaBtn" type="button">INSTALAR JUEGO</button>
 
 <div id="loadingScreen" aria-live="polite">
   <div class="loading-card">
@@ -428,6 +502,19 @@
   </div>
 </div>
 
+<div id="installOverlay" class="ui-overlay" role="dialog" aria-modal="true" aria-labelledby="installTitle">
+  <div class="ui-card">
+    <h2 id="installTitle">INSTALAR PIZZA INVADERS</h2>
+    <p id="installIntro">Juega desde tu pantalla de inicio, como una aplicación.</p>
+    <div id="installSteps" class="install-steps"></div>
+    <button id="closeInstallBtn" class="primary" type="button">ENTENDIDO</button>
+  </div>
+</div>
+
+<div id="updatePwaBanner" role="status">
+  <span>NUEVA MISIÓN DISPONIBLE</span>
+  <button id="updatePwaBtn" type="button">ACTUALIZAR JUEGO</button>
+</div>
 
 <script>
 const canvas = document.getElementById("game");
@@ -7732,6 +7819,90 @@ document.addEventListener("gesturestart", e => e.preventDefault());
 document.addEventListener("touchmove", e => {
   if (e.target === canvas) e.preventDefault();
 }, { passive: false });
+</script>
+<script>
+const installPwaBtn = document.getElementById("installPwaBtn");
+const installOverlay = document.getElementById("installOverlay");
+const installSteps = document.getElementById("installSteps");
+const closeInstallBtn = document.getElementById("closeInstallBtn");
+const updatePwaBanner = document.getElementById("updatePwaBanner");
+const updatePwaBtn = document.getElementById("updatePwaBtn");
+const isIosDevice = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalonePwa =
+  window.matchMedia("(display-mode: standalone)").matches ||
+  window.matchMedia("(display-mode: fullscreen)").matches ||
+  window.navigator.standalone === true;
+let deferredInstallPrompt = null;
+
+function showInstallInstructions() {
+  installSteps.innerHTML = isIosDevice
+    ? "<strong>EN IPHONE O IPAD:</strong><br>1. Abre el juego en Safari.<br>2. Toca el botón Compartir.<br>3. Elige “Agregar a pantalla de inicio”.<br>4. Confirma con “Agregar”."
+    : "<strong>EN ANDROID:</strong><br>1. Abre el menú del navegador.<br>2. Elige “Instalar aplicación” o “Agregar a pantalla principal”.<br>3. Confirma la instalación.";
+  installOverlay.style.display = "flex";
+}
+
+window.addEventListener("beforeinstallprompt", event => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  if (!isStandalonePwa) installPwaBtn.style.display = "block";
+});
+
+window.addEventListener("appinstalled", () => {
+  deferredInstallPrompt = null;
+  installPwaBtn.style.display = "none";
+  installOverlay.style.display = "none";
+});
+
+installPwaBtn.addEventListener("click", async () => {
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    installPwaBtn.style.display = "none";
+    return;
+  }
+  showInstallInstructions();
+});
+
+closeInstallBtn.addEventListener("click", () => {
+  installOverlay.style.display = "none";
+  canvas.focus();
+});
+
+updatePwaBtn.addEventListener("click", () => {
+  window.location.reload();
+});
+
+if (isStandalonePwa) {
+  installPwaBtn.style.display = "none";
+  fullscreenBtn.style.display = "none";
+} else if (isIosDevice && location.protocol !== "file:") {
+  installPwaBtn.style.display = "block";
+}
+
+if ("serviceWorker" in navigator && location.protocol !== "file:") {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js")
+      .then(registration => {
+        registration.update();
+        registration.addEventListener("updatefound", () => {
+          const installingWorker = registration.installing;
+          if (!installingWorker) return;
+          installingWorker.addEventListener("statechange", () => {
+            if (
+              installingWorker.state === "installed" &&
+              navigator.serviceWorker.controller
+            ) {
+              updatePwaBanner.style.display = "block";
+            }
+          });
+        });
+      })
+      .catch(error => {
+        console.warn("No se pudo registrar el modo instalable:", error);
+      });
+  });
+}
 </script>
 </body>
 </html>
