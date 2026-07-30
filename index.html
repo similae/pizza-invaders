@@ -516,15 +516,18 @@ let triviaAnswered = false;
 let currentTrivia = null;
 let triviaSelectedIndex = null;
 let triviaContinueAction = null;
+let fermentationContinueAction = null;
 let introIndex = 0;
 let introStartedAt = performance.now();
 let introStoryDone = false;
 let lastIntroAdvanceAt = 0;
 let transition = null;
 let bossExplosion = null;
+let bossVictoryLaunch = null;
 let similaeFinaleStartedAt = 0;
 const COUPON_CODE = "RESCUEGAIA";
 const GAME_URL = "https://www.similae.com/pages/pizza-invaders";
+const FERMENTATION_SHOP_URL = "https://www.similae.com/collections/del-horno";
 const INTRO_STORY_PAGE_DURATION = 6500;
 const INTRO_STORY_PAGES = [
   {
@@ -1024,6 +1027,11 @@ freezeAdImage.src = "assets/PIZZAINVADERS-FREEZE-AD-SIMILAE.png";
 const pernigottiEggPrizeImage = new Image();
 pernigottiEggPrizeImage.src = "assets/PIZZAINVADERS-PRIZE-PERNIGOTTI.webp";
 
+const fermentedPizzaBasesImage = new Image();
+fermentedPizzaBasesImage.src = "assets/PIZZAINVADERS-MASA-FERMENTADA.png";
+
+const coverLucaMarshmallowImage = new Image();
+coverLucaMarshmallowImage.src = "assets/PIZZAINVADERS-COVER-LUCA-MARSHMALLOW.png";
 
 const LOADING_MIN_MS = 900;
 const loadingStartedAt = performance.now();
@@ -1037,7 +1045,7 @@ function waitForImage(img) {
   });
 }
 function finishLoadingWhenReady() {
-  const assets = [...introImages, ...Object.values(characterImages), candyPlanetImage, pineappleIntroImage, marshmallowHeadImage, marshmallowBackdropImage, marshmallowBossImage, frozenPizzaEnemyImage, frozenPizzaBossImage, similaePowerImage, similaeFaviconImage, similaeFaviconRINGImage, freezeAdImage, pernigottiEggPrizeImage];
+  const assets = [...introImages, ...Object.values(characterImages), candyPlanetImage, pineappleIntroImage, marshmallowHeadImage, marshmallowBackdropImage, marshmallowBossImage, frozenPizzaEnemyImage, frozenPizzaBossImage, similaePowerImage, similaeFaviconImage, similaeFaviconRINGImage, freezeAdImage, pernigottiEggPrizeImage, fermentedPizzaBasesImage, coverLucaMarshmallowImage];
   Promise.all(assets.map(waitForImage)).then(() => {
     const delay = Math.max(0, LOADING_MIN_MS - (performance.now() - loadingStartedAt));
     setTimeout(() => {
@@ -1876,8 +1884,9 @@ function resetGame() {
   player = { x: W/2 - 28, y: H - 88, w: 56, h: 62, speed: shipDef.speed, frozenUntil: 0, slowedUntil: 0, controlsInvertedUntil: 0 };
   bullets = []; enemyBullets = []; enemies = []; particles = []; powerups = []; runnerObstacles = []; topBomber = null;
   boss = null; formationOffset = 0; formationDir = 1; formationTick = 0;
+  bossVictoryLaunch = null;
   doubleUntil = 0; shieldUntil = selectedShipId === "gaia" ? performance.now() + 6500 : 0; speedUntil = 0; similaeModeUntil = 0; jumpBoostUntil = 0; attackCooldown = 80; runnerObstacleTick = 0; runnerDistance = 0; tunnelObstacleTick = 0; tunnelDistance = 0; dashVelocityY = 0; dashJumpQueued = false; gaiaFloorIndex = 2; shipVolleyCount = 0; allyShip = null;
-  couponShown = false; pendingBoss = false; triviaShown = false; triviaAnswered = false; currentTrivia = null; triviaSelectedIndex = null; triviaContinueAction = null; pineappleIntroShown = false; candyIntroShown = false; freezerTransmissionShown = false;
+  couponShown = false; pendingBoss = false; triviaShown = false; triviaAnswered = false; currentTrivia = null; triviaSelectedIndex = null; triviaContinueAction = null; fermentationContinueAction = null; pineappleIntroShown = false; candyIntroShown = false; freezerTransmissionShown = false;
   candyMarshmallowBackdropStartedAt = 0; candyMarshmallowBackdropPlayed = false; candyMarshmallowThreat = null;
   stars = Array.from({length: 150}, () => {
     const layer = Math.random() < .5 ? 0 : (Math.random() < .72 ? 1 : 2);
@@ -2174,6 +2183,10 @@ document.addEventListener("keydown", e => {
   }
   if ((e.code === "Enter" || e.code === "Space") && state === "trivia") {
     if (triviaAnswered) continueAfterTrivia();
+    return;
+  }
+  if ((e.code === "Enter" || e.code === "Space") && state === "fermentationInfo") {
+    continueAfterFermentationInfo();
     return;
   }
   if ((e.code === "Enter" || e.code === "Space") && state === "gameover") {
@@ -2487,6 +2500,29 @@ function showTrivia(afterAction) {
 function showTriviaInterlude(afterAction) {
   showTransition("TRIVIA SIMILAE", "CULTURA MEDITERRANEA", () => showTrivia(afterAction), 1800);
   transition.drawCustom = drawTriviaIntroV12;
+}
+
+function showFermentationInfo(afterAction) {
+  fermentationContinueAction = typeof afterAction === "function" ? afterAction : null;
+  state = "fermentationInfo";
+  touchControl.autoFire = false;
+  touchControl.active = false;
+  enemyBullets = [];
+  bullets = [];
+  powerups = [];
+}
+
+function openFermentationShop() {
+  window.open(FERMENTATION_SHOP_URL, "_blank", "noopener,noreferrer");
+  canvas.focus();
+}
+
+function continueAfterFermentationInfo() {
+  if (fermentationContinueAction) {
+    const action = fermentationContinueAction;
+    fermentationContinueAction = null;
+    action();
+  }
 }
 
 function getTriviaForWave(targetWave) {
@@ -2862,14 +2898,14 @@ function startFromTouch(e) {
   }
 
   if (state === "start") {
-    if (pt.y >= 545 && pt.y <= 585) {
+    if (pt.y >= 585 && pt.y <= 647) {
         hangarReturnState = null;
         hangarOriginalShipId = null;
         state = "hangar";
         return;
     }
 
-    if (pt.y >= 590 && pt.y <= 630) {
+    if (pt.y >= 665 && pt.y <= 715) {
       const now = performance.now();
   
       if (now - lastDevTapAt > 2000) {
@@ -3050,6 +3086,17 @@ if (state === "popColaIntro") {
   return;
 }
   if (state === "coupon") { return; }
+  if (state === "fermentationInfo") {
+    if (pt.x >= 85 && pt.x <= 455 && pt.y >= 545 && pt.y <= 597) {
+      openFermentationShop();
+      return;
+    }
+    if (pt.x >= 85 && pt.x <= 455 && pt.y >= 609 && pt.y <= 661) {
+      continueAfterFermentationInfo();
+      return;
+    }
+    return;
+  }
   if (state === "trivia") {
   const pt = canvasPointFromEvent(e);
 
@@ -4864,6 +4911,97 @@ function drawBossExplosionScreen() {
   ctx.textAlign = "left";
 }
 
+function startBossVictoryLaunch(next) {
+  bossVictoryLaunch = {
+    x: player.x,
+    startY: player.y,
+    y: player.y,
+    shipId: selectedShipId,
+    startedAt: performance.now(),
+    duration: 1450,
+    next,
+    trailTick: 0
+  };
+  state = "bossVictoryLaunch";
+  touchControl.autoFire = false;
+  touchControl.active = false;
+}
+
+function updateBossVictoryLaunch() {
+  if (!bossVictoryLaunch) return;
+  const now = performance.now();
+  const t = Math.max(0, Math.min(1, (now - bossVictoryLaunch.startedAt) / bossVictoryLaunch.duration));
+  // Movimiento acelerado: comienza suave y sale de la pantalla cada vez más rápido.
+  const accelerated = t * t * t;
+  bossVictoryLaunch.y = bossVictoryLaunch.startY - accelerated * (bossVictoryLaunch.startY + 150);
+
+  bossVictoryLaunch.trailTick--;
+  if (bossVictoryLaunch.trailTick <= 0 && t < .94) {
+    const cx = bossVictoryLaunch.x + player.w / 2;
+    const exhaustY = bossVictoryLaunch.y + player.h - 4;
+    const trailColors = ["#56e8ff", "#ffffff", "#ffcc33"];
+    for (let i = 0; i < 5; i++) {
+      particles.push({
+        x: cx + (Math.random() - .5) * 20,
+        y: exhaustY + Math.random() * 8,
+        vx: (Math.random() - .5) * 1.4,
+        vy: 3.5 + Math.random() * 5.5 + t * 5,
+        life: 18 + Math.random() * 14,
+        color: trailColors[Math.floor(Math.random() * trailColors.length)],
+        shape: "spark",
+        size: 4 + Math.random() * 5,
+        spin: 0
+      });
+    }
+    bossVictoryLaunch.trailTick = 2;
+  }
+  updateParticles();
+
+  if (t >= 1) {
+    const next = bossVictoryLaunch.next;
+    bossVictoryLaunch = null;
+    if (typeof next === "function") next();
+  }
+}
+
+function drawBossVictoryLaunchScreen() {
+  drawBackground();
+  for (const p of particles) drawParticle(p, 52);
+  if (!bossVictoryLaunch) return;
+
+  const t = Math.max(0, Math.min(1, (performance.now() - bossVictoryLaunch.startedAt) / bossVictoryLaunch.duration));
+  const speedGlow = Math.max(0, (t - .18) / .82);
+  const cx = bossVictoryLaunch.x + player.w / 2;
+  const exhaustY = bossVictoryLaunch.y + player.h - 2;
+
+  ctx.save();
+  const beam = ctx.createLinearGradient(cx, exhaustY, cx, Math.min(H, exhaustY + 230));
+  beam.addColorStop(0, `rgba(255,255,255,${.72 * speedGlow})`);
+  beam.addColorStop(.18, `rgba(86,232,255,${.52 * speedGlow})`);
+  beam.addColorStop(1, "rgba(86,232,255,0)");
+  ctx.fillStyle = beam;
+  ctx.beginPath();
+  ctx.moveTo(cx - 11 - speedGlow * 7, exhaustY);
+  ctx.lineTo(cx + 11 + speedGlow * 7, exhaustY);
+  ctx.lineTo(cx + 3, Math.min(H, exhaustY + 230));
+  ctx.lineTo(cx - 3, Math.min(H, exhaustY + 230));
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = 1 - Math.max(0, (t - .88) / .12);
+  ctx.shadowColor = "rgba(86,232,255,.95)";
+  ctx.shadowBlur = 8 + speedGlow * 24;
+  drawCharacterShip(
+    bossVictoryLaunch.shipId,
+    bossVictoryLaunch.x,
+    bossVictoryLaunch.y,
+    1 + speedGlow * .10
+  );
+  ctx.restore();
+}
+
 function drawUnifiedSimilaePizza(cx, cy, scale=1) {
   ctx.save();
   ctx.translate(cx, cy);
@@ -5214,8 +5352,7 @@ function updateCollisions() {
             powerups = [];
             showTransition("", "", () => {
               state = "eggPrize";
-              playSfx("powerup");
-            }, 3000);
+            }, 6800);
             transition.drawCustom = drawEggPrizeUnlockTransition;
             return;
           }
@@ -5302,7 +5439,7 @@ function updateCollisions() {
             transition.drawCustom = drawGaiaMessageV12;
           
           } else if (defeatedBoss.type === "colaBoss" && !pineappleIntroShown) {
-            showTriviaInterlude(() => {
+            showFermentationInfo(() => {
               showWorldMapTransition(1, "DESTINO: PLANETA PIÑA", showPineappleIntro, 2300);
             });
           } else if (!candyIntroShown && wave >= 15) {
@@ -5331,7 +5468,18 @@ function updateCollisions() {
             transition.drawCustom = () => drawStageCompleteV12("JEFE DERROTADO", "Siguiente misión en curso.");
           }
         };
-        startBossExplosion(defeatedBoss, afterExplosion);
+        // Congelados S.A. y Mega Cola conservan el cierre original.
+        // Desde el Jefe Piña, todas las victorias terminan con el despegue.
+        const shouldUseVictoryLaunch =
+          defeatedBoss.type !== "colaBoss" &&
+          !(
+            defeatedBoss.type === "popsicleBoss" &&
+            !defeatedBoss.popsicleMarshmallowStageBoss
+          );
+        startBossExplosion(
+          defeatedBoss,
+          shouldUseVictoryLaunch ? () => startBossVictoryLaunch(afterExplosion) : afterExplosion
+        );
       }
     }
 
@@ -6613,68 +6761,131 @@ function drawBonusCouponV12() {
 function drawEggPrizeUnlockTransition() {
   if (!transition) return;
   const elapsed = performance.now() - transition.startedAt;
-  const reveal = Math.max(0, Math.min(1, (elapsed - 350) / 1250));
-  const eased = 1 - Math.pow(1 - reveal, 3);
-  const glowPulse = .72 + Math.sin(performance.now() * .009) * .18;
+  const clamp01 = value => Math.max(0, Math.min(1, value));
+  const auraReveal = clamp01((elapsed - 450) / 1250);
+  const eggReveal = clamp01((elapsed - 1450) / 950);
+  const textReveal = clamp01((elapsed - 2550) / 750);
+  const celebration = clamp01((elapsed - 3550) / 650);
+  const easedAura = 1 - Math.pow(1 - auraReveal, 3);
+  const easedEgg = 1 - Math.pow(1 - eggReveal, 3);
+  const glowPulse = .76 + Math.sin(performance.now() * .008) * .16;
 
-  drawV12Backdrop("rgba(20,110,210,0.30)", 0.70);
+  // La revelación comienza casi a oscuras y deja crecer lentamente la luz azul.
+  ctx.save();
+  ctx.fillStyle = "#01040c";
+  ctx.fillRect(0, 0, W, H);
+  const ambient = ctx.createRadialGradient(W / 2, 325, 5, W / 2, 325, 410);
+  ambient.addColorStop(0, `rgba(30,145,255,${easedAura * .34})`);
+  ambient.addColorStop(.48, `rgba(4,57,125,${easedAura * .25})`);
+  ambient.addColorStop(1, "rgba(0,8,24,0)");
+  ctx.fillStyle = ambient;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+
   ctx.save();
   ctx.textAlign = "center";
 
-  ctx.globalAlpha = Math.min(1, elapsed / 500);
-  ctx.font = "bold 18px Courier New";
+  const intrigueReveal = clamp01((elapsed - 120) / 650) * (1 - clamp01((elapsed - 2050) / 500));
+  ctx.globalAlpha = intrigueReveal;
+  ctx.font = "bold 16px Courier New";
   ctx.fillStyle = "#56e8ff";
-  ctx.fillText("POPCOLA KING HA CAÍDO", W / 2, 88);
-
-  ctx.font = "bold 46px Arial Black";
-  ctx.fillStyle = "#ffcc33";
-  ctx.fillText("GRAN PREMIO", W / 2, 151);
+  ctx.fillText("POPCOLA KING HA CAÍDO", W / 2, 108);
+  ctx.font = "bold 22px Courier New";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText("ALGO EXTRAORDINARIO SE ACERCA...", W / 2, 151);
   ctx.globalAlpha = 1;
 
-  const prizeY = 330;
-  const scale = .58 + eased * .48;
+  const prizeY = 320;
+  const auraRadius = 55 + easedAura * 205;
+  const glow = ctx.createRadialGradient(W / 2, prizeY, 8, W / 2, prizeY, auraRadius);
+  glow.addColorStop(0, `rgba(120,225,255,${easedAura * glowPulse})`);
+  glow.addColorStop(.28, `rgba(20,135,255,${easedAura * .47})`);
+  glow.addColorStop(1, "rgba(0,85,255,0)");
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(W / 2, prizeY, auraRadius, 0, Math.PI * 2);
+  ctx.fill();
+
+  const scale = .70 + easedEgg * .34;
   ctx.save();
   ctx.translate(W / 2, prizeY);
   ctx.scale(scale, scale);
-  ctx.globalAlpha = reveal;
-
-  const glow = ctx.createRadialGradient(0, 0, 25, 0, 0, 185);
-  glow.addColorStop(0, `rgba(86,232,255,${glowPulse})`);
-  glow.addColorStop(.45, "rgba(255,204,51,.20)");
-  glow.addColorStop(1, "rgba(86,232,255,0)");
-  ctx.fillStyle = glow;
-  ctx.beginPath();
-  ctx.arc(0, 0, 185, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.globalAlpha = eggReveal;
 
   if (pernigottiEggPrizeImage && pernigottiEggPrizeImage.complete && pernigottiEggPrizeImage.naturalWidth) {
     ctx.shadowColor = "rgba(86,232,255,.85)";
-    ctx.shadowBlur = 24;
+    ctx.shadowBlur = 18 + easedAura * 24;
     ctx.drawImage(pernigottiEggPrizeImage, -142, -142, 284, 284);
     ctx.shadowBlur = 0;
   }
   ctx.restore();
 
-  const titleReveal = Math.max(0, Math.min(1, (elapsed - 1250) / 650));
-  ctx.globalAlpha = titleReveal;
-  ctx.font = "bold 35px Arial Black";
+  ctx.globalAlpha = textReveal;
+  ctx.font = "bold 20px Courier New";
+  ctx.fillStyle = "#ffcc33";
+  ctx.fillText("GRAN PREMIO DESBLOQUEADO", W / 2, 506);
+  ctx.font = "bold 38px Arial Black";
   ctx.fillStyle = "#ffffff";
   ctx.fillText("GRAN HUEVO", W / 2, 545);
-  ctx.font = "bold 25px Courier New";
+  ctx.font = "bold 27px Courier New";
   ctx.fillStyle = "#56e8ff";
   ctx.fillText("PERNIGOTTI", W / 2, 582);
-  ctx.font = "bold 16px Courier New";
-  ctx.fillStyle = "#ffcc33";
-  ctx.fillText("PREMIO DESBLOQUEADO", W / 2, 635);
   ctx.globalAlpha = 1;
 
-  // Destello breve que une la derrota del jefe con la aparición del premio.
-  const flashDistance = Math.abs(elapsed - 420);
-  if (flashDistance < 240) {
-    ctx.fillStyle = `rgba(255,255,255,${(1 - flashDistance / 240) * .72})`;
-    ctx.fillRect(0, 0, W, H);
+  // Una breve salva de fuegos artificiales anuncia el premio.
+  if (celebration > 0) {
+    if (!transition.prizeCelebrationPlayed) {
+      transition.prizeCelebrationPlayed = true;
+      playSfx("powerup");
+    }
+    const fireworkColors = ["#56e8ff", "#ffcc33", "#ff5fbf", "#7dff7b", "#ffffff"];
+    const fireworkFade = 1 - clamp01((elapsed - 5350) / 750);
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    const bursts = [
+      { x: 105, y: 210, delay: 0 },
+      { x: 430, y: 235, delay: 230 },
+      { x: 145, y: 445, delay: 440 },
+      { x: 395, y: 430, delay: 620 }
+    ];
+    for (let burstIndex = 0; burstIndex < bursts.length; burstIndex++) {
+      const burst = bursts[burstIndex];
+      const burstProgress = clamp01((elapsed - 3550 - burst.delay) / 700);
+      if (burstProgress <= 0) continue;
+      const radius = 12 + burstProgress * 82;
+      const opacity = Math.sin(burstProgress * Math.PI) * fireworkFade;
+      for (let particle = 0; particle < 18; particle++) {
+        const angle = (Math.PI * 2 * particle) / 18 + burstIndex * .37;
+        const innerRadius = Math.max(0, radius - 16);
+        const x1 = burst.x + Math.cos(angle) * innerRadius;
+        const y1 = burst.y + Math.sin(angle) * innerRadius + burstProgress * burstProgress * 22;
+        const x2 = burst.x + Math.cos(angle) * radius;
+        const y2 = burst.y + Math.sin(angle) * radius + burstProgress * burstProgress * 22;
+        ctx.globalAlpha = opacity;
+        ctx.strokeStyle = fireworkColors[(particle + burstIndex) % fireworkColors.length];
+        ctx.lineWidth = particle % 3 === 0 ? 3 : 2;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        ctx.fillStyle = ctx.strokeStyle;
+        ctx.beginPath();
+        ctx.arc(x2, y2, particle % 4 === 0 ? 3 : 1.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
   }
   ctx.restore();
+
+  // La pantalla definitiva de “¡GANASTE!” entra con un fundido lento.
+  const finalScreenReveal = clamp01((elapsed - 5200) / 1350);
+  if (finalScreenReveal > 0) {
+    ctx.save();
+    ctx.globalAlpha = finalScreenReveal * finalScreenReveal * (3 - 2 * finalScreenReveal);
+    drawEggPrizeV12();
+    ctx.restore();
+  }
 }
 
 function drawEggPrizeV12() {
@@ -6841,6 +7052,64 @@ function drawTriviaButtonV12(x, y, w, h, text) {
   ctx.font = "bold 19px Arial";
   ctx.textAlign = "center";
   ctx.fillText(text, x + w / 2, y + h / 2 + 7);
+  ctx.restore();
+}
+
+function drawFermentationInfoV12() {
+  drawV12Backdrop("rgba(177,112,38,0.22)", 0.64);
+  ctx.save();
+  ctx.textAlign = "center";
+
+  if (similaeLogoImage && similaeLogoImage.complete && similaeLogoImage.naturalWidth) {
+    ctx.drawImage(similaeLogoImage, W / 2 - 65, 15, 130, 52);
+  }
+
+  ctx.font = "bold 14px Courier New";
+  ctx.fillStyle = "#9dbf40";
+  ctx.fillText("CULTURA MEDITERRÁNEA", W / 2, 86);
+
+  ctx.font = "bold 31px Arial Black";
+  ctx.fillStyle = "#ffcc33";
+  ctx.fillText("EL VALOR DE FERMENTAR", W / 2, 122);
+
+  ctx.save();
+  const doughAuraPulse = .88 + Math.sin(performance.now() * .0045) * .10;
+  const doughAura = ctx.createRadialGradient(W / 2, 286, 20, W / 2, 286, 205);
+  doughAura.addColorStop(0, `rgba(255,220,105,${.48 * doughAuraPulse})`);
+  doughAura.addColorStop(.42, `rgba(255,153,45,${.26 * doughAuraPulse})`);
+  doughAura.addColorStop(.72, `rgba(86,232,255,${.10 * doughAuraPulse})`);
+  doughAura.addColorStop(1, "rgba(255,170,40,0)");
+  ctx.fillStyle = doughAura;
+  ctx.beginPath();
+  ctx.arc(W / 2, 286, 205, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.shadowColor = "rgba(255,204,51,.48)";
+  ctx.shadowBlur = 24;
+  if (fermentedPizzaBasesImage && fermentedPizzaBasesImage.complete && fermentedPizzaBasesImage.naturalWidth) {
+    // El archivo conserva espacio transparente; esta escala hace que las masas
+    // ocupen casi todo el ancho sin invadir el texto.
+    ctx.drawImage(fermentedPizzaBasesImage, 92, 112, 357, 357);
+  }
+  ctx.shadowBlur = 0;
+  ctx.restore();
+
+  ctx.font = "bold 18px Arial";
+  ctx.fillStyle = "#ffffff";
+  drawV12WrappedText(
+    "Una masa bien fermentada puede ser más fácil de digerir. Durante la fermentación, los microorganismos descomponen parte de sus componentes antes de que la comamos, desarrollando además mejor sabor, aroma y textura.",
+    W / 2,
+    412,
+    440,
+    24
+  );
+
+  drawTriviaButtonV12(85, 545, 370, 52, "COMPRAR EN SIMILAE");
+  drawTriviaButtonV12(85, 609, 370, 52, "CONTINUAR MISIÓN");
+
+  ctx.font = "bold 15px Courier New";
+  ctx.fillStyle = "#9dbf40";
+  ctx.fillText("www.similae.com", W / 2, 696);
   ctx.restore();
 }
 
@@ -7209,39 +7478,79 @@ function drawHangar() {
 }
 
 function drawStart() {
+  const now = performance.now();
   ctx.textAlign = "center";
-  ctx.fillStyle = "#ffcc33";
-  ctx.font = "48px Arial";
-  ctx.fillText("PIZZA INVADERS", W/2, 96);
 
-  drawPizzaShip(W/2-28, 135, 1.35);
-  drawPineapple(92, 310, 1.15);
-  drawPopsicle(195, 305, 1.15);
-  drawCola(300, 305, 1.15);
-  drawIcePizza(405, 306, 1.15);
+  // Título arcade con volumen, contorno y resplandor.
+  ctx.save();
+  ctx.font = "bold 51px Arial Black";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 10;
+  ctx.strokeStyle = "#160922";
+  ctx.shadowColor = "rgba(255,63,154,.70)";
+  ctx.shadowBlur = 22;
+  ctx.strokeText("PIZZA INVADERS", W / 2, 91);
+  const titleGradient = ctx.createLinearGradient(0, 42, 0, 102);
+  titleGradient.addColorStop(0, "#fff4a8");
+  titleGradient.addColorStop(.42, "#ffcc33");
+  titleGradient.addColorStop(1, "#ff6b35");
+  ctx.fillStyle = titleGradient;
+  ctx.fillText("PIZZA INVADERS", W / 2, 91);
+  ctx.shadowBlur = 0;
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "#ffffff";
+  ctx.globalAlpha = .72;
+  ctx.strokeText("PIZZA INVADERS", W / 2, 87);
+  ctx.restore();
+
+  // Luca ocupa el centro de la portada.
+  ctx.save();
+  const coverShipPulse = .92 + Math.sin(now * .005) * .08;
+  const coverShipAura = ctx.createRadialGradient(W / 2, 206, 12, W / 2, 206, 105);
+  coverShipAura.addColorStop(0, `rgba(255,204,51,${.42 * coverShipPulse})`);
+  coverShipAura.addColorStop(.48, `rgba(255,63,154,${.20 * coverShipPulse})`);
+  coverShipAura.addColorStop(1, "rgba(86,232,255,0)");
+  ctx.fillStyle = coverShipAura;
+  ctx.beginPath();
+  ctx.arc(W / 2, 206, 105, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowColor = "rgba(86,232,255,.78)";
+  ctx.shadowBlur = 18;
+  drawCharacterShip("luca", W / 2 - 48, 145, 1.7, false);
+  ctx.restore();
+
+  ctx.save();
+  const coverDuelAura = ctx.createRadialGradient(W / 2, 376, 30, W / 2, 376, 205);
+  coverDuelAura.addColorStop(0, "rgba(255,63,154,.18)");
+  coverDuelAura.addColorStop(.55, "rgba(86,232,255,.10)");
+  coverDuelAura.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = coverDuelAura;
+  ctx.beginPath();
+  ctx.arc(W / 2, 376, 205, 0, Math.PI * 2);
+  ctx.fill();
+  if (coverLucaMarshmallowImage && coverLucaMarshmallowImage.complete && coverLucaMarshmallowImage.naturalWidth) {
+    ctx.shadowColor = "rgba(255,255,255,.28)";
+    ctx.shadowBlur = 10;
+    ctx.drawImage(coverLucaMarshmallowImage, 100, 270, 340, 219);
+  }
+  ctx.restore();
 
   ctx.fillStyle = "#56e8ff";
-  ctx.font = "22px Arial";
-  ctx.fillText("Escuadrones, ataques en picada y jefes finales", W/2, 440);
+  ctx.font = "20px Arial";
+  ctx.fillText("Escuadrones, ataques en picada y jefes finales", W/2, 510);
 
   ctx.fillStyle = "white";
-  ctx.font = "20px Arial";
-  ctx.fillText("Sprites pixel-art dibujados en el juego", W/2, 485);
-  ctx.fillText(isTouchDevice ? "Arrastra el dedo para mover" : "← → mover · Espacio disparar", W/2, 522);
+  ctx.font = "18px Arial";
+  ctx.fillText(isTouchDevice ? "Arrastra el dedo para mover" : "← → mover · Espacio disparar", W/2, 541);
   ctx.fillStyle = "#9dbf40";
-  ctx.font = "16px Arial";
-  ctx.fillText("M activa o silencia los sonidos", W/2, 548);
-  ctx.fillStyle = "#ffcc33";
-ctx.font = "28px Arial";
-ctx.fillText("START GAME", W/2, 570);
+  ctx.font = "15px Arial";
+  ctx.fillText("M activa o silencia los sonidos", W/2, 566);
 
-ctx.fillStyle = "#56e8ff";
-ctx.font = "24px Arial";
-ctx.fillText("DEV MODE", W/2, 610);
+  drawButton(105, 585, 330, 62, "START GAME");
 
-  ctx.fillStyle = "#ff78d0";
-  ctx.font = "24px Arial";
-  ctx.fillText("V10 DEV BRANCH", W/2, 660);
+  ctx.fillStyle = "#56e8ff";
+  ctx.font = "bold 21px Courier New";
+  ctx.fillText("DEV MODE", W/2, 694);
   ctx.textAlign = "left";
 }
 
@@ -7330,6 +7639,9 @@ function loop() {
   } else if (state === "bossExplosion") {
     updateBossExplosion();
     drawBossExplosionScreen();
+  } else if (state === "bossVictoryLaunch") {
+    updateBossVictoryLaunch();
+    drawBossVictoryLaunchScreen();
   } else if (state === "play") {
     updatePlayer();
     updateEnemies();
@@ -7395,6 +7707,8 @@ function loop() {
     drawGaiaRescuedV12();
   } else if (state === "similaeFinale") {
     drawSimilaeFinale();
+  } else if (state === "fermentationInfo") {
+    drawFermentationInfoV12();
   } else if (state === "trivia") {
     drawTriviaV12();
   } else if (state === "similaeTest") {
