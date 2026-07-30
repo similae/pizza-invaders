@@ -490,6 +490,7 @@ let shipUnlockNotice = null;
 let allyShip = null;
 let hangarReturnState = null;
 let hangarOriginalShipId = null;
+let hangarContinueAction = null;
 let cheeseCount = 0;
 let tripleUntil = 0;
 let similaeModeUntil = 0;
@@ -507,7 +508,10 @@ let couponShown = false;
 let pendingBoss = false;
 let triviaShown = false;
 let couponCanvasCopied = false;
+let couponUnlockedAt = 0;
+let rewardTeaserStartedAt = 0;
 let bonusWhatsAppOpened = false;
+let eggPrizeWhatsAppOpened = false;
 let triviaAnswered = false;
 let currentTrivia = null;
 let triviaSelectedIndex = null;
@@ -518,6 +522,7 @@ let introStoryDone = false;
 let lastIntroAdvanceAt = 0;
 let transition = null;
 let bossExplosion = null;
+let similaeFinaleStartedAt = 0;
 const COUPON_CODE = "RESCUEGAIA";
 const GAME_URL = "https://www.similae.com/pages/pizza-invaders";
 const INTRO_STORY_PAGE_DURATION = 6500;
@@ -525,44 +530,46 @@ const INTRO_STORY_PAGES = [
   {
     title: "GAIA FUE CAPTURADA",
     lines: [
-      "Gaia es una pizza natural,",
-      "mediterranea y bien hecha.",
+      "Gaia es una pizza de masa fermentada,",
+      "mediterránea y natural.",
       "",
-      "Pop Cola la quiere transformar."
+      "Frozen Corp. quiere transformarla."
     ]
   },
   {
     title: "EL PLAN ENEMIGO",
     lines: [
       "Quieren añadirle piña,",
-      "congelarla y casarla con Colin,",
-      "hijo del imperio Pop Cola."
+      "congelarla y obligarla",
+      "a casarse con Colin,",
+      "heredero del Imperio Pop Cola."
     ]
   },
   {
     title: "EL COMBO FINAL",
     lines: [
-      "Si lo logran, Gaia sera parte",
+      "Si lo logran, Gaia formará parte",
       "del combo industrial definitivo:",
-      "",
-      "pizza congelada + bebida azucarada."
+      "pizza congelada + bebida azucarada",
+      "+ dulces."
     ]
   },
   {
     title: "LOS AMIGOS DE GAIA",
     lines: [
       "Luca, Gino, Gian y Paolo",
-      "son pizzas italianas naturales,",
-      "digeribles y con criterio."
+      "son pizzas italianas",
+      "de larga fermentación,",
+      "naturales, digeribles y con criterio."
     ]
   },
   {
-    title: "LA MISION",
+    title: "LA MISIÓN",
     lines: [
       "Rescatar a Gaia es defender",
-      "la cultura de comer bien:",
-      "",
-      "variedad, medida y buenos ingredientes."
+      "la cultura mediterránea",
+      "de comer bien:",
+      "variedad, equilibrio y buenos ingredientes."
     ]
   },
   {
@@ -571,7 +578,7 @@ const INTRO_STORY_PAGES = [
     subtitle: "LA PIZZA CAPTURADA",
     color: "#f25191",
     lines: [
-      "Natural, mediterranea y completa.",
+      "Natural, mediterránea y completa.",
       "Pop Cola quiere convertirla",
       "en un combo industrial."
     ]
@@ -582,8 +589,8 @@ const INTRO_STORY_PAGES = [
     subtitle: "PEPPERONI",
     color: "#e12525",
     lines: [
-      "Energia directa.",
-      "Dispara con caracter italiano",
+      "Energía directa.",
+      "Dispara con carácter italiano",
       "y no le teme al frente."
     ]
   },
@@ -593,7 +600,7 @@ const INTRO_STORY_PAGES = [
     subtitle: "ALBAHACA",
     color: "#36b84b",
     lines: [
-      "Fresco, rapido y aromatico.",
+      "Fresco, rápido y aromático.",
       "Cree en el equilibrio",
       "antes que en el exceso."
     ]
@@ -601,7 +608,7 @@ const INTRO_STORY_PAGES = [
   {
     character: "gian",
     title: "GIAN",
-    subtitle: "CHAMPIÑON",
+    subtitle: "CHAMPIÑÓN",
     color: "#1767c7",
     lines: [
       "Preciso y resistente.",
@@ -857,15 +864,18 @@ function selectShip(id) {
 }
 
 function confirmHangarSelection() {
-  if (hangarReturnState === "play") {
+  if (hangarReturnState === "play" || hangarReturnState === "callback") {
     const ship = SHIP_DEFS[selectedShipId] || SHIP_DEFS.luca;
     player.speed = ship.speed;
+    const continueAction = hangarReturnState === "callback" ? hangarContinueAction : null;
     state = "play";
     touchControl.autoFire = isTouchDevice;
     touchControl.active = false;
     hangarReturnState = null;
     hangarOriginalShipId = null;
+    hangarContinueAction = null;
     canvas.focus();
+    if (continueAction) continueAction();
     return;
   }
   resetGame();
@@ -876,7 +886,8 @@ function confirmHangarSelection() {
 }
 
 function leaveHangar() {
-  if (hangarReturnState === "play") {
+  if (hangarReturnState === "play" || hangarReturnState === "callback") {
+    const continueAction = hangarReturnState === "callback" ? hangarContinueAction : null;
     selectShip(hangarOriginalShipId || selectedShipId);
     player.speed = (SHIP_DEFS[selectedShipId] || SHIP_DEFS.luca).speed;
     state = "play";
@@ -884,6 +895,8 @@ function leaveHangar() {
     touchControl.active = false;
     hangarReturnState = null;
     hangarOriginalShipId = null;
+    hangarContinueAction = null;
+    if (continueAction) continueAction();
   } else {
     state = "start";
   }
@@ -1008,6 +1021,9 @@ similaeLogoImage.src = "assets/PIZZAINVADERS-LOGO-SIMILAE.png";
 const freezeAdImage = new Image();
 freezeAdImage.src = "assets/PIZZAINVADERS-FREEZE-AD-SIMILAE.png";
 
+const pernigottiEggPrizeImage = new Image();
+pernigottiEggPrizeImage.src = "assets/PIZZAINVADERS-PRIZE-PERNIGOTTI.webp";
+
 
 const LOADING_MIN_MS = 900;
 const loadingStartedAt = performance.now();
@@ -1021,7 +1037,7 @@ function waitForImage(img) {
   });
 }
 function finishLoadingWhenReady() {
-  const assets = [...introImages, ...Object.values(characterImages), candyPlanetImage, pineappleIntroImage, marshmallowHeadImage, marshmallowBackdropImage, marshmallowBossImage, frozenPizzaEnemyImage, frozenPizzaBossImage, similaePowerImage, similaeFaviconImage, similaeFaviconRINGImage, freezeAdImage];
+  const assets = [...introImages, ...Object.values(characterImages), candyPlanetImage, pineappleIntroImage, marshmallowHeadImage, marshmallowBackdropImage, marshmallowBossImage, frozenPizzaEnemyImage, frozenPizzaBossImage, similaePowerImage, similaeFaviconImage, similaeFaviconRINGImage, freezeAdImage, pernigottiEggPrizeImage];
   Promise.all(assets.map(waitForImage)).then(() => {
     const delay = Math.max(0, LOADING_MIN_MS - (performance.now() - loadingStartedAt));
     setTimeout(() => {
@@ -1041,6 +1057,7 @@ const ENEMY = {
   pineapple: { hp:1, points:20, bullet:"pineapple" },
   stonepineapple: { hp:12, points:300, bullet:"pineapple" },
   popsicle: { hp:1, points:25, bullet:"syrup" },
+  blackpopsicle: { hp:16, points:420, bullet:"syrup" },
   cola: { hp:1, points:35, bullet:"cola" },
   icepizza: { hp:1, points:40, bullet:"ice" },
   marshmallow: { hp:3, points:150, bullet:"syrup" },
@@ -1424,17 +1441,21 @@ function drawStonePineapple(x, y, hp=4) {
   ctx.restore();
 }
 
-function drawPopsicle(x, y, s=1, boss=false) {
+function drawPopsicle(x, y, s=1, boss=false, black=false) {
   ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
   const w = boss ? 72 : 36, h = boss ? 88 : 44;
-  ctx.fillStyle = "#ff58bf";
+  ctx.fillStyle = black ? "#11131a" : "#ff58bf";
   roundRect(0, 0, w, h, boss ? 18 : 10);
   ctx.fill();
-  px(w*0.68, 5, w*.12, h*.5, "#ff9edb");
+  px(w*0.68, 5, w*.12, h*.5, black ? "#545b69" : "#ff9edb");
   px(w*.43, h, w*.14, boss ? 30 : 16, "#d89142");
-  px(w*.27, h*.38, boss?10:5, boss?10:5, "#111");
-  px(w*.62, h*.38, boss?10:5, boss?10:5, "#111");
-  px(w*.38, h*.62, w*.25, boss?7:4, "#541121");
+  px(w*.27, h*.38, boss?10:5, boss?10:5, black ? "#ffcc33" : "#111");
+  px(w*.62, h*.38, boss?10:5, boss?10:5, black ? "#ffcc33" : "#111");
+  px(w*.38, h*.62, w*.25, boss?7:4, black ? "#ff3f76" : "#541121");
+  if (black) {
+    px(3, 7, 4, h - 14, "#393d47");
+    px(w - 7, 7, 4, h - 14, "#050508");
+  }
   if (boss) {
     px(20, -18, 32, 9, "#ffcc33");
     px(16, -28, 8, 15, "#ffcc33"); px(32, -32, 8, 19, "#ffcc33"); px(50, -28, 8, 15, "#ffcc33");
@@ -1442,20 +1463,50 @@ function drawPopsicle(x, y, s=1, boss=false) {
   ctx.restore();
 }
 
+function drawPopColaBubble(cx, cy, radius=8) {
+  ctx.save();
+  ctx.globalAlpha = .84;
+  ctx.fillStyle = "#5a1f10";
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = "#d78a32";
+  ctx.lineWidth = Math.max(2, radius * .22);
+  ctx.stroke();
+  ctx.fillStyle = "#fff3c4";
+  ctx.beginPath();
+  ctx.arc(cx - radius * .36, cy - radius * .36, Math.max(2, radius * .25), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 function drawCola(x, y, s=1, boss=false) {
   ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
-  const w = boss ? 86 : 38, h = boss ? 90 : 48;
+  const w = boss ? 86 : 38, h = boss ? 98 : 48;
   px(4, 7, w-8, h, "#9d1f16");
   px(0, 0, w, 10, "#f4f4f4");
   px(5, 10, w-10, 6, "#222");
-  px(w*.72, -14, 5, 18, "#ffffff");
-  px(w*.78, -17, 14, 5, "#ff5757");
-  px(w*.25, h*.42, boss?11:5, boss?10:5, "#111");
-  px(w*.62, h*.42, boss?11:5, boss?10:5, "#111");
+  if (!boss) {
+    px(w*.72, -14, 5, 18, "#ffffff");
+    px(w*.78, -17, 14, 5, "#ff5757");
+  }
+  if (boss) {
+    drawPopColaBubble(w * .31, h * .48, 11);
+    drawPopColaBubble(w * .69, h * .48, 11);
+  } else {
+    px(w*.25, h*.42, 5, 5, "#111");
+    px(w*.62, h*.42, 5, 5, "#111");
+  }
   px(w*.35, h*.66, w*.3, boss?8:4, "#2b0000");
   if (boss) {
-    px(23, -18, 40, 9, "#ffcc33");
-    px(20, -29, 10, 16, "#ffcc33"); px(40, -34, 10, 21, "#ffcc33"); px(60, -29, 10, 16, "#ffcc33");
+    // Bombilla grande y contrastada para que Mega Cola se lea como un vaso.
+    px(w * .70 - 2, -28, 12, 36, "#3b0b0b");
+    px(w * .70, -26, 8, 34, "#ffffff");
+    px(w * .70 + 5, -31, 24, 9, "#3b0b0b");
+    px(w * .70 + 5, -29, 22, 6, "#ffffff");
+    px(w * .70 + 11, -29, 16, 6, "#ff5757");
+    px(w * .70 + 23, -32, 8, 9, "#ff5757");
   }
   ctx.restore();
 }
@@ -1595,6 +1646,12 @@ function drawEnemy(e) {
   if (e.type === "pineapple") drawPineapple(e.x, e.y, 1);
   if (e.type === "stonepineapple") drawStonePineapple(e.x, e.y, e.hp);
   if (e.type === "popsicle") drawPopsicle(e.x, e.y, 1);
+  if (e.type === "blackpopsicle") {
+    drawPopsicle(e.x, e.y, 1, false, true);
+    const hpRatio = Math.max(0, e.hp / e.data.hp);
+    px(e.x, e.y - 8, 36, 4, "rgba(255,255,255,.22)");
+    px(e.x, e.y - 8, 36 * hpRatio, 4, "#ffcc33");
+  }
   if (e.type === "cola") drawCola(e.x, e.y, 1);
   if (e.type === "icepizza") drawIcePizza(e.x, e.y, 1);
   if (e.type === "marshmallow") drawMarshmallowEnemy(e.x, e.y, e.hp);
@@ -1632,7 +1689,19 @@ function drawBoss() {
   if (!boss) return;
   if (boss.type === "popsicleBoss") drawPopsicle(boss.x, boss.y, 1, true);
   if (boss.type === "colaBoss") drawCola(boss.x, boss.y + 10, 1, true);
-  if (boss.type === "pineappleBoss") drawPineapple(boss.x + 24, boss.y + 15, 2.2);
+  if (boss.type === "pineappleBoss") {
+    if (boss.pineappleInversionStageBoss) {
+      ctx.save();
+      ctx.filter = "grayscale(1) brightness(.24) contrast(1.9)";
+      drawPineapple(boss.x + 24, boss.y + 15, 2.2);
+      ctx.restore();
+      // Ojos amarillos para que la silueta negra siga siendo legible.
+      px(boss.x + 57, boss.y + 75, 10, 10, "#ffcc33");
+      px(boss.x + 83, boss.y + 75, 10, 10, "#ffcc33");
+    } else {
+      drawPineapple(boss.x + 24, boss.y + 15, 2.2);
+    }
+  }
   if (boss.type === "marshmallowBoss") drawMarshmallowBossSprite(boss.x, boss.y);
   if (boss.type === "frozenPizzaBoss") drawFrozenPizzaBossSprite(boss.x, boss.y);
   if (boss.type === "colinBoss") drawColinBossSprite(boss.x, boss.y);
@@ -1706,23 +1775,7 @@ function drawShot(type, x, y, friendly=false) {
   } else if (type === "syrup") {
     px(x+5,y,8,18,"#ff58bf"); px(x+3,y+5,12,5,"#ff9edb");
   } else if (type === "popcola") {
-    ctx.save();
-    ctx.globalAlpha = 0.82;
-    ctx.fillStyle = "#5a1f10";
-    ctx.beginPath();
-    ctx.arc(x + 8, y + 8, 8, 0, Math.PI * 2);
-    ctx.fill();
-  
-    ctx.globalAlpha = 1;
-    ctx.strokeStyle = "#d78a32";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  
-    ctx.fillStyle = "#fff3c4";
-    ctx.beginPath();
-    ctx.arc(x + 5, y + 5, 2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    drawPopColaBubble(x + 8, y + 8, 8);
   } else if (type === "cola") {
     ctx.fillStyle = "#7a1b12";
     ctx.beginPath(); ctx.arc(x+8,y+8,7,0,Math.PI*2); ctx.fill();
@@ -1750,6 +1803,22 @@ function drawShot(type, x, y, friendly=false) {
     ctx.beginPath();
     ctx.arc(0, 0, 7, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
+  } else if (type === "marshmallowHead" || type === "bossMarshmallowHead") {
+    if (type === "bossMarshmallowHead") {
+      ctx.save();
+      ctx.globalAlpha = .72 + Math.sin(performance.now() * .018) * .18;
+      ctx.strokeStyle = "#ff3f76";
+      ctx.lineWidth = 4;
+      ctx.strokeRect(x - 4, y - 4, 58, 58);
+      ctx.restore();
+    }
+    drawMarshmallowEnemy(x - 5, y - 2, 0);
+  } else if (type === "colorPineapple") {
+    const hue = (performance.now() * .11 + y * 1.8) % 360;
+    ctx.save();
+    ctx.filter = `hue-rotate(${hue}deg) saturate(1.8)`;
+    drawPineapple(x - 1, y - 2, 1.02);
     ctx.restore();
   }
 }
@@ -1800,10 +1869,11 @@ function resetGame() {
   score = 0; lives = 3; wave = 1;
   hangarReturnState = null;
   hangarOriginalShipId = null;
+  hangarContinueAction = null;
   gameOverProcessed = false;
   hideOverlays();
   const shipDef = SHIP_DEFS[selectedShipId] || SHIP_DEFS.luca;
-  player = { x: W/2 - 28, y: H - 88, w: 56, h: 62, speed: shipDef.speed, frozenUntil: 0 };
+  player = { x: W/2 - 28, y: H - 88, w: 56, h: 62, speed: shipDef.speed, frozenUntil: 0, slowedUntil: 0, controlsInvertedUntil: 0 };
   bullets = []; enemyBullets = []; enemies = []; particles = []; powerups = []; runnerObstacles = []; topBomber = null;
   boss = null; formationOffset = 0; formationDir = 1; formationTick = 0;
   doubleUntil = 0; shieldUntil = selectedShipId === "gaia" ? performance.now() + 6500 : 0; speedUntil = 0; similaeModeUntil = 0; jumpBoostUntil = 0; attackCooldown = 80; runnerObstacleTick = 0; runnerDistance = 0; tunnelObstacleTick = 0; tunnelDistance = 0; dashVelocityY = 0; dashJumpQueued = false; gaiaFloorIndex = 2; shipVolleyCount = 0; allyShip = null;
@@ -1848,6 +1918,26 @@ function createWave() {
       player.y = gaiaFloorY(gaiaFloorIndex) - player.h;
     }
     return;
+  } else if (isPineappleInversionStage()) {
+    // Etapa 8: formaciones de piñas. Una piña negra cruza la
+    // pantalla y lanza piñas cromáticas que invierten los controles.
+    rows = [
+      ["pineapple","pineapple","stonepineapple","pineapple","pineapple","pineapple"],
+      ["pineapple","pineapple","pineapple","pineapple","pineapple","pineapple"],
+      ["pineapple","stonepineapple","pineapple","pineapple","stonepineapple","pineapple"],
+      ["pineapple","pineapple","pineapple","pineapple","pineapple","pineapple"]
+    ];
+    updateTopBomber.nextAt = performance.now() + 2200;
+  } else if (isPopsicleMarshmallowStage()) {
+    // Etapa 7: todas las formaciones son paletas. Marshmallow Man
+    // cruza la pantalla y lanza cabezas perseguidoras.
+    rows = [
+      ["popsicle","popsicle","popsicle","popsicle","popsicle","popsicle"],
+      ["popsicle","popsicle","blackpopsicle","popsicle","popsicle","popsicle"],
+      ["popsicle","popsicle","popsicle","popsicle","popsicle","popsicle"],
+      ["popsicle","popsicle","popsicle","popsicle","popsicle","popsicle"]
+    ];
+    updateTopBomber.nextAt = performance.now() + 2200;
   } else if (isIceCubeStage()) {
     // Etapa 7: cubo de hielo errante. Cruza la pantalla y dispara copos perseguidores.
     rows = [
@@ -1902,8 +1992,16 @@ function createWave() {
       ["pineapple","pineapple","pineapple","pineapple","pineapple","pineapple"],
       ["pineapple","pineapple","pineapple","pineapple","pineapple","pineapple"]
     ];
+  } else if (wave >= 6) {
+    // Oleadas 6 a 9: dos filas de colas antes de Mega Cola.
+    rows = [
+      ["pineapple","pineapple","pineapple","pineapple","pineapple","pineapple"],
+      ["popsicle","popsicle","popsicle","popsicle","popsicle","popsicle"],
+      ["cola","cola","cola","cola","cola","cola"],
+      ["cola","cola","cola","cola","cola","cola"]
+    ];
   } else {
-    // Niveles 1 y 2: misma dificultad y misma estructura.
+    // Primeras oleadas.
     rows = [
       ["pineapple","pineapple","pineapple","pineapple","pineapple","pineapple"],
       ["popsicle","popsicle","popsicle","popsicle","popsicle","popsicle"],
@@ -1911,7 +2009,7 @@ function createWave() {
       ["icepizza","icepizza","icepizza","icepizza","icepizza","icepizza"]
     ];
   }
-  const startX = 86, startY = isIceCubeStage() ? 142 : 100, gapX = 70, gapY = 58;
+  const startX = 86, startY = (isIceCubeStage() || isPopsicleMarshmallowStage() || isPineappleInversionStage()) ? 142 : 100, gapX = 70, gapY = 58;
   for (let r=0; r<rows.length; r++) {
     for (let c=0; c<rows[r].length; c++) {
       const type = rows[r][c];
@@ -1957,7 +2055,13 @@ function createWave() {
 }
 
 function startBoss() {
-  const b = isIceCubeBossWave() ? BOSSES.find(bossDef => bossDef.type === "frozenPizzaBoss") : (isInvertedMarshmallowStage() ? MARSHMALLOW_MAN_BOSS : BOSSES[Math.min(BOSSES.length-1, Math.floor((wave-1)/5))]);
+  const b = isPineappleInversionBossWave()
+    ? BOSSES.find(bossDef => bossDef.type === "pineappleBoss")
+    : isPopsicleMarshmallowBossWave()
+    ? BOSSES.find(bossDef => bossDef.type === "popsicleBoss")
+    : (isIceCubeBossWave()
+      ? BOSSES.find(bossDef => bossDef.type === "frozenPizzaBoss")
+      : (isInvertedMarshmallowStage() ? MARSHMALLOW_MAN_BOSS : BOSSES[Math.min(BOSSES.length-1, Math.floor((wave-1)/5))]));
   const fixedBossDifficulty = wave <= 10; // Jefe 1 y Jefe 2 misma dificultad.
   const bossHp = fixedBossDifficulty ? 52 : b.hp;
   const bossW = b.type === "frozenPizzaBoss" ? 230 : (b.type === "marshmallowBoss" ? 170 : 110);
@@ -1977,10 +2081,23 @@ function startBoss() {
     maxHp: bossHp,
     fixedDifficulty: fixedBossDifficulty,
     iceCubeStageBoss: isIceCubeBossWave(),
+    popsicleMarshmallowStageBoss: isPopsicleMarshmallowBossWave(),
+    pineappleInversionStageBoss: isPineappleInversionBossWave(),
+    colorPineappleLaunched: false,
     t: 0, shootTimer: 45, iceWaveStep: 0
   };
   enemies = [];
   
+}
+
+function continueAfterGaiaRescuedToMap() {
+  selectShip("gaia");
+  resetGame();
+  showWorldMapTransition(5, "DESTINO: FREEZER MACHINE", () => {
+    wave = 36;
+    createWave();
+    state = "play";
+  }, 2400);
 }
 
 document.addEventListener("keydown", e => {
@@ -2012,11 +2129,7 @@ document.addEventListener("keydown", e => {
     return;
   }
   if ((e.code === "Enter" || e.code === "Space") && state === "gaiaRescued") {
-    selectShip("gaia");
-    resetGame();
-    wave = 36;
-    createWave();
-    state = "play";
+    continueAfterGaiaRescuedToMap();
     return;
   }
   if ((e.code === "Enter" || e.code === "Space") && state === "intro") {
@@ -2042,10 +2155,20 @@ document.addEventListener("keydown", e => {
     continueAfterBonusCoupon();
     return;
   }
+  if ((e.code === "Enter" || e.code === "Space") && state === "eggPrize") {
+    continueAfterEggPrize();
+    return;
+  }
   if ((e.code === "Enter" || e.code === "Space") && state === "transition") {
     return;
   }
   if ((e.code === "Enter" || e.code === "Space") && state === "coupon") {
+    if (performance.now() - couponUnlockedAt < 1200) return;
+    showRewardTeaser();
+    return;
+  }
+  if ((e.code === "Enter" || e.code === "Space") && state === "rewardTeaser") {
+    if (performance.now() - rewardTeaserStartedAt < 900) return;
     continueToBoss();
     return;
   }
@@ -2266,11 +2389,14 @@ function drawWorldMapV12(activeIndex = 0, statusText = "SIGUIENTE DESTINO") {
   drawV12Backdrop("rgba(40,140,255,0.18)", 0.58);
 
   const nodes = [
-    { label:"INICIO", color:"#56e8ff" },
-    { label:"PIÑA", color:"#9dbf40" },
-    { label:"CANDY", color:"#ff5da8" },
-    { label:"FROZEN", color:"#8feaff" },
-    { label:"POPCOLA", color:"#ff3b30" }
+    { lines:["INICIO"], color:"#56e8ff", x:72, y:350 },
+    { lines:["PLANETA","PIÑA"], color:"#9dbf40", x:204, y:350 },
+    { lines:["CANDY","PLANET"], color:"#ff5da8", x:336, y:350 },
+    { lines:["FREEZER","PLANET"], color:"#8feaff", x:468, y:350 },
+    { lines:["IMPERIO","POPCOLA"], color:"#ff3b30", x:468, y:470 },
+    { lines:["FREEZER","MACHINE"], color:"#72e6ff", x:336, y:470 },
+    { lines:["CANDY","FACTORY"], color:"#ff78d0", x:204, y:470 },
+    { lines:["PINEAPPLE","PANIC"], color:"#ffcc33", x:72, y:470 }
   ];
 
   ctx.save();
@@ -2284,26 +2410,25 @@ function drawWorldMapV12(activeIndex = 0, statusText = "SIGUIENTE DESTINO") {
   ctx.fillText("RUTA", W / 2, 185);
   ctx.fillText("GALÁCTICA", W / 2, 238);
 
-  const startX = 72;
-  const gap = 98;
-  const y = 395;
-
   ctx.lineWidth = 5;
   ctx.strokeStyle = "rgba(86,232,255,0.28)";
   ctx.beginPath();
-  ctx.moveTo(startX, y);
-  ctx.lineTo(startX + gap * (nodes.length - 1), y);
+  ctx.moveTo(nodes[0].x, nodes[0].y);
+  for (let i = 1; i < nodes.length; i++) ctx.lineTo(nodes[i].x, nodes[i].y);
   ctx.stroke();
 
   ctx.lineWidth = 7;
   ctx.strokeStyle = "#ffcc33";
   ctx.beginPath();
-  ctx.moveTo(startX, y);
-  ctx.lineTo(startX + gap * Math.max(0, Math.min(activeIndex, nodes.length - 1)), y);
+  ctx.moveTo(nodes[0].x, nodes[0].y);
+  for (let i = 1; i <= Math.max(0, Math.min(activeIndex, nodes.length - 1)); i++) {
+    ctx.lineTo(nodes[i].x, nodes[i].y);
+  }
   ctx.stroke();
 
   nodes.forEach((node, index) => {
-    const x = startX + gap * index;
+    const x = node.x;
+    const y = node.y;
     const isActive = index === activeIndex;
     const isCleared = index < activeIndex;
     const r = isActive ? 25 : 18;
@@ -2327,18 +2452,20 @@ function drawWorldMapV12(activeIndex = 0, statusText = "SIGUIENTE DESTINO") {
     ctx.fillStyle = isActive ? "#050914" : (isCleared ? "#050914" : node.color);
     ctx.fillText(isCleared ? "✓" : String(index + 1), x, y + 6);
 
-    ctx.font = "bold 13px Courier New";
+    ctx.font = "bold 12px Courier New";
     ctx.fillStyle = isActive ? "#ffffff" : "rgba(255,255,255,0.64)";
-    ctx.fillText(node.label, x, y + 54);
+    node.lines.forEach((line, lineIndex) => {
+      ctx.fillText(line, x, y + 50 + lineIndex * 15);
+    });
   });
 
   ctx.font = "bold 23px Courier New";
   ctx.fillStyle = "#ffffff";
-  ctx.fillText(statusText || "SIGUIENTE DESTINO", W / 2, 520);
+  ctx.fillText(statusText || "SIGUIENTE DESTINO", W / 2, 575);
 
   ctx.font = "bold 16px Courier New";
   ctx.fillStyle = "#9dbf40";
-  ctx.fillText("PIZZA INVADERS // SIMILAE", W / 2, 592);
+  ctx.fillText("PIZZA INVADERS // SIMILAE", W / 2, 635);
   ctx.restore();
 }
 
@@ -2489,6 +2616,27 @@ function requestBonusCouponWhatsApp() {
   canvas.focus();
 }
 
+function requestEggPrizeWhatsApp() {
+  const text = `Hola Similae! Derroté a PopCola King, el padre de Colin, en Pizza Invaders y gané el Gran Huevo Pernigotti. Adjunto un pantallazo de la pantalla del premio para validarlo. Mi puntaje fue ${score}.`;
+  const url = `https://wa.me/56949898555?text=${encodeURIComponent(text)}`;
+  eggPrizeWhatsAppOpened = true;
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  canvas.focus();
+}
+
+function continueAfterEggPrize() {
+  eggPrizeWhatsAppOpened = false;
+  state = "gaiaRescued";
+  canvas.focus();
+}
+
 function continueAfterBonusCoupon() {
   hideOverlays();
   showWorldMapTransition(3, "TRANSMISIÓN HACIA FROZENPIZZA", showFreezerTransmission, 2200);
@@ -2506,11 +2654,13 @@ function continueAfterTrivia() {
   if (!couponShown) {
     couponShown = true;
     couponCanvasCopied = false;
+    couponUnlockedAt = performance.now();
+    playSfx("powerup");
     state = "coupon";
     return;
   }
 
-  showWorldMapTransition(0, "SECTOR INICIAL DESPEJADO", () => {
+  showWorldMapTransition(1, "DESTINO: PLANETA PIÑA", () => {
     wave++;
     createWave();
     state = "play";
@@ -2526,12 +2676,21 @@ function continueToBoss() {
   transition.drawCustom = drawGaiaMessageV12;
     return;
   }
-  showWorldMapTransition(0, "SECTOR INICIAL DESPEJADO", () => {
+  showWorldMapTransition(1, "DESTINO: PLANETA PIÑA", () => {
     wave++;
     createWave();
     state = "play";
     canvas.focus();
   }, 2100);
+}
+
+function showRewardTeaser() {
+  hideOverlays();
+  rewardTeaserStartedAt = performance.now();
+  playSfx("powerup");
+  state = "rewardTeaser";
+  touchControl.autoFire = false;
+  touchControl.active = false;
 }
 
 function shareCouponWhatsApp() {
@@ -2640,10 +2799,11 @@ function handleCouponTap(pt) {
   const continueBtn = {x: 105, y: 570, w: 330, h: 56};
   if (pt.x >= copyBtn.x && pt.x <= copyBtn.x + copyBtn.w && pt.y >= copyBtn.y && pt.y <= copyBtn.y + copyBtn.h) {
     copyCoupon();
+    couponCanvasCopied = true;
     return true;
   }
   if (pt.x >= continueBtn.x && pt.x <= continueBtn.x + continueBtn.w && pt.y >= continueBtn.y && pt.y <= continueBtn.y + continueBtn.h) {
-    continueToBoss();
+    showRewardTeaser();
     return true;
   }
   return false;
@@ -2682,15 +2842,8 @@ function startFromTouch(e) {
   canvas.focus();1
 
   if (state === "coupon") {
-
-    if (!couponCanvasCopied) {
-      copyCoupon();
-      couponCanvasCopied = true;
-      return;
-    }
-  
-    couponCanvasCopied = false;
-    continueToBoss();
+    if (performance.now() - couponUnlockedAt < 700) return;
+    handleCouponTap(canvasPointFromEvent(e));
     return;
   }
 
@@ -2699,6 +2852,14 @@ function startFromTouch(e) {
   // Pantalla completa ahora es opcional con el botón ⛶.
 
   const pt = canvasPointFromEvent(e);
+
+  if (state === "rewardTeaser") {
+    if (performance.now() - rewardTeaserStartedAt < 700) return;
+    if (pt.x >= 95 && pt.x <= 445 && pt.y >= 590 && pt.y <= 650) {
+      continueToBoss();
+    }
+    return;
+  }
 
   if (state === "start") {
     if (pt.y >= 545 && pt.y <= 585) {
@@ -2818,11 +2979,22 @@ if (state === "stageSelect") {
   }
 
   if (pt.y >= 600 && pt.y <= 650) {
-      state = "devMenu";
+      resetGame();
+      wave = 41;
+      createWave();
+      state = "play";
       return;
   }
 
-  if (pt.y >= 660 && pt.y <= 710) {
+  if (pt.y >= 660 && pt.y <= 705) {
+      resetGame();
+      wave = 46;
+      createWave();
+      state = "play";
+      return;
+  }
+
+  if (pt.y >= 710 && pt.y <= 755) {
       state = "devMenu";
       return;
   }
@@ -2841,6 +3013,17 @@ if (state === "stageSelect") {
   if (state === "candyIntro") { return; }
   if (state === "freezerTransmission") { return; }
   if (state === "frozenPizzaVideo") { return; }
+  if (state === "eggPrize") {
+    if (pt.x >= 95 && pt.x <= 445 && pt.y >= 520 && pt.y <= 576) {
+      requestEggPrizeWhatsApp();
+      return;
+    }
+    if (pt.x >= 95 && pt.x <= 445 && pt.y >= 590 && pt.y <= 646) {
+      continueAfterEggPrize();
+      return;
+    }
+    return;
+  }
   if (state === "bonusCoupon") {
     if (pt.x >= 95 && pt.x <= 445 && pt.y >= 520 && pt.y <= 576) {
       requestBonusCouponWhatsApp();
@@ -2857,11 +3040,7 @@ if (state === "stageSelect") {
 
   if (state === "gaiaRescued") {
     if (pt.x >= 95 && pt.x <= 445 && pt.y >= 590 && pt.y <= 646) {
-      selectShip("gaia");
-      resetGame();
-      wave = 36;
-      createWave();
-      state = "play";
+      continueAfterGaiaRescuedToMap();
     }
     return;
   }
@@ -2909,7 +3088,9 @@ if (state === "popColaIntro") {
     setTouchTarget(pt);
     return;
   }
-  if (state !== "play") { resetGame(); state = "play"; }
+  // Las cinemáticas y explosiones de jefe no son pantallas de reinicio.
+  // Ignorar cualquier toque residual evita volver accidentalmente a la oleada 1.
+  if (state !== "play") return;
 
   touchControl.active = true;
   touchControl.autoFire = true;
@@ -2939,7 +3120,7 @@ function endTouch(e) {
 
 copyCouponBtn && copyCouponBtn.addEventListener("click", copyCoupon);
 couponShareBtn && couponShareBtn.addEventListener("click", shareCouponWhatsApp);
-continueBossBtn && continueBossBtn.addEventListener("click", continueToBoss);
+continueBossBtn && continueBossBtn.addEventListener("click", showRewardTeaser);
 triviaBtnA && triviaBtnA.addEventListener("click", () => answerTrivia(0));
 triviaBtnB && triviaBtnB.addEventListener("click", () => answerTrivia(1));
 triviaContinueBtn && triviaContinueBtn.addEventListener("click", continueAfterTrivia);
@@ -3361,6 +3542,22 @@ function isIceCubeBossWave() {
   return wave === 40;
 }
 
+function isPopsicleMarshmallowStage() {
+  return wave >= 41 && wave <= 45;
+}
+
+function isPopsicleMarshmallowBossWave() {
+  return wave === 45;
+}
+
+function isPineappleInversionStage() {
+  return wave >= 46 && wave <= 50;
+}
+
+function isPineappleInversionBossWave() {
+  return wave === 50;
+}
+
 function isGaiaDashWave() {
   return false;
 }
@@ -3398,14 +3595,17 @@ function nearestGaiaFloor(y) {
 
 function spawnTopBomber() {
   const fromLeft = Math.random() < .5;
+  const marshmallowMan = isPopsicleMarshmallowStage();
+  const blackPineapple = isPineappleInversionStage();
   topBomber = {
-    x: fromLeft ? -86 : W + 86,
-    y: 54 + Math.random() * 210,
-    w: 58,
-    h: 58,
-    vx: fromLeft ? 2.2 : -2.2,
-    hp: 27,
-    maxHp: 27,
+    x: fromLeft ? (marshmallowMan ? -150 : -86) : W + (marshmallowMan ? 150 : 86),
+    y: marshmallowMan ? 30 + Math.random() * 30 : (blackPineapple ? 42 + Math.random() * 42 : 54 + Math.random() * 210),
+    w: marshmallowMan ? 108 : (blackPineapple ? 70 : 58),
+    h: marshmallowMan ? 126 : (blackPineapple ? 82 : 58),
+    vx: fromLeft ? (marshmallowMan ? 2.35 : 2.2) : (marshmallowMan ? -2.35 : -2.2),
+    hp: marshmallowMan ? 30 : (blackPineapple ? 32 : 27),
+    maxHp: marshmallowMan ? 30 : (blackPineapple ? 32 : 27),
+    kind: marshmallowMan ? "marshmallowMan" : (blackPineapple ? "blackPineapple" : "iceCube"),
     dropped: false,
     phase: Math.random() * Math.PI * 2,
     nextAt: performance.now() + 4800 + Math.random() * 2600
@@ -3413,7 +3613,7 @@ function spawnTopBomber() {
 }
 
 function updateTopBomber() {
-  if (!isIceCubeStage() || boss || state !== "play") {
+  if ((!isIceCubeStage() && !isPopsicleMarshmallowStage() && !isPineappleInversionStage()) || boss || state !== "play") {
     topBomber = null;
     return;
   }
@@ -3427,8 +3627,16 @@ function updateTopBomber() {
   const crossingCenter = topBomber.vx > 0 ? topBomber.x > W * .45 : topBomber.x < W * .55;
   if (!topBomber.dropped && crossingCenter) {
     topBomber.dropped = true;
-    addEnemyBullet(topBomber.x + topBomber.w / 2 - 24, topBomber.y + topBomber.h - 2, "snowflake", 0, 3.8);
-    explode(topBomber.x + topBomber.w / 2, topBomber.y + topBomber.h, "#72e6ff", { count: 10, speed: 4.8, shape: "spark", size: 4, life: 14 });
+    if (topBomber.kind === "marshmallowMan") {
+      addEnemyBullet(topBomber.x + topBomber.w / 2 - 25, topBomber.y + topBomber.h - 12, "marshmallowHead", 0, 3.8);
+      explode(topBomber.x + topBomber.w / 2, topBomber.y + topBomber.h, "#fff7ef", { count: 14, speed: 5.2, shape: "cloud", size: 7, life: 18 });
+    } else if (topBomber.kind === "blackPineapple") {
+      addEnemyBullet(topBomber.x + topBomber.w / 2 - 22, topBomber.y + topBomber.h - 6, "colorPineapple", 0, 3.8);
+      explode(topBomber.x + topBomber.w / 2, topBomber.y + topBomber.h, "#ffcc33", { count: 14, speed: 5.2, shape: "spark", size: 6, life: 18 });
+    } else {
+      addEnemyBullet(topBomber.x + topBomber.w / 2 - 24, topBomber.y + topBomber.h - 2, "snowflake", 0, 3.8);
+      explode(topBomber.x + topBomber.w / 2, topBomber.y + topBomber.h, "#72e6ff", { count: 10, speed: 4.8, shape: "spark", size: 4, life: 14 });
+    }
   }
   if (topBomber.x > W + 110 || topBomber.x + topBomber.w < -110) {
     updateTopBomber.nextAt = now + 5200 + Math.random() * 3200;
@@ -3437,7 +3645,7 @@ function updateTopBomber() {
 }
 
 function drawTopBomber() {
-  if (!topBomber || boss || !isIceCubeStage()) return;
+  if (!topBomber || boss || (!isIceCubeStage() && !isPopsicleMarshmallowStage() && !isPineappleInversionStage())) return;
   ctx.save();
   ctx.translate(topBomber.x, topBomber.y);
   if (topBomber.vx < 0) {
@@ -3445,18 +3653,38 @@ function drawTopBomber() {
     ctx.scale(-1, 1);
   }
   ctx.globalAlpha = .96;
-  px(5, 5, 48, 48, "#72e6ff");
-  px(9, 9, 40, 40, "#d5fbff");
-  px(14, 14, 30, 30, "#8adfff");
-  px(8, 8, 8, 8, "#ffffff");
-  px(36, 34, 10, 10, "#4fa8d8");
-  ctx.globalAlpha = .72;
-  px(0, 23, 9, 8, "#d5fbff");
-  px(49, 23, 9, 8, "#d5fbff");
+  if (topBomber.kind === "marshmallowMan") {
+    ctx.scale(.62, .62);
+    drawMarshmallowBossSprite(0, 0);
+  } else if (topBomber.kind === "blackPineapple") {
+    ctx.filter = "grayscale(1) brightness(.25) contrast(1.8)";
+    drawPineapple(7, 2, 1.42);
+    ctx.filter = "none";
+    px(28, 41, 7, 7, "#ffcc33");
+    px(47, 41, 7, 7, "#ffcc33");
+  } else {
+    px(5, 5, 48, 48, "#72e6ff");
+    px(9, 9, 40, 40, "#d5fbff");
+    px(14, 14, 30, 30, "#8adfff");
+    px(8, 8, 8, 8, "#ffffff");
+    px(36, 34, 10, 10, "#4fa8d8");
+    ctx.globalAlpha = .72;
+    px(0, 23, 9, 8, "#d5fbff");
+    px(49, 23, 9, 8, "#d5fbff");
+  }
   ctx.globalAlpha = .85;
   const hpRatio = Math.max(0, topBomber.hp / topBomber.maxHp);
-  px(6, 58, 46, 4, "rgba(255,255,255,.25)");
-  px(6, 58, 46 * hpRatio, 4, "#72e6ff");
+  if (topBomber.kind === "marshmallowMan") {
+    ctx.scale(1 / .62, 1 / .62);
+    px(8, 126, 92, 5, "rgba(255,255,255,.25)");
+    px(8, 126, 92 * hpRatio, 5, "#ff78d0");
+  } else if (topBomber.kind === "blackPineapple") {
+    px(9, 82, 54, 4, "rgba(255,255,255,.25)");
+    px(9, 82, 54 * hpRatio, 4, "#ffcc33");
+  } else {
+    px(6, 58, 46, 4, "rgba(255,255,255,.25)");
+    px(6, 58, 46 * hpRatio, 4, "#72e6ff");
+  }
   ctx.restore();
 }
 
@@ -3615,9 +3843,12 @@ function drawBackground() {
   const isRunnerStageBackground = false;
   const isGaiaTunnelStageBackground = isGaiaDashWave();
   const isIceCubeStageBackground = isIceCubeStage();
+  const isPopsicleMarshmallowStageBackground = isPopsicleMarshmallowStage();
+  const isPineappleInversionStageBackground = isPineappleInversionStage();
   const isInvertedStageBackground = isInvertedMarshmallowStage();
   const isPopColaStage = wave >= 26;
   const isFrozenPizzaStage = wave >= 21 && wave < 26;
+  const isPineapplePlanetStage = wave >= 11 && wave < 16;
 
   if (isGaiaTunnelStageBackground) {
     const now = performance.now();
@@ -3670,12 +3901,53 @@ function drawBackground() {
     return;
   }
 
-  if (isIceCubeStageBackground) {
+  if (isPineappleInversionStageBackground) {
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, "#1c1704");
+    grad.addColorStop(.55, "#31270a");
+    grad.addColorStop(1, "#100d03");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    const glow = ctx.createRadialGradient(W * .5, H * .34, 20, W * .5, H * .34, W * .72);
+    glow.addColorStop(0, "rgba(255,204,51,.20)");
+    glow.addColorStop(1, "rgba(255,204,51,0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H);
+
+    for (const s of stars) {
+      s.y += 0.48 + s.v * 0.45;
+      if (s.y > H + 12) {
+        s.y = -12;
+        s.x = Math.random() * W;
+      }
+      ctx.globalAlpha = .38 + Math.min(.34, s.s / 7);
+      px(s.x, s.y, Math.max(1, s.s), Math.max(1, s.s), s.layer === 2 ? "#fff2a8" : "#ffcc33");
+    }
+
+    ctx.save();
+    ctx.globalAlpha = .72;
+    ctx.fillStyle = "#ffcc33";
+    ctx.font = "bold 15px Courier New";
+    ctx.textAlign = "left";
+    ctx.fillText("ETAPA 8 · PINEAPPLE PANIC", 18, 108);
+    ctx.fillStyle = "#fff2a8";
+    ctx.fillText(
+      boss ? "JEFE PIÑA · ROMPE SU DEFENSA" : "PIÑA NEGRA · CONTROLES INVERTIDOS",
+      18,
+      128
+    );
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    return;
+  }
+
+  if (isIceCubeStageBackground || isPopsicleMarshmallowStageBackground) {
     const now = performance.now();
     const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, "#050510");
-    grad.addColorStop(.55, "#0d1326");
-    grad.addColorStop(1, "#09070e");
+    grad.addColorStop(0, isPopsicleMarshmallowStageBackground ? "#19051d" : "#050510");
+    grad.addColorStop(.55, isPopsicleMarshmallowStageBackground ? "#2a0b35" : "#0d1326");
+    grad.addColorStop(1, isPopsicleMarshmallowStageBackground ? "#100614" : "#09070e");
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
 
@@ -3686,7 +3958,7 @@ function drawBackground() {
         s.x = Math.random() * W;
       }
       ctx.globalAlpha = .42 + Math.min(.35, s.s / 7);
-      px(s.x, s.y, Math.max(1, s.s), Math.max(1, s.s), "#ffffff");
+      px(s.x, s.y, Math.max(1, s.s), Math.max(1, s.s), isPopsicleMarshmallowStageBackground ? "#ffb3e4" : "#ffffff");
     }
 
     ctx.save();
@@ -3694,9 +3966,15 @@ function drawBackground() {
     ctx.fillStyle = "#ffcc33";
     ctx.font = "bold 15px Courier New";
     ctx.textAlign = "left";
-    ctx.fillText("ETAPA 6 · CUBO DE HIELO", 18, 108);
-    ctx.fillStyle = "#ffffff";
-    ctx.fillText(boss ? "FROZEN PIZZA · ONDAS DE 3 COPOS" : "DISPARA AL CUBO · ESQUIVA EL COPO PERSEGUIDOR", 18, 128);
+    ctx.fillText(isPopsicleMarshmallowStageBackground ? "ETAPA 7 · CANDY FACTORY" : "ETAPA 6 · FREEZER MACHINE", 18, 108);
+    ctx.fillStyle = isPopsicleMarshmallowStageBackground ? "#ff78d0" : "#ffffff";
+    ctx.fillText(
+      isPopsicleMarshmallowStageBackground
+        ? (boss ? "JEFE PALETA · DERRITE SU DEFENSA" : "PALETA NEGRA RESISTENTE · ESQUIVA CABEZAS MARSHMALLOW")
+        : (boss ? "FROZEN PIZZA · ONDAS DE 3 COPOS" : "DISPARA AL CUBO · ESQUIVA EL COPO PERSEGUIDOR"),
+      18,
+      128
+    );
     ctx.restore();
     ctx.globalAlpha = 1;
     return;
@@ -3926,7 +4204,24 @@ function drawBackground() {
     return;
   }
 
-  px(0, 0, W, H, "#050510");
+  if (isPineapplePlanetStage) {
+    const pineappleGrad = ctx.createLinearGradient(0, 0, 0, H);
+    pineappleGrad.addColorStop(0, "#08070a");
+    pineappleGrad.addColorStop(.48, "#181304");
+    pineappleGrad.addColorStop(1, "#0b0804");
+    ctx.fillStyle = pineappleGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    const warmGlow = ctx.createRadialGradient(W * .76, H * .22, 10, W * .76, H * .22, 310);
+    warmGlow.addColorStop(0, "rgba(255,204,51,.16)");
+    warmGlow.addColorStop(.45, "rgba(246,183,42,.07)");
+    warmGlow.addColorStop(1, "rgba(255,204,51,0)");
+    ctx.fillStyle = warmGlow;
+    ctx.fillRect(0, 0, W, H);
+
+  } else {
+    px(0, 0, W, H, "#050510");
+  }
 
   const showDeepSpaceDetails = wave >= 6;
   const isCandyPlanetStage = wave >= 16 && wave < 21;
@@ -3951,22 +4246,28 @@ function drawBackground() {
       s.x = Math.random() * W;
     }
     ctx.globalAlpha = layer === 0 ? .24 : (layer === 1 ? .48 : .82);
-    px(s.x, s.y, size, size, layer === 2 ? "#dff7ff" : "white");
+    px(
+      s.x,
+      s.y,
+      size,
+      size,
+      isPineapplePlanetStage ? (layer === 2 ? "#ffdc66" : "#fff4c2") : (layer === 2 ? "#dff7ff" : "white")
+    );
 
     if (layer === 2) {
       ctx.globalAlpha = .18;
-      px(s.x, s.y - 12, 1, 12, "#56e8ff");
+      px(s.x, s.y - 12, 1, 12, isPineapplePlanetStage ? "#ffcc33" : "#56e8ff");
     }
   }
 
-  if (showDeepSpaceDetails) updateAndDrawShootingStars();
+  if (showDeepSpaceDetails && !isPineapplePlanetStage) updateAndDrawShootingStars();
 
   ctx.globalAlpha = 1;
 }
 
 function addEnemyBullet(x,y,type,vx=0,vy=4.4) {
-  const largeSnowflake = type === "snowflake";
-  enemyBullets.push({x,y,w:largeSnowflake ? 50 : 18,h:largeSnowflake ? 50 : 20,type,vx,vy,age:0});
+  const largeHomingShot = type === "snowflake" || type === "marshmallowHead" || type === "bossMarshmallowHead" || type === "colorPineapple";
+  enemyBullets.push({x,y,w:largeHomingShot ? 50 : 18,h:largeHomingShot ? 50 : 20,type,vx,vy,age:0});
 }
 
 function updatePlayer() {
@@ -4004,8 +4305,10 @@ function updatePlayer() {
     return;
   }
   let sp = now < speedUntil ? 8.5 : player.speed;
+  if (now < player.slowedUntil) sp *= 0.28;
+  const controlsInverted = now < (player.controlsInvertedUntil || 0);
 
-  const minY = isIceCubeStage() ? 0 : (isRunnerStage() ? 190 : (isGaiaTunnelStage() ? H * 0.56 : H * 0.72));
+  const minY = (isIceCubeStage() || isPopsicleMarshmallowStage() || isPineappleInversionStage()) ? 0 : (isRunnerStage() ? 190 : (isGaiaTunnelStage() ? H * 0.56 : H * 0.72));
   const maxY = H - player.h - 8;
   const maxX = isRunnerStage() ? W * .42 : W - player.w;
   const horizontalWrapActive = wave >= 16;
@@ -4016,25 +4319,31 @@ function updatePlayer() {
   }
 
   if (touchControl.targetX !== null) {
-    const targetX = isRunnerStage()
+    let targetX = isRunnerStage()
       ? Math.max(12, Math.min(maxX, touchControl.targetX))
       : (horizontalWrapActive ? touchControl.targetX : Math.max(0, Math.min(W - player.w, touchControl.targetX)));
+    if (controlsInverted) targetX = player.x - (targetX - player.x);
     const dx = targetX - player.x;
     const maxStep = sp * 2.1;
     player.x += Math.max(-maxStep, Math.min(maxStep, dx));
   }
 
   if (touchControl.targetY !== null) {
-    const targetY = Math.max(minY, Math.min(maxY, touchControl.targetY));
+    let targetY = Math.max(minY, Math.min(maxY, touchControl.targetY));
+    if (controlsInverted) targetY = player.y - (targetY - player.y);
     const dy = targetY - player.y;
     const maxStepY = sp * 2.1;
     player.y += Math.max(-maxStepY, Math.min(maxStepY, dy));
   }
 
-  if (keys.ArrowLeft && (horizontalWrapActive || player.x > 0)) player.x -= sp;
-  if (keys.ArrowRight && (horizontalWrapActive || player.x < W-player.w)) player.x += sp;
-  if (keys.ArrowUp && player.y > minY) player.y -= sp;
-  if (keys.ArrowDown && player.y < maxY) player.y += sp;
+  const moveLeft = controlsInverted ? keys.ArrowRight : keys.ArrowLeft;
+  const moveRight = controlsInverted ? keys.ArrowLeft : keys.ArrowRight;
+  const moveUp = controlsInverted ? keys.ArrowDown : keys.ArrowUp;
+  const moveDown = controlsInverted ? keys.ArrowUp : keys.ArrowDown;
+  if (moveLeft && (horizontalWrapActive || player.x > 0)) player.x -= sp;
+  if (moveRight && (horizontalWrapActive || player.x < W-player.w)) player.x += sp;
+  if (moveUp && player.y > minY) player.y -= sp;
+  if (moveDown && player.y < maxY) player.y += sp;
   if (keys.Space) shoot();
 
   if ((touchControl.autoFire || isTouchDevice) && state === "play") {
@@ -4237,6 +4546,32 @@ function updateBoss() {
   boss.x = W/2 - boss.w/2 + Math.sin(boss.t*.025)*110;
   boss.shootTimer--;
   if (boss.shootTimer < 0) {
+    if (boss.type === "pineappleBoss" && boss.pineappleInversionStageBoss) {
+      const baseX = boss.x + boss.w / 2;
+      const baseY = boss.y + boss.h * .78;
+      // Conserva la ráfaga normal del jefe.
+      for (let i=-2; i<=2; i++) {
+        addEnemyBullet(baseX, baseY, "pineapple", i * .75, 3.35);
+      }
+      // Una única piña cromática durante toda la batalla final.
+      if (!boss.colorPineappleLaunched) {
+        addEnemyBullet(baseX - 25, baseY + 12, "colorPineapple", 0, 3.45);
+        boss.colorPineappleLaunched = true;
+      }
+      explode(baseX, baseY, "#ffcc33", { count: 16, speed: 5.8, shape: "spark", size: 6, life: 18 });
+      boss.shootTimer = 105;
+      return;
+    }
+    if (boss.type === "popsicleBoss" && boss.popsicleMarshmallowStageBoss) {
+      const baseX = boss.x + boss.w / 2 - 25;
+      const baseY = boss.y + boss.h * .78;
+      addEnemyBullet(baseX - 48, baseY, "bossMarshmallowHead", -1.1, 3.25);
+      addEnemyBullet(baseX, baseY + 12, "bossMarshmallowHead", 0, 3.55);
+      addEnemyBullet(baseX + 48, baseY, "bossMarshmallowHead", 1.1, 3.25);
+      explode(boss.x + boss.w / 2, baseY, "#ffb3e4", { count: 18, speed: 5.8, shape: "cloud", size: 7, life: 18 });
+      boss.shootTimer = 112;
+      return;
+    }
     if (boss.type === "frozenPizzaBoss" && isIceCubeBossWave()) {
       const baseX = boss.x + boss.w / 2 - 25;
       const baseY = boss.y + boss.h * .78;
@@ -4263,7 +4598,7 @@ function updateBullets() {
   bullets = bullets.filter(b => b.y > -40 && b.x > -60 && b.x < W + 60);
   enemyBullets.forEach(b => {
     b.age = (b.age || 0) + 1;
-    if (b.type === "snowflake" && player) {
+    if ((b.type === "snowflake" || b.type === "marshmallowHead" || b.type === "bossMarshmallowHead" || b.type === "colorPineapple") && player) {
       const tx = player.x + player.w / 2;
       const ty = player.y + player.h / 2;
       const bx = b.x + b.w / 2;
@@ -4429,6 +4764,7 @@ function startBossExplosion(defeatedBoss, next) {
     y: defeatedBoss.y,
     w: defeatedBoss.w,
     h: defeatedBoss.h,
+    pineappleInversionStageBoss: defeatedBoss.pineappleInversionStageBoss,
     colors,
     style,
     startedAt: performance.now(),
@@ -4489,7 +4825,13 @@ function drawBossSnapshot(ex) {
   ctx.translate((Math.random()-.5)*shake, (Math.random()-.5)*shake);
   if (ex.type === "popsicleBoss") drawPopsicle(ex.x, ex.y, 1, true);
   if (ex.type === "colaBoss") drawCola(ex.x, ex.y + 10, 1, true);
-  if (ex.type === "pineappleBoss") drawPineapple(ex.x + 24, ex.y + 15, 2.2);
+  if (ex.type === "pineappleBoss") {
+    if (ex.pineappleInversionStageBoss) {
+      ctx.filter = "grayscale(1) brightness(.24) contrast(1.9)";
+    }
+    drawPineapple(ex.x + 24, ex.y + 15, 2.2);
+    ctx.filter = "none";
+  }
   if (ex.type === "marshmallowBoss") drawMarshmallowBossSprite(ex.x, ex.y);
   if (ex.type === "frozenPizzaBoss") drawFrozenPizzaBossSprite(ex.x, ex.y);
   if (ex.type === "colinBoss") drawColinBossSprite(ex.x, ex.y);
@@ -4522,6 +4864,268 @@ function drawBossExplosionScreen() {
   ctx.textAlign = "left";
 }
 
+function drawUnifiedSimilaePizza(cx, cy, scale=1) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(scale, scale);
+  ctx.shadowColor = "rgba(255,204,51,.72)";
+  ctx.shadowBlur = 22;
+  ctx.fillStyle = "#c86b25";
+  ctx.beginPath();
+  ctx.arc(0, 0, 92, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#ffd64d";
+  ctx.beginPath();
+  ctx.arc(0, 0, 78, 0, Math.PI * 2);
+  ctx.fill();
+  drawShipPepperoni(-31, -27, 11);
+  drawShipPepperoni(33, 28, 10);
+  drawShipLeaf(30, -35, 13, .45);
+  drawShipLeaf(-38, 31, 12, -.55);
+  drawShipMushroom(4, -2, 14, .08);
+  drawShipProsciutto(-3, 47, 29, 15, -.12);
+  drawShipSimilaeBadge(0, 0, 34);
+  ctx.restore();
+}
+
+function drawGaiaPlanet(cx, cy, radius, rotation=0) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rotation);
+  ctx.shadowColor = "rgba(86,232,255,.9)";
+  ctx.shadowBlur = 30;
+  const ocean = ctx.createRadialGradient(-radius * .28, -radius * .34, radius * .08, 0, 0, radius);
+  ocean.addColorStop(0, "#8feaff");
+  ocean.addColorStop(.42, "#2589d8");
+  ocean.addColorStop(1, "#073d79");
+  ctx.fillStyle = ocean;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(0, 0, radius - 2, 0, Math.PI * 2);
+  ctx.clip();
+
+  // América del Norte y América del Sur.
+  ctx.fillStyle = "#66b94f";
+  ctx.beginPath();
+  ctx.moveTo(-radius*.73, -radius*.48);
+  ctx.lineTo(-radius*.48, -radius*.66);
+  ctx.lineTo(-radius*.24, -radius*.56);
+  ctx.lineTo(-radius*.12, -radius*.36);
+  ctx.lineTo(-radius*.29, -radius*.23);
+  ctx.lineTo(-radius*.38, -radius*.05);
+  ctx.lineTo(-radius*.50, -radius*.10);
+  ctx.lineTo(-radius*.62, -radius*.30);
+  ctx.closePath();
+  ctx.moveTo(-radius*.37, -radius*.04);
+  ctx.lineTo(-radius*.17, radius*.04);
+  ctx.lineTo(-radius*.11, radius*.25);
+  ctx.lineTo(-radius*.23, radius*.60);
+  ctx.lineTo(-radius*.35, radius*.80);
+  ctx.lineTo(-radius*.43, radius*.47);
+  ctx.lineTo(-radius*.54, radius*.20);
+  ctx.closePath();
+  ctx.fill();
+
+  // Europa, África y Asia.
+  ctx.fillStyle = "#76c35b";
+  ctx.beginPath();
+  ctx.moveTo(radius*.02, -radius*.43);
+  ctx.lineTo(radius*.20, -radius*.61);
+  ctx.lineTo(radius*.52, -radius*.56);
+  ctx.lineTo(radius*.78, -radius*.35);
+  ctx.lineTo(radius*.66, -radius*.12);
+  ctx.lineTo(radius*.39, -radius*.18);
+  ctx.lineTo(radius*.27, radius*.01);
+  ctx.lineTo(radius*.09, -radius*.05);
+  ctx.lineTo(-radius*.02, -radius*.21);
+  ctx.closePath();
+  ctx.moveTo(radius*.08, -radius*.05);
+  ctx.lineTo(radius*.31, radius*.02);
+  ctx.lineTo(radius*.38, radius*.30);
+  ctx.lineTo(radius*.19, radius*.64);
+  ctx.lineTo(radius*.02, radius*.37);
+  ctx.lineTo(-radius*.03, radius*.11);
+  ctx.closePath();
+  ctx.moveTo(radius*.55, radius*.40);
+  ctx.lineTo(radius*.79, radius*.38);
+  ctx.lineTo(radius*.86, radius*.57);
+  ctx.lineTo(radius*.65, radius*.67);
+  ctx.closePath();
+  ctx.fill();
+
+  // Groenlandia y casquetes polares.
+  ctx.fillStyle = "#e9fbff";
+  ctx.beginPath();
+  ctx.moveTo(-radius*.34, -radius*.73);
+  ctx.lineTo(-radius*.15, -radius*.86);
+  ctx.lineTo(-radius*.02, -radius*.70);
+  ctx.lineTo(-radius*.19, -radius*.56);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(0, radius*.91, radius*.55, radius*.12, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Nubes curvas que refuerzan la lectura de planeta Tierra.
+  ctx.globalAlpha = .42;
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = radius * .065;
+  ctx.beginPath();
+  ctx.arc(-radius * .22, -radius * .30, radius * .48, .18, 2.4);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(radius * .24, radius * .20, radius * .43, 3.5, 5.8);
+  ctx.stroke();
+
+  // Sombra nocturna en el borde derecho para dar volumen esférico.
+  ctx.globalAlpha = .45;
+  const night = ctx.createLinearGradient(-radius*.2, 0, radius, 0);
+  night.addColorStop(0, "rgba(0,18,50,0)");
+  night.addColorStop(1, "rgba(0,10,32,.88)");
+  ctx.fillStyle = night;
+  ctx.fillRect(-radius, -radius, radius * 2, radius * 2);
+  ctx.restore();
+
+  ctx.strokeStyle = "rgba(185,245,255,.9)";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius + 3, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawSimilaeFinale() {
+  const elapsed = performance.now() - similaeFinaleStartedAt;
+  const gather = Math.max(0, Math.min(1, elapsed / 1900));
+  const easedGather = 1 - Math.pow(1 - gather, 3);
+  const centerX = W / 2;
+  const centerY = 342;
+  const shipIds = ["luca", "gino", "gian", "paolo", "gaia"];
+  const starts = [
+    {x:-65, y:175},
+    {x:W + 65, y:175},
+    {x:-65, y:545},
+    {x:W + 65, y:545},
+    {x:W / 2, y:H + 80}
+  ];
+
+  drawV12Backdrop("rgba(255,204,51,.20)", .60);
+  ctx.save();
+  ctx.textAlign = "center";
+
+  if (elapsed < 2850) {
+    ctx.fillStyle = "#56e8ff";
+    ctx.font = "bold 18px Courier New";
+    ctx.fillText("PROTOCOLO DE UNIÓN SIMILAE", centerX, 92);
+
+    if (gather > .72) {
+      const baseReveal = Math.min(1, (gather - .72) / .28);
+      ctx.save();
+      ctx.globalAlpha = baseReveal;
+      ctx.fillStyle = "#c86b25";
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, 55, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#ffd64d";
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, 47, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    shipIds.forEach((id, index) => {
+      const angle = -Math.PI / 2 + index * (Math.PI * 2 / shipIds.length);
+      // El centro de cada slice queda sobre el radio y su punta mira al
+      // centro: las cinco puntas se encuentran para formar la pizza.
+      const targetRadius = 29;
+      const targetX = centerX + Math.cos(angle) * targetRadius;
+      const targetY = centerY + Math.sin(angle) * targetRadius;
+      const x = starts[index].x + (targetX - starts[index].x) * easedGather;
+      const y = starts[index].y + (targetY - starts[index].y) * easedGather;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle - Math.PI / 2);
+      drawCharacterShip(id, -28, -31, .82, false);
+      ctx.restore();
+    });
+  }
+
+  const flashDistance = Math.abs(elapsed - 3000);
+  if (flashDistance < 420) {
+    const flashAlpha = 1 - flashDistance / 420;
+    ctx.fillStyle = `rgba(255,255,255,${flashAlpha})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  if (elapsed >= 3000) {
+    const reveal = Math.min(1, (elapsed - 3000) / 700);
+    let earthReveal = 0;
+    if (elapsed >= 5200) {
+      // Cada tres segundos llega suavemente al estado opuesto:
+      // favicon → Tierra → favicon.
+      const transformationPhase = (elapsed - 5200) % 6000;
+      earthReveal = .5 - Math.cos((transformationPhase / 6000) * Math.PI * 2) * .5;
+    }
+    const faviconAlpha = reveal * (1 - earthReveal);
+    const pulse = 1 + Math.sin(performance.now() * .006) * .045;
+    ctx.globalAlpha = faviconAlpha;
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    ctx.scale(pulse, pulse);
+
+    // Aura verde sin círculo ni borde negro detrás del favicon.
+    const faviconAura = ctx.createRadialGradient(0, 0, 12, 0, 0, 118);
+    faviconAura.addColorStop(0, "rgba(196,255,74,.42)");
+    faviconAura.addColorStop(.55, "rgba(196,255,74,.18)");
+    faviconAura.addColorStop(1, "rgba(196,255,74,0)");
+    ctx.fillStyle = faviconAura;
+    ctx.beginPath();
+    ctx.arc(0, 0, 118, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.shadowColor = "rgba(196,255,74,.95)";
+    ctx.shadowBlur = 28;
+    if (similaeFaviconImage && similaeFaviconImage.complete && similaeFaviconImage.naturalWidth) {
+      ctx.drawImage(similaeFaviconImage, -82, -82, 164, 164);
+    } else {
+      drawShipSimilaeBadge(0, 0, 130);
+    }
+    ctx.shadowBlur = 0;
+    ctx.restore();
+
+    if (earthReveal > 0) {
+      ctx.globalAlpha = earthReveal;
+      const earthPulse = 1 + Math.sin(performance.now() * .0045) * .035;
+      // Norte arriba y sur abajo: Gaia palpita, pero no rota.
+      drawGaiaPlanet(centerX, centerY, 96 * earthPulse, 0);
+    }
+
+    // La definición de Gaia permanece fija; solo alterna el planeta/símbolo.
+    ctx.globalAlpha = reveal;
+    ctx.fillStyle = "#ffcc33";
+    ctx.font = "bold 48px Arial Black";
+    ctx.fillText("GAIA", centerX, 505);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 17px Arial";
+    ctx.fillText("Es el planeta Tierra entendido", centerX, 550);
+    ctx.fillText("como un solo sistema:", centerX, 578);
+    ctx.fillStyle = "#56e8ff";
+    ctx.fillText("seres humanos, animales, plantas", centerX, 614);
+    ctx.fillText("y naturaleza, todos conectados.", centerX, 642);
+    ctx.fillStyle = "#9dbf40";
+    ctx.font = "bold 15px Courier New";
+    ctx.fillText("TODOS SOMOS PARTE DE GAIA.", centerX, 690);
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+
 function maybePowerup(x,y) {
   if (isInvertedMarshmallowStage() && !allyShip && Math.random() < .16) {
     powerups.push({type:"ally", x, y, w:28, h:28});
@@ -4549,14 +5153,15 @@ function updateCollisions() {
     const b = bullets[bi];
     let removed = false;
     let hitThisFrame = false;
-    if (topBomber && isIceCubeStage() && hitRect({x:b.x, y:b.y, w:b.w, h:b.h}, topBomber)) {
+    if (topBomber && (isIceCubeStage() || isPopsicleMarshmallowStage() || isPineappleInversionStage()) && hitRect({x:b.x, y:b.y, w:b.w, h:b.h}, topBomber)) {
       topBomber.hp -= b.damage || 1;
       bullets.splice(bi, 1);
       removed = true;
-      explode(b.x + b.w / 2, b.y + b.h / 2, "#d5fbff", { count: 8, speed: 4.5, shape: "spark", size: 4, life: 12 });
+      const carrierColor = topBomber.kind === "marshmallowMan" ? "#ffb3e4" : (topBomber.kind === "blackPineapple" ? "#ffcc33" : "#d5fbff");
+      explode(b.x + b.w / 2, b.y + b.h / 2, carrierColor, { count: 8, speed: 4.5, shape: "spark", size: 4, life: 12 });
       if (topBomber.hp <= 0) {
         score += 240;
-        explode(topBomber.x + topBomber.w / 2, topBomber.y + topBomber.h / 2, "#72e6ff", { count: 38, speed: 8, shape: "shard", size: 7, life: 26 });
+        explode(topBomber.x + topBomber.w / 2, topBomber.y + topBomber.h / 2, topBomber.kind === "marshmallowMan" ? "#ff78d0" : (topBomber.kind === "blackPineapple" ? "#ffcc33" : "#72e6ff"), { count: 38, speed: 8, shape: topBomber.kind === "marshmallowMan" ? "cloud" : "shard", size: 7, life: 26 });
         topBomber = null;
         updateTopBomber.nextAt = performance.now() + 5200 + Math.random() * 2800;
       }
@@ -4596,21 +5201,41 @@ function updateCollisions() {
         const defeatedBoss = { ...boss };
         boss = null;
         const afterExplosion = () => {
-          if (defeatedBoss.type === "popsicleBoss") unlockShip("gino");
+          const firstShipUnlocked = defeatedBoss.type === "popsicleBoss" ? unlockShip("gino") : false;
           if (defeatedBoss.type === "pineappleBoss") unlockShip("gian");
           if (defeatedBoss.type === "frozenPizzaBoss") unlockShip("paolo");
           if (defeatedBoss.type === "popColaBoss") {
             unlockShip("gaia");
-            state = "gaiaRescued";
+            eggPrizeWhatsAppOpened = false;
             touchControl.autoFire = false;
             touchControl.active = false;
             enemyBullets = [];
             bullets = [];
             powerups = [];
+            showTransition("", "", () => {
+              state = "eggPrize";
+              playSfx("powerup");
+            }, 3000);
+            transition.drawCustom = drawEggPrizeUnlockTransition;
             return;
           }
 
-          if (defeatedBoss.name === "MARSHMALLOW MAN") {
+          if (firstShipUnlocked) {
+            hangarOriginalShipId = selectedShipId;
+            selectShip("gino");
+            hangarReturnState = "callback";
+            hangarContinueAction = () => {
+              showTransition("", "", showTrivia, 3200);
+              transition.drawCustom = drawGaiaMessageV12;
+            };
+            enemyBullets = [];
+            bullets = [];
+            powerups = [];
+            state = "hangar";
+            touchControl.autoFire = false;
+            touchControl.active = false;
+            return;
+          } else if (defeatedBoss.name === "MARSHMALLOW MAN") {
             showTransition("MARSHMALLOW MAN", "DERROTADO", () => {
               wave = 41;
               runnerObstacles = [];
@@ -4624,17 +5249,43 @@ function updateCollisions() {
             }, 2200);
             transition.drawCustom = () => drawStageCompleteV12("MUNDO INVERTIDO", "Marshmallow Man cae. Un cubo de hielo patrulla la ruta.");
           } else if (defeatedBoss.type === "frozenPizzaBoss" && defeatedBoss.iceCubeStageBoss) {
-            showTransition("CUBO DE HIELO", "ETAPA SUPERADA", () => {
+            showTransition("FREEZER MACHINE", "ETAPA SUPERADA", () => {
               topBomber = null;
               enemyBullets = [];
               bullets = [];
               powerups = [];
-              resetGame();
-              state = "hangar";
+              showWorldMapTransition(6, "DESTINO: CANDY FACTORY", () => {
+                wave = 41;
+                createWave();
+                state = "play";
+              }, 2400);
+            }, 2200);
+            transition.drawCustom = () => drawStageCompleteV12("FREEZER MACHINE", "Frozen Pizza cae. Una flota de paletas se aproxima.");
+          } else if (defeatedBoss.type === "popsicleBoss" && defeatedBoss.popsicleMarshmallowStageBoss) {
+            showTransition("CANDY FACTORY", "ETAPA SUPERADA", () => {
+              topBomber = null;
+              enemyBullets = [];
+              bullets = [];
+              powerups = [];
+              showWorldMapTransition(7, "DESTINO: PINEAPPLE PANIC", () => {
+                wave = 46;
+                createWave();
+                state = "play";
+              }, 2400);
+            }, 2200);
+            transition.drawCustom = () => drawStageCompleteV12("CANDY FACTORY", "La fábrica cae. Una piña negra altera la navegación.");
+          } else if (defeatedBoss.type === "pineappleBoss" && defeatedBoss.pineappleInversionStageBoss) {
+            showTransition("PINEAPPLE PANIC", "ETAPA SUPERADA", () => {
+              topBomber = null;
+              enemyBullets = [];
+              bullets = [];
+              powerups = [];
+              similaeFinaleStartedAt = performance.now();
+              state = "similaeFinale";
               touchControl.autoFire = false;
               touchControl.active = false;
             }, 2200);
-            transition.drawCustom = () => drawStageCompleteV12("CUBO DE HIELO", "Frozen Pizza cae. Gaia rompe la ultima onda helada.");
+            transition.drawCustom = () => drawStageCompleteV12("PINEAPPLE PANIC", "La señal inversora ha sido destruida.");
           } else if (defeatedBoss.type === "frozenPizzaBoss") {
             showTriviaInterlude(() => {
               showWorldMapTransition(
@@ -4765,6 +5416,22 @@ function updateCollisions() {
           player.frozenUntil = performance.now() + 3000;
           explode(player.x + player.w / 2, player.y + player.h / 2, "#d5fbff", { count: 18, speed: 5, shape: "spark", size: 5, life: 18 });
         }
+        continue;
+      }
+      if (b.type === "marshmallowHead") {
+        player.slowedUntil = Math.max(player.slowedUntil || 0, performance.now() + 4000);
+        explode(player.x + player.w / 2, player.y + player.h / 2, "#ffb3e4", { count: 18, speed: 5, shape: "cloud", size: 7, life: 20 });
+        continue;
+      }
+      if (b.type === "bossMarshmallowHead") {
+        player.slowedUntil = Math.max(player.slowedUntil || 0, performance.now() + 4000);
+        explode(player.x + player.w / 2, player.y + player.h / 2, "#ff3f76", { count: 24, speed: 6, shape: "cloud", size: 8, life: 22 });
+        hurtPlayer();
+        continue;
+      }
+      if (b.type === "colorPineapple") {
+        player.controlsInvertedUntil = Math.max(player.controlsInvertedUntil || 0, performance.now() + 4000);
+        explode(player.x + player.w / 2, player.y + player.h / 2, "#ffcc33", { count: 24, speed: 6, shape: "spark", size: 7, life: 22 });
         continue;
       }
       hurtPlayer();
@@ -5005,6 +5672,15 @@ function drawAll() {
     px(player.x + 7, player.y + 8, 10, 24, "#ffffff");
     px(player.x + player.w - 18, player.y + 18, 8, 28, "#72e6ff");
     ctx.restore();
+  } else if (performance.now() < (player.slowedUntil || 0)) {
+    ctx.save();
+    drawCharacterShip(selectedShipId, player.x, player.y, 1);
+    ctx.globalAlpha = .25 + Math.sin(performance.now() * .014) * .08;
+    px(player.x - 4, player.y - 4, player.w + 8, player.h + 8, "#ffb3e4");
+    ctx.globalAlpha = .9;
+    px(player.x - 8, player.y + 14, 7, 7, "#fff7ef");
+    px(player.x + player.w + 2, player.y + 34, 5, 5, "#ff78d0");
+    ctx.restore();
   } else drawCharacterShip(selectedShipId, player.x, player.y, 1);
   drawAllyShip();
   if (isRunnerStage()) drawGroundPlayerWheels();
@@ -5094,6 +5770,11 @@ function drawAll() {
   else if (performance.now() < doubleUntil) ctx.fillText("Queso doble", W-138, 56);
   if (wave >= 6 && cheeseCount > 0) ctx.fillText("Quesos: " + cheeseCount + "/2", W-126, 82);
   if (performance.now() < shieldUntil) ctx.fillText("Escudo", W-92, 108);
+  if (performance.now() < (player.controlsInvertedUntil || 0)) {
+    const invertedSeconds = Math.ceil((player.controlsInvertedUntil - performance.now()) / 1000);
+    ctx.fillStyle = "#ffcc33";
+    ctx.fillText("↕ CONTROLES INVERTIDOS " + invertedSeconds + "s", W - 236, 108);
+  }
   if (performance.now() < similaeModeUntil) {
     ctx.fillStyle = "#56e8ff";
     ctx.fillText("ANILLO SIMILAE", W-178, 134);
@@ -5113,6 +5794,10 @@ function drawAll() {
     }
   }
   if (performance.now() < player.frozenUntil) ctx.fillText("Congelado", W-116, 108);
+  if (performance.now() < (player.slowedUntil || 0)) {
+    ctx.fillStyle = "#ff78d0";
+    ctx.fillText("Lento: " + Math.ceil((player.slowedUntil - performance.now()) / 1000) + "s", W-116, 128);
+  }
   drawFreezeAd();
   if (shipUnlockNotice) {
     if (!shipUnlockNotice.shownAt) shipUnlockNotice.shownAt = performance.now();
@@ -5136,7 +5821,7 @@ function drawAll() {
       shipUnlockNotice = null;
     }
   }
-  if (!isIceCubeStage()) {
+  if (!isIceCubeStage() && !isPopsicleMarshmallowStage() && !isPineappleInversionStage()) {
     ctx.globalAlpha = .18;
     px(0, H*.72, W, 2, "#56e8ff");
     ctx.globalAlpha = 1;
@@ -5389,8 +6074,8 @@ function drawIntroStoryCrawl() {
   ctx.font = "bold 15px Arial";
   ctx.fillStyle = "#ffffff";
   ctx.fillText(`${pageIndex + 1}/${INTRO_STORY_PAGES.length}`, W / 2, H - 102);
-  ctx.fillText("Click / tap para continuar", W / 2, H - 74);
-  ctx.fillText("La mision comienza...", W / 2, H - 48);
+  ctx.fillText("Haz clic o toca para continuar", W / 2, H - 74);
+  ctx.fillText("La misión comienza...", W / 2, H - 48);
   ctx.restore();
 
   if (elapsed > INTRO_STORY_PAGES.length * INTRO_STORY_PAGE_DURATION) {
@@ -5578,6 +6263,8 @@ function drawV12BrandFooter() {
 }
 
 function getBossForWaveV12() {
+  if (isPineappleInversionBossWave()) return BOSSES.find(bossDef => bossDef.type === "pineappleBoss");
+  if (isPopsicleMarshmallowBossWave()) return BOSSES.find(bossDef => bossDef.type === "popsicleBoss");
   if (isIceCubeBossWave()) return BOSSES.find(bossDef => bossDef.type === "frozenPizzaBoss");
   if (isInvertedMarshmallowStage()) return MARSHMALLOW_MAN_BOSS;
   return BOSSES[Math.min(BOSSES.length - 1, Math.floor((wave - 1) / 5))] || BOSSES[0];
@@ -5686,83 +6373,373 @@ function drawTransmissionReceivedV12() {
 
 /// FUNCTION DRAW COUPON ///
 function drawCouponV12() {
-  drawV12Backdrop("rgba(120,0,255,0.20)", 0.50);
-  drawV12Seal(W / 2, 92, 82);
+  drawV12Backdrop("rgba(255,204,51,0.20)", 0.58);
+  const now = performance.now();
+  const elapsed = Math.max(0, now - couponUnlockedAt);
+  const reveal = Math.min(1, elapsed / 650);
+  const pulse = 1 + Math.sin(now * .008) * .025;
 
   ctx.save();
   ctx.textAlign = "center";
-  ctx.font = "bold 42px Arial Black";
-  ctx.fillStyle = "#ffcc33";
-  ctx.fillText("CUPÓN", W / 2, 230);
-  ctx.fillText("DESBLOQUEADO", W / 2, 280);
+  ctx.globalAlpha = reveal;
+
+  if (similaeLogoImage && similaeLogoImage.complete && similaeLogoImage.naturalWidth) {
+    ctx.drawImage(similaeLogoImage, W / 2 - 65, 18, 130, 52);
+  }
+
+  ctx.font = "bold 19px Courier New";
+  ctx.fillStyle = "#56e8ff";
+  ctx.fillText("★ RECOMPENSA DE RESCATE ★", W / 2, 94);
 
   ctx.font = "bold 54px Arial Black";
+  ctx.fillStyle = "#ffcc33";
+  ctx.fillText("¡GANASTE!", W / 2, 157);
+
+  ctx.font = "bold 30px Arial Black";
   ctx.fillStyle = "#ffffff";
-  ctx.fillText(COUPON_CODE || "RESCUEGAIA", W / 2, 375);
+  ctx.fillText("UN CUPÓN DE", W / 2, 187);
+  ctx.fillStyle = "#9dbf40";
+  ctx.fillText("DESPACHO GRATIS", W / 2, 225);
+
+  // Solo el recuadro del código tiene movimiento. Los botones permanecen fijos.
+  ctx.save();
+  ctx.translate(W / 2, 326);
+  ctx.scale(pulse, pulse);
+  ctx.translate(-W / 2, -326);
+  ctx.shadowColor = "rgba(255,204,51,.72)";
+  ctx.shadowBlur = 18 + Math.sin(now * .008) * 7;
+  ctx.fillStyle = "rgba(3,5,12,.94)";
+  ctx.fillRect(48, 258, W - 96, 136);
+  ctx.strokeStyle = "#ffcc33";
+  ctx.lineWidth = 6;
+  ctx.strokeRect(48, 258, W - 96, 136);
+  ctx.strokeStyle = "#56e8ff";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(59, 269, W - 118, 114);
+
+  ctx.font = "bold 14px Courier New";
+  ctx.fillStyle = "#56e8ff";
+  ctx.fillText("TU CÓDIGO ES", W / 2, 298);
+  ctx.font = "bold 49px Arial Black";
+  ctx.fillStyle = "#ff78d0";
+  ctx.fillText(COUPON_CODE || "RESCUEGAIA", W / 2, 354);
+  ctx.restore();
+
+  ctx.font = "bold 17px Arial";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText("Úsalo al finalizar tu compra en", W / 2, 431);
+  ctx.font = "bold 20px Courier New";
+  ctx.fillStyle = "#9dbf40";
+  ctx.fillText("SIMILAE.COM", W / 2, 459);
+
+  drawTriviaButtonV12(105, 500, 330, 56, couponCanvasCopied ? "✓ CUPÓN COPIADO" : "COPIAR CUPÓN");
+  drawTriviaButtonV12(105, 570, 330, 56, "CONTINUAR MISIÓN");
+
+  ctx.font = "bold 13px Courier New";
+  ctx.fillStyle = couponCanvasCopied ? "#ffcc33" : "rgba(255,255,255,.68)";
+  ctx.fillText(
+    couponCanvasCopied ? "GUARDADO EN TU PORTAPAPELES" : "GUÁRDALO AHORA PARA USARLO DESPUÉS",
+    W / 2,
+    660
+  );
+  ctx.restore();
+}
+
+function drawRewardTeaserV12() {
+  drawV12Backdrop("rgba(157,191,64,0.18)", 0.58);
+  const now = performance.now();
+
+  ctx.save();
+  ctx.textAlign = "center";
+
+  if (similaeLogoImage && similaeLogoImage.complete && similaeLogoImage.naturalWidth) {
+    ctx.drawImage(similaeLogoImage, W / 2 - 65, 18, 130, 52);
+  }
+
+  ctx.font = "bold 18px Courier New";
+  ctx.fillStyle = "#56e8ff";
+  ctx.fillText("TRANSMISIÓN SIMILAE", W / 2, 82);
+
+  ctx.font = "bold 40px Arial Black";
+  ctx.fillStyle = "#ffcc33";
+  ctx.fillText("SIGUE JUGANDO", W / 2, 132);
 
   ctx.font = "bold 21px Arial";
-  ctx.fillStyle = "#9dbf40";
-  ctx.fillText("Despacho GRATIS en tu compra", W / 2, 414);
-  ctx.font = "bold 16px Arial";
   ctx.fillStyle = "#ffffff";
-  ctx.fillText("Ingresa RESCUEGAIA al finalizar en SIMILAE.com", W / 2, 444);
+  ctx.fillText("HAY MÁS PREMIOS EN LA RUTA", W / 2, 170);
 
-  ctx.font = "bold 20px Courier New";
-  ctx.fillStyle = couponCanvasCopied ? "#ffcc33" : "#ffffff";
-  if (couponCanvasCopied) {
-    ctx.fillText("CUPÓN COPIADO", W / 2, 485);
-    ctx.fillText("TOCA PARA CONTINUAR", W / 2, 520);
-  } else {
-    ctx.fillText("TOCA PARA COPIAR CUPÓN", W / 2, 505);
-  }
+  ctx.fillStyle = "rgba(3,5,12,.92)";
+  ctx.fillRect(48, 196, W - 96, 66);
+  ctx.strokeStyle = "#9dbf40";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(48, 196, W - 96, 66);
+  ctx.font = "bold 14px Courier New";
+  ctx.fillStyle = "#9dbf40";
+  ctx.fillText("✓ PREMIO DESBLOQUEADO", W / 2, 221);
+  ctx.font = "bold 21px Arial";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText("DESPACHO GRATIS", W / 2, 248);
 
-  if (similaeLogoImage && similaeLogoImage.complete) {
-    ctx.drawImage(similaeLogoImage, W / 2 - 105, 590, 210, 84);
+  const creditPulse = .65 + Math.sin(now * .007) * .16;
+  ctx.fillStyle = "rgba(3,5,12,.94)";
+  ctx.fillRect(48, 284, W - 96, 272);
+  ctx.strokeStyle = `rgba(255,120,208,${creditPulse})`;
+  ctx.lineWidth = 5;
+  ctx.strokeRect(48, 284, W - 96, 272);
+  ctx.font = "bold 15px Courier New";
+  ctx.fillStyle = "#ff78d0";
+  ctx.fillText("[ PRÓXIMOS GRANDES PREMIOS ]", W / 2, 313);
+
+  // Premio de créditos.
+  ctx.fillStyle = "rgba(255,255,255,.035)";
+  ctx.fillRect(61, 329, 201, 205);
+  ctx.strokeStyle = "rgba(255,204,51,.45)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(61, 329, 201, 205);
+  ctx.font = "bold 34px Arial Black";
+  ctx.fillStyle = "#ffcc33";
+  ctx.fillText("$10.000", 161, 400);
+  ctx.font = "bold 18px Arial";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText("EN CRÉDITOS", 161, 431);
+  ctx.font = "bold 12px Courier New";
+  ctx.fillStyle = "#9dbf40";
+  ctx.fillText("PARA USAR EN", 161, 468);
+  ctx.fillText("SIMILAE.COM", 161, 488);
+
+  // Premio físico: huevo gigante de chocolate Pernigotti.
+  ctx.fillStyle = "rgba(255,255,255,.035)";
+  ctx.fillRect(278, 329, 201, 205);
+  ctx.strokeStyle = "rgba(86,232,255,.45)";
+  ctx.strokeRect(278, 329, 201, 205);
+  if (pernigottiEggPrizeImage && pernigottiEggPrizeImage.complete && pernigottiEggPrizeImage.naturalWidth) {
+    ctx.save();
+    ctx.shadowColor = "rgba(86,232,255,.58)";
+    ctx.shadowBlur = 16;
+    ctx.drawImage(pernigottiEggPrizeImage, 303, 338, 151, 151);
+    ctx.restore();
   }
+  ctx.font = "bold 15px Arial Black";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText("GRAN HUEVO", 378, 505);
+  ctx.font = "bold 12px Courier New";
+  ctx.fillStyle = "#56e8ff";
+  ctx.fillText("PERNIGOTTI", 378, 524);
+
+  drawTriviaButtonV12(95, 590, 350, 60, "SEGUIR JUGANDO");
+
+  ctx.font = "bold 13px Courier New";
+  ctx.fillStyle = "rgba(255,255,255,.68)";
+  ctx.fillText("DERROTA JEFES · DESBLOQUEA RECOMPENSAS", W / 2, 687);
   ctx.restore();
 }
 
 function drawBonusCouponV12() {
-  drawV12Backdrop("rgba(120,0,255,0.22)", 0.52);
-  drawV12Seal(W / 2, 92, 82);
+  drawV12Backdrop("rgba(255,204,51,0.20)", 0.58);
+  const bonusNow = performance.now();
+  const prizePulse = 1 + Math.sin(bonusNow * .008) * .025;
 
   ctx.save();
   ctx.textAlign = "center";
 
-  ctx.font = "bold 20px Courier New";
+  if (similaeLogoImage && similaeLogoImage.complete && similaeLogoImage.naturalWidth) {
+    ctx.drawImage(similaeLogoImage, W / 2 - 65, 18, 130, 52);
+  }
+
+  ctx.font = "bold 19px Courier New";
   ctx.fillStyle = "#56e8ff";
-  ctx.fillText("BONUS SIMILAE", W / 2, 205);
+  ctx.fillText("★ RECOMPENSA ESPECIAL SIMILAE ★", W / 2, 94);
 
-  ctx.font = "bold 38px Arial Black";
+  ctx.font = "bold 54px Arial Black";
   ctx.fillStyle = "#ffcc33";
-  ctx.fillText("CRÉDITOS", W / 2, 270);
-  ctx.fillText("DESBLOQUEADOS", W / 2, 318);
+  ctx.fillText("¡GANASTE!", W / 2, 157);
 
-  ctx.font = "bold 56px Arial Black";
+  ctx.font = "bold 27px Arial Black";
   ctx.fillStyle = "#ffffff";
-  ctx.fillText("$10.000", W / 2, 405);
+  ctx.fillText("CRÉDITOS PARA COMPRAR EN", W / 2, 202);
 
-  ctx.font = "bold 22px Arial";
+  // El premio pulsa y brilla; los botones permanecen fijos.
+  ctx.save();
+  ctx.translate(W / 2, 334);
+  ctx.scale(prizePulse, prizePulse);
+  ctx.translate(-W / 2, -334);
+  ctx.shadowColor = "rgba(255,204,51,.78)";
+  ctx.shadowBlur = 20 + Math.sin(bonusNow * .008) * 8;
+  ctx.fillStyle = "rgba(3,5,12,.95)";
+  ctx.fillRect(48, 238, W - 96, 190);
+  ctx.strokeStyle = "#ffcc33";
+  ctx.lineWidth = 6;
+  ctx.strokeRect(48, 238, W - 96, 190);
+  ctx.strokeStyle = "#56e8ff";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(59, 249, W - 118, 168);
+
+  ctx.font = "bold 15px Courier New";
+  ctx.fillStyle = "#56e8ff";
+  ctx.fillText("PREMIO DESBLOQUEADO", W / 2, 278);
+
+  ctx.font = "bold 66px Arial Black";
+  ctx.fillStyle = "#ff78d0";
+  ctx.fillText("$10.000", W / 2, 355);
+
+  ctx.font = "bold 20px Arial";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText("EN CRÉDITOS", W / 2, 389);
+  ctx.font = "bold 18px Courier New";
   ctx.fillStyle = "#9dbf40";
-  ctx.fillText("EN CRÉDITOS PARA GASTAR EN", W / 2, 450);
+  ctx.fillText("PARA USAR EN SIMILAE.COM", W / 2, 416);
+  ctx.restore();
 
-  ctx.font = "bold 24px Courier New";
-  ctx.fillStyle = "#ffcc33";
-  ctx.fillText("WWW.SIMILAE.COM", W / 2, 488);
+  ctx.font = "bold 15px Courier New";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText("SOLICITA TU PREMIO Y CONTINÚA LA MISIÓN", W / 2, 468);
 
   drawTriviaButtonV12(95, 520, 350, 56, "SOLICITAR WHATSAPP");
   drawTriviaButtonV12(95, 590, 350, 56, "CONTINUAR MISIÓN");
 
   if (bonusWhatsAppOpened) {
     ctx.font = "bold 14px Courier New";
-    ctx.fillStyle = "#56e8ff";
+    ctx.fillStyle = "#ffcc33";
     ctx.fillText("WHATSAPP ABIERTO EN OTRA PESTAÑA", W / 2, 660);
+  } else {
+    ctx.font = "bold 13px Courier New";
+    ctx.fillStyle = "rgba(255,255,255,.68)";
+    ctx.fillText("GUARDA TU PREMIO ANTES DE CONTINUAR", W / 2, 660);
   }
 
-  if (similaeLogoImage && similaeLogoImage.complete) {
-    ctx.drawImage(similaeLogoImage, W / 2 - 70, 676, 140, 56);
+  ctx.restore();
+}
+
+function drawEggPrizeUnlockTransition() {
+  if (!transition) return;
+  const elapsed = performance.now() - transition.startedAt;
+  const reveal = Math.max(0, Math.min(1, (elapsed - 350) / 1250));
+  const eased = 1 - Math.pow(1 - reveal, 3);
+  const glowPulse = .72 + Math.sin(performance.now() * .009) * .18;
+
+  drawV12Backdrop("rgba(20,110,210,0.30)", 0.70);
+  ctx.save();
+  ctx.textAlign = "center";
+
+  ctx.globalAlpha = Math.min(1, elapsed / 500);
+  ctx.font = "bold 18px Courier New";
+  ctx.fillStyle = "#56e8ff";
+  ctx.fillText("POPCOLA KING HA CAÍDO", W / 2, 88);
+
+  ctx.font = "bold 46px Arial Black";
+  ctx.fillStyle = "#ffcc33";
+  ctx.fillText("GRAN PREMIO", W / 2, 151);
+  ctx.globalAlpha = 1;
+
+  const prizeY = 330;
+  const scale = .58 + eased * .48;
+  ctx.save();
+  ctx.translate(W / 2, prizeY);
+  ctx.scale(scale, scale);
+  ctx.globalAlpha = reveal;
+
+  const glow = ctx.createRadialGradient(0, 0, 25, 0, 0, 185);
+  glow.addColorStop(0, `rgba(86,232,255,${glowPulse})`);
+  glow.addColorStop(.45, "rgba(255,204,51,.20)");
+  glow.addColorStop(1, "rgba(86,232,255,0)");
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(0, 0, 185, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (pernigottiEggPrizeImage && pernigottiEggPrizeImage.complete && pernigottiEggPrizeImage.naturalWidth) {
+    ctx.shadowColor = "rgba(86,232,255,.85)";
+    ctx.shadowBlur = 24;
+    ctx.drawImage(pernigottiEggPrizeImage, -142, -142, 284, 284);
+    ctx.shadowBlur = 0;
+  }
+  ctx.restore();
+
+  const titleReveal = Math.max(0, Math.min(1, (elapsed - 1250) / 650));
+  ctx.globalAlpha = titleReveal;
+  ctx.font = "bold 35px Arial Black";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText("GRAN HUEVO", W / 2, 545);
+  ctx.font = "bold 25px Courier New";
+  ctx.fillStyle = "#56e8ff";
+  ctx.fillText("PERNIGOTTI", W / 2, 582);
+  ctx.font = "bold 16px Courier New";
+  ctx.fillStyle = "#ffcc33";
+  ctx.fillText("PREMIO DESBLOQUEADO", W / 2, 635);
+  ctx.globalAlpha = 1;
+
+  // Destello breve que une la derrota del jefe con la aparición del premio.
+  const flashDistance = Math.abs(elapsed - 420);
+  if (flashDistance < 240) {
+    ctx.fillStyle = `rgba(255,255,255,${(1 - flashDistance / 240) * .72})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+  ctx.restore();
+}
+
+function drawEggPrizeV12() {
+  drawV12Backdrop("rgba(20,110,210,0.24)", 0.58);
+  const prizeNow = performance.now();
+  const prizePulse = 1 + Math.sin(prizeNow * .007) * .022;
+
+  ctx.save();
+  ctx.textAlign = "center";
+
+  if (similaeLogoImage && similaeLogoImage.complete && similaeLogoImage.naturalWidth) {
+    ctx.drawImage(similaeLogoImage, W / 2 - 65, 14, 130, 52);
   }
 
+  ctx.font = "bold 17px Courier New";
+  ctx.fillStyle = "#56e8ff";
+  ctx.fillText("POPCOLA KING DERROTADO", W / 2, 91);
+
+  ctx.font = "bold 50px Arial Black";
+  ctx.fillStyle = "#ffcc33";
+  ctx.fillText("¡GANASTE!", W / 2, 149);
+
+  ctx.save();
+  ctx.translate(W / 2, 320);
+  ctx.scale(prizePulse, prizePulse);
+  ctx.translate(-W / 2, -320);
+  ctx.shadowColor = "rgba(86,232,255,.7)";
+  ctx.shadowBlur = 20;
+  ctx.fillStyle = "rgba(3,5,12,.95)";
+  ctx.fillRect(58, 175, W - 116, 292);
+  ctx.strokeStyle = "#56e8ff";
+  ctx.lineWidth = 5;
+  ctx.strokeRect(58, 175, W - 116, 292);
+  ctx.shadowBlur = 0;
+
+  if (pernigottiEggPrizeImage && pernigottiEggPrizeImage.complete && pernigottiEggPrizeImage.naturalWidth) {
+    ctx.drawImage(pernigottiEggPrizeImage, W / 2 - 102, 184, 204, 204);
+  }
+
+  ctx.font = "bold 31px Arial Black";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText("GRAN HUEVO", W / 2, 410);
+  ctx.font = "bold 22px Courier New";
+  ctx.fillStyle = "#56e8ff";
+  ctx.fillText("PERNIGOTTI", W / 2, 442);
+  ctx.restore();
+
+  ctx.font = "bold 14px Courier New";
+  ctx.fillStyle = "#ffcc33";
+  ctx.fillText("TOMA UN PANTALLAZO DE ESTA PANTALLA", W / 2, 489);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText("Y ENVÍALO POR WHATSAPP PARA VALIDAR", W / 2, 510);
+
+  drawTriviaButtonV12(95, 520, 350, 56, "SOLICITAR POR WHATSAPP");
+  drawTriviaButtonV12(95, 590, 350, 56, "CONTINUAR MISIÓN");
+
+  ctx.font = "bold 12px Courier New";
+  ctx.fillStyle = eggPrizeWhatsAppOpened ? "#ffcc33" : "rgba(255,255,255,.68)";
+  ctx.fillText(
+    eggPrizeWhatsAppOpened
+      ? "WHATSAPP ABIERTO · ADJUNTA TU PANTALLAZO"
+      : "PREMIO SUJETO A DISPONIBILIDAD Y VALIDACIÓN",
+    W / 2,
+    675
+  );
   ctx.restore();
 }
 
@@ -6118,13 +7095,56 @@ function drawHangarStat(label, value, x, y, color) {
 
 function drawHangar() {
   const ship = SHIP_DEFS[selectedShipId] || SHIP_DEFS.luca;
+  const returningToGame = hangarReturnState === "play" || hangarReturnState === "callback";
   ctx.save();
+
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, "#080b16");
+  bg.addColorStop(.55, "#12172a");
+  bg.addColorStop(1, "#050711");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.save();
+  ctx.globalAlpha = .10;
+  ctx.strokeStyle = "#56e8ff";
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= W; x += 36) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+  for (let y = 0; y <= H; y += 36) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.fillStyle = "rgba(3,5,12,.88)";
+  ctx.fillRect(28, 70, W - 56, 280);
+  ctx.strokeStyle = ship.color;
+  ctx.lineWidth = 3;
+  ctx.strokeRect(28, 70, W - 56, 280);
+  ctx.strokeStyle = "rgba(255,204,51,.55)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(35, 77, W - 70, 266);
+
+  ctx.fillStyle = "rgba(3,5,12,.90)";
+  ctx.fillRect(18, 442, W - 36, 124);
+  ctx.strokeStyle = "rgba(86,232,255,.58)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(18, 442, W - 36, 124);
+
   ctx.textAlign = "center";
   ctx.fillStyle = "#ffcc33";
   ctx.font = "bold 38px Courier New";
   ctx.fillText("HANGAR SIMILAE", W/2, 58);
 
-  drawCharacterShip(selectedShipId, W/2 - 67, 82, 2.4, false);
+  ctx.save();
+  ctx.globalAlpha = .25;
+  ctx.fillStyle = ship.color;
+  ctx.beginPath();
+  ctx.ellipse(W / 2, 244, 96, 18, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  drawCharacterShip(selectedShipId, W/2 - 67, 96, 2.4, false);
 
   ctx.fillStyle = ship.color;
   ctx.font = "bold 32px Courier New";
@@ -6132,7 +7152,11 @@ function drawHangar() {
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 18px Courier New";
   ctx.fillText(ship.ingredient, W/2, 316);
-  if (selectedShipId === "gaia") {
+  if (shipUnlockNotice && shipUnlockNotice.id && unlockedShips.has(shipUnlockNotice.id)) {
+    ctx.fillStyle = "#9dbf40";
+    ctx.font = "bold 13px Courier New";
+    ctx.fillText("NUEVA NAVE DESBLOQUEADA · SELECCIONA Y EQUIPA", W / 2, 343);
+  } else if (selectedShipId === "gaia") {
     ctx.fillStyle = "#ff78d0";
     ctx.font = "bold 14px Courier New";
     ctx.fillText("NAVE SUPERIOR · PREMIO DE RESCATE", W/2, 343);
@@ -6151,8 +7175,8 @@ function drawHangar() {
     const def = SHIP_DEFS[id];
     const x = 30 + index * 96;
     const unlocked = unlockedShips.has(id);
-    ctx.globalAlpha = unlocked ? 1 : .28;
-    ctx.fillStyle = selectedShipId === id ? "rgba(255,204,51,.18)" : "rgba(8,11,20,.9)";
+    ctx.globalAlpha = unlocked ? 1 : .58;
+    ctx.fillStyle = selectedShipId === id ? "rgba(255,204,51,.26)" : "rgba(8,11,20,.96)";
     ctx.fillRect(x, 455, 84, 100);
     ctx.strokeStyle = selectedShipId === id ? "#ffcc33" : def.color;
     ctx.lineWidth = selectedShipId === id ? 4 : 2;
@@ -6163,21 +7187,24 @@ function drawHangar() {
     ctx.fillText(def.name, x + 42, 540);
     ctx.globalAlpha = 1;
     if (!unlocked) {
-      ctx.fillStyle = "#050510";
-      ctx.fillRect(x + 27, 483, 30, 28);
+      ctx.fillStyle = "rgba(5,5,16,.92)";
+      ctx.fillRect(x + 20, 478, 44, 38);
+      ctx.strokeStyle = "#7c8494";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + 20, 478, 44, 38);
       ctx.fillStyle = "#ffcc33";
-      ctx.font = "bold 22px Courier New";
-      ctx.fillText("X", x + 42, 505);
+      ctx.font = "bold 13px Courier New";
+      ctx.fillText("LOCK", x + 42, 502);
     }
   });
 
-  drawButton(95, 590, 350, 56, hangarReturnState === "play" ? "EQUIPAR Y CONTINUAR" : "INICIAR MISION");
-  ctx.fillStyle = "#9ca6b8";
-  ctx.font = "14px Courier New";
-  ctx.fillText("TOCA UNA NAVE PARA SELECCIONAR", W/2, 666);
+  drawButton(95, 584, 350, 60, returningToGame ? "EQUIPAR Y CONTINUAR" : "INICIAR MISION");
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 14px Courier New";
+  ctx.fillText("SELECCIONA UNA NAVE DESBLOQUEADA", W/2, 671);
   ctx.fillStyle = "#56e8ff";
   ctx.font = "bold 17px Courier New";
-  ctx.fillText(hangarReturnState === "play" ? "CANCELAR" : "VOLVER", W/2, 702);
+  ctx.fillText(returningToGame ? "CONTINUAR SIN CAMBIOS" : "VOLVER", W/2, 704);
   ctx.restore();
 }
 
@@ -6251,12 +7278,15 @@ function drawStageSelect() {
   ctx.fillText("3. FROZEN PIZZA", W/2, 380);
   ctx.fillText("4. POP COLA", W/2, 440);
   ctx.fillText("5. POPCOLA KING", W/2, 500);
-  ctx.fillText("6. CUBO DE HIELO", W/2, 560);
-  ctx.fillText("7. BACK TO DEV MENU", W/2, 620);
+  ctx.fillText("6. FREEZER MACHINE", W/2, 560);
+  ctx.fillText("7. CANDY FACTORY", W/2, 620);
+  ctx.fillText("8. PINEAPPLE PANIC", W/2, 680);
+  ctx.font = "20px Arial";
+  ctx.fillText("9. BACK TO DEV MENU", W/2, 726);
 
   ctx.fillStyle = "#56e8ff";
-  ctx.font = "18px Arial";
-  ctx.fillText("V10 STAGE TEST", W/2, 720);
+  ctx.font = "12px Arial";
+  ctx.fillText("V13 STAGE TEST", W/2, 752);
 
   ctx.textAlign = "left";
 }
@@ -6355,10 +7385,16 @@ function loop() {
     }
   } else if (state === "coupon") {
     drawCouponV12();
+  } else if (state === "rewardTeaser") {
+    drawRewardTeaserV12();
   } else if (state === "bonusCoupon") {
     drawBonusCouponV12();
+  } else if (state === "eggPrize") {
+    drawEggPrizeV12();
   } else if (state === "gaiaRescued") {
     drawGaiaRescuedV12();
+  } else if (state === "similaeFinale") {
+    drawSimilaeFinale();
   } else if (state === "trivia") {
     drawTriviaV12();
   } else if (state === "similaeTest") {
