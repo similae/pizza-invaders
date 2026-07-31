@@ -903,6 +903,7 @@ function updateExternalMobileHud() {
   else if (now < doubleUntil) status.push("QUESO DOBLE");
   if (now < (player?.frozenUntil || 0)) status.push("CONGELADO");
   if (now < (player?.slowedUntil || 0)) status.push("LENTO");
+  if (now < speedUntil) status.push("TOMATE TURBO");
   if (now < (player?.controlsInvertedUntil || 0)) status.push("CONTROLES INVERTIDOS");
   if (now < similaeModeUntil) status.push("ANILLO SIMILAE");
   if (allyShip) status.push("ALIADO " + (SHIP_DEFS[allyShip.id] || SHIP_DEFS.gino).name);
@@ -3973,7 +3974,8 @@ function shoot() {
   if (state !== "play") return;
   const now = performance.now();
   const ship = SHIP_DEFS[selectedShipId] || SHIP_DEFS.luca;
-  if (now - lastShot < ship.cooldown) return;
+  const effectiveCooldown = now < speedUntil ? ship.cooldown * .55 : ship.cooldown;
+  if (now - lastShot < effectiveCooldown) return;
   lastShot = now;
   shipVolleyCount++;
   const similaeActive = now < similaeModeUntil;
@@ -7063,7 +7065,7 @@ function drawCanvasIntroGuide() {
     { type: "double", ingredient: "QUESO", effect: "+ BALAS", x: 135, y: 286, color: "#ffcc33" },
     { type: "shield", ingredient: "ALBAHACA", effect: "+ ESCUDO", x: 405, y: 286, color: "#72e85e" },
     { type: "life", ingredient: "AGUA", effect: "+ VIDA", x: 135, y: 482, color: "#66cfff" },
-    { type: "speed", ingredient: "TOMATE", effect: "+ VELOCIDAD", x: 405, y: 482, color: "#ff4747" }
+    { type: "speed", ingredient: "TOMATE", effect: "MOVIMIENTO + DISPARO", x: 405, y: 482, color: "#ff4747" }
   ];
 
   guideItems.forEach(item => {
@@ -7077,7 +7079,7 @@ function drawCanvasIntroGuide() {
     ctx.font = "900 22px PizzaText";
     ctx.fillStyle = item.color;
     ctx.fillText(item.ingredient, item.x, item.y + 92);
-    ctx.font = "900 20px PizzaText";
+    ctx.font = `900 ${item.type === "speed" ? 17 : 20}px PizzaText`;
     ctx.fillStyle = "#ffffff";
     ctx.fillText(item.effect, item.x, item.y + 120);
   });
