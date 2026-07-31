@@ -1,4 +1,4 @@
-const CACHE_VERSION = "pizza-invaders-v1.0.9";
+const CACHE_VERSION = "pizza-invaders-v1.0.10";
 const CORE_CACHE = `${CACHE_VERSION}-core`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -14,7 +14,8 @@ const CORE_FILES = [
   "./assets/embedded-canvas-04-mobile.png",
   "./assets/PIZZAINVADERS-MASA-FERMENTADA-MOBILE.png",
   "./assets/PIZZAINVADERS-POPOCOLA-INTRO-MOBILE.png",
-  "./assets/PIZZAINVADERS-FROZENPIZZA-VIDEO-MOBILE.mp4"
+  "./assets/PIZZAINVADERS-FROZENPIZZA-VIDEO-MOBILE.mp4",
+  "./assets/PIZZAINVADERS-LOGO-SIMILAE-LOADING.png"
 ];
 
 self.addEventListener("install", event => {

@@ -494,6 +494,13 @@
     text-align: center;
     background: #09091a;
   }
+  .loading-logo {
+    display: block;
+    width: min(48vw, 170px);
+    height: auto;
+    margin: 0 auto 14px;
+    object-fit: contain;
+  }
   .loading-title {
     color: #ffcc33;
     font-size: 25px;
@@ -518,7 +525,8 @@
   .loading-fill {
     height: 100%;
     width: 0%;
-    background: repeating-linear-gradient(90deg, #ffcc33 0 10px, #ff78d0 10px 20px);
+    background: repeating-linear-gradient(90deg, #9dbf40 0 12px, #72dc52 12px 24px);
+    box-shadow: 0 0 12px rgba(157,191,64,.72);
     transition: width .28s ease-out;
   }
   .loading-progress {
@@ -588,6 +596,7 @@
 
 <div id="loadingScreen" aria-live="polite">
   <div class="loading-card">
+    <img class="loading-logo" src="assets/PIZZAINVADERS-LOGO-SIMILAE-LOADING.png" alt="Similae">
     <div class="loading-title">CARGANDO<br>PIZZA INVADERS</div>
     <div class="loading-subtitle">PACIENCIA, EL JUEGO PUEDE TARDAR UNOS MINUTOS</div>
     <div class="loading-bar"><div id="loadingFill" class="loading-fill"></div></div>
