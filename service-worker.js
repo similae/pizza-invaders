@@ -1,4 +1,4 @@
-const CACHE_VERSION = "pizza-invaders-v1.0.19";
+const CACHE_VERSION = "pizza-invaders-v1.0.20";
 const CORE_CACHE = `${CACHE_VERSION}-core`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -15,7 +15,11 @@ const CORE_FILES = [
   "./assets/PIZZAINVADERS-MASA-FERMENTADA-MOBILE.png",
   "./assets/PIZZAINVADERS-POPOCOLA-INTRO-MOBILE.png",
   "./assets/PIZZAINVADERS-FROZENPIZZA-VIDEO-MOBILE.mp4",
-  "./assets/PIZZAINVADERS-LOGO-SIMILAE-LOADING.png"
+  "./assets/PIZZAINVADERS-LOGO-SIMILAE-LOADING.png",
+  "./assets/sfx-confirm.wav",
+  "./assets/sfx-powerup.wav",
+  "./assets/sfx-hurt.wav",
+  "./assets/sfx-boss.wav"
 ];
 
 self.addEventListener("install", event => {
@@ -47,7 +51,7 @@ self.addEventListener("fetch", event => {
 
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: "no-store" })
         .then(response => {
           const copy = response.clone();
           caches.open(CORE_CACHE).then(cache => cache.put("./index.html", copy));

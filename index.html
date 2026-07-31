@@ -991,6 +991,51 @@ let audioSfxGain = null;
 let audioStarted = false;
 let audioMuted = localStorage.getItem("pizzaInvadersAudioMuted") === "true";
 let lastHitSoundAt = 0;
+const useIosAudioFiles = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const htmlSfx = {
+  confirm: new Audio("./assets/sfx-confirm.wav"),
+  powerup: new Audio("./assets/sfx-powerup.wav"),
+  hurt: new Audio("./assets/sfx-hurt.wav"),
+  boss: new Audio("./assets/sfx-boss.wav")
+};
+let htmlSfxPrimed = false;
+
+Object.values(htmlSfx).forEach(audio => {
+  audio.preload = "auto";
+  audio.playsInline = true;
+});
+
+function primeHtmlSfx() {
+  if (!useIosAudioFiles || htmlSfxPrimed) return;
+  htmlSfxPrimed = true;
+  Object.values(htmlSfx).forEach(audio => {
+    audio.volume = 0;
+    const started = audio.play();
+    if (started && typeof started.then === "function") {
+      started.then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.volume = 0.82;
+      }).catch(() => {
+        htmlSfxPrimed = false;
+      });
+    }
+  });
+}
+
+function playHtmlSfx(name) {
+  if (audioMuted) return;
+  const key = name === "bossDown" ? "boss" : name;
+  const audio = htmlSfx[key] || htmlSfx.confirm;
+  try {
+    audio.pause();
+    audio.currentTime = 0;
+    audio.volume = key === "hurt" || key === "boss" ? 0.9 : 0.78;
+    audio.play().catch(() => {});
+  } catch (error) {
+    console.warn("No se pudo reproducir el sonido móvil:", error);
+  }
+}
 
 function initGameAudio() {
   if (audioCtx && audioCtx.state !== "closed") {
@@ -1038,6 +1083,7 @@ function unlockGameAudio(playConfirmation = false) {
   if (playConfirmation && !audioMuted) {
     // Programarlo ahora conserva la autorización del toque en Safari.
     playTone(660, 0.16, "square", 0.24);
+    if (useIosAudioFiles) playHtmlSfx("confirm");
   }
 
   return resumed
@@ -1049,7 +1095,10 @@ function unlockGameAudio(playConfirmation = false) {
 }
 
 document.addEventListener("pointerdown", () => unlockGameAudio(), { capture: true, passive: true });
-document.addEventListener("touchstart", () => unlockGameAudio(), { capture: true, passive: true });
+document.addEventListener("touchstart", () => {
+  primeHtmlSfx();
+  unlockGameAudio();
+}, { capture: true, passive: true });
 document.addEventListener("click", () => unlockGameAudio(), { capture: true, passive: true });
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden && !audioMuted) unlockGameAudio();
@@ -1095,6 +1144,10 @@ function playNoise(duration = 0.08, volume = 0.12, destination = null) {
 }
 
 function playSfx(name) {
+  if (useIosAudioFiles) {
+    playHtmlSfx(name);
+    return;
+  }
   if (!audioCtx || audioMuted) return;
   if (name === "powerup") {
     playTone(620, 0.08, "triangle", 0.12);
@@ -8310,6 +8363,12 @@ if (isStandalonePwa) {
 }
 
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
+  let reloadingForUpdate = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (reloadingForUpdate) return;
+    reloadingForUpdate = true;
+    window.location.reload();
+  });
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./service-worker.js")
       .then(registration => {
