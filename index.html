@@ -817,6 +817,7 @@ let transition = null;
 let bossExplosion = null;
 let bossVictoryLaunch = null;
 let similaeFinaleStartedAt = 0;
+let finaleReplayUnlocked = false;
 const COUPON_CODE = "RESCUEGAIA";
 const GAME_URL = "https://www.similae.com/pages/pizza-invaders";
 const FERMENTATION_SHOP_URL = "https://www.similae.com/collections/del-horno";
@@ -1159,6 +1160,13 @@ function selectShip(id) {
 }
 
 function confirmHangarSelection() {
+  if (hangarReturnState === "stageSelect") {
+    hangarReturnState = null;
+    hangarOriginalShipId = null;
+    state = "stageSelect";
+    canvas.focus();
+    return;
+  }
   if (hangarReturnState === "play" || hangarReturnState === "callback") {
     const ship = SHIP_DEFS[selectedShipId] || SHIP_DEFS.luca;
     player.speed = ship.speed;
@@ -1181,6 +1189,12 @@ function confirmHangarSelection() {
 }
 
 function leaveHangar() {
+  if (hangarReturnState === "stageSelect") {
+    hangarReturnState = null;
+    hangarOriginalShipId = null;
+    state = "stageSelect";
+    return;
+  }
   if (hangarReturnState === "play" || hangarReturnState === "callback") {
     const continueAction = hangarReturnState === "callback" ? hangarContinueAction : null;
     selectShip(hangarOriginalShipId || selectedShipId);
@@ -3216,6 +3230,17 @@ function startFromTouch(e) {
 
   const pt = canvasPointFromEvent(e);
 
+  if (state === "similaeFinale") {
+    if (
+      performance.now() - similaeFinaleStartedAt >= 5200 &&
+      pt.x >= 105 && pt.x <= 435 &&
+      pt.y >= 694 && pt.y <= 746
+    ) {
+      startFinaleReplay();
+    }
+    return;
+  }
+
   if (state === "rewardTeaser") {
     if (performance.now() - rewardTeaserStartedAt < 700) return;
     if (pt.x >= 95 && pt.x <= 445 && pt.y >= 590 && pt.y <= 650) {
@@ -3358,7 +3383,13 @@ if (state === "stageSelect") {
   }
 
   if (pt.y >= 710 && pt.y <= 755) {
-      state = "devMenu";
+      if (finaleReplayUnlocked) {
+        hangarReturnState = "stageSelect";
+        hangarOriginalShipId = selectedShipId;
+        state = "hangar";
+      } else {
+        state = "devMenu";
+      }
       return;
   }
 
@@ -5615,10 +5646,28 @@ function drawSimilaeFinale() {
     ctx.fillText("y naturaleza, todos conectados.", centerX, 642);
     ctx.fillStyle = "#9dbf40";
     ctx.font = "bold 15px Courier New";
-    ctx.fillText("TODOS SOMOS PARTE DE GAIA.", centerX, 690);
+    ctx.fillText("TODOS SOMOS PARTE DE GAIA.", centerX, 674);
+    if (elapsed >= 5200) {
+      drawButton(105, 694, 330, 52, "VOLVER A JUGAR");
+    }
     ctx.globalAlpha = 1;
   }
   ctx.restore();
+}
+
+function startFinaleReplay() {
+  SHIP_ORDER.forEach(id => unlockedShips.add(id));
+  localStorage.setItem("pizzaInvadersUnlockedShips", JSON.stringify([...unlockedShips]));
+  finaleReplayUnlocked = true;
+  shipUnlockNotice = null;
+  resetGame();
+  hangarReturnState = "stageSelect";
+  hangarOriginalShipId = selectedShipId;
+  state = "hangar";
+  touchControl.autoFire = false;
+  touchControl.active = false;
+  touchControl.targetX = null;
+  touchControl.targetY = null;
 }
 
 function maybePowerup(x,y) {
@@ -7723,7 +7772,8 @@ function drawHangarStat(label, value, x, y, color) {
 
 function drawHangar() {
   const ship = SHIP_DEFS[selectedShipId] || SHIP_DEFS.luca;
-  const returningToGame = hangarReturnState === "play" || hangarReturnState === "callback";
+  const selectingReplayStage = hangarReturnState === "stageSelect";
+  const returningToGame = hangarReturnState === "play" || hangarReturnState === "callback" || selectingReplayStage;
   ctx.save();
 
   const bg = ctx.createLinearGradient(0, 0, 0, H);
@@ -7826,13 +7876,13 @@ function drawHangar() {
     }
   });
 
-  drawButton(95, 584, 350, 60, returningToGame ? "EQUIPAR Y CONTINUAR" : "INICIAR MISION");
+  drawButton(95, 584, 350, 60, selectingReplayStage ? "EQUIPAR Y ELEGIR ETAPA" : (returningToGame ? "EQUIPAR Y CONTINUAR" : "INICIAR MISION"));
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 14px Courier New";
   ctx.fillText("SELECCIONA UNA NAVE DESBLOQUEADA", W/2, 671);
   ctx.fillStyle = "#56e8ff";
   ctx.font = "bold 17px Courier New";
-  ctx.fillText(returningToGame ? "CONTINUAR SIN CAMBIOS" : "VOLVER", W/2, 704);
+  ctx.fillText(selectingReplayStage ? "IR A SELECCIÓN DE ETAPA" : (returningToGame ? "CONTINUAR SIN CAMBIOS" : "VOLVER"), W/2, 704);
   ctx.restore();
 }
 
@@ -7937,7 +7987,7 @@ function drawStageSelect() {
 
   ctx.fillStyle = "#ffcc33";
   ctx.font = "42px Arial";
-  ctx.fillText("STAGE SELECT", W/2, 150);
+  ctx.fillText(finaleReplayUnlocked ? "ELIGE TU ETAPA" : "STAGE SELECT", W/2, 150);
 
   ctx.fillStyle = "white";
   ctx.font = "24px Arial";
@@ -7950,11 +8000,11 @@ function drawStageSelect() {
   ctx.fillText("7. CANDY FACTORY", W/2, 620);
   ctx.fillText("8. PINEAPPLE PANIC", W/2, 680);
   ctx.font = "20px Arial";
-  ctx.fillText("9. BACK TO DEV MENU", W/2, 726);
+  ctx.fillText(finaleReplayUnlocked ? "9. VOLVER AL HANGAR" : "9. BACK TO DEV MENU", W/2, 726);
 
   ctx.fillStyle = "#56e8ff";
   ctx.font = "12px Arial";
-  ctx.fillText("V13 STAGE TEST", W/2, 752);
+  ctx.fillText(finaleReplayUnlocked ? "ACCESO TOTAL DESBLOQUEADO" : "V13 STAGE TEST", W/2, 752);
 
   ctx.textAlign = "left";
 }
