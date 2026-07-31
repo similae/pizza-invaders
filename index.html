@@ -2463,7 +2463,7 @@ function drawShot(type, x, y, friendly=false) {
   }
   if (type === "pineapple") {
     ctx.fillStyle = "#f6b72a";
-    ctx.beginPath(); ctx.moveTo(x+8,y); ctx.lineTo(x+16,y+18); ctx.lineTo(x,y+18); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x+8,y+18); ctx.lineTo(x+16,y); ctx.lineTo(x,y); ctx.closePath(); ctx.fill();
   } else if (type === "syrup") {
     px(x+5,y,8,18,"#ff58bf"); px(x+3,y+5,12,5,"#ff9edb");
   } else if (type === "popcola") {
