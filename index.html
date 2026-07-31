@@ -208,6 +208,11 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+    #mobileHudBottom > .mobile-hud-block {
+      flex: 1 1 auto;
+      min-width: 0;
+      text-align: left;
+    }
     #mobileShipsBtn,
     #mobileAudioBtn {
       display: block;
@@ -225,6 +230,40 @@
       text-shadow: 2px 2px 0 #000;
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
+    }
+    #mobileAudioBtn {
+      position: relative;
+      width: 56px;
+      min-width: 56px;
+      padding: 10px;
+      color: #9cff69;
+    }
+    #mobileAudioBtn svg {
+      display: block;
+      width: 28px;
+      height: 28px;
+      margin: auto;
+      overflow: visible;
+    }
+    #mobileAudioBtn .sound-waves,
+    #mobileAudioBtn .sound-slash {
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    #mobileAudioBtn .sound-slash {
+      display: none;
+    }
+    #mobileAudioBtn.is-muted {
+      color: #ff78d0;
+    }
+    #mobileAudioBtn.is-muted .sound-waves {
+      display: none;
+    }
+    #mobileAudioBtn.is-muted .sound-slash {
+      display: block;
     }
     body:not(.external-hud-active) .mobile-hud {
       visibility: hidden;
@@ -717,7 +756,13 @@
       <span id="mobileHudShip" class="mobile-hud-label">LUCA</span>
       <span id="mobileHudStatus">LISTO</span>
     </div>
-    <button id="mobileAudioBtn" type="button">SONIDO ON</button>
+    <button id="mobileAudioBtn" type="button" aria-label="Desactivar sonido" title="Desactivar sonido">
+      <svg viewBox="0 0 28 28" aria-hidden="true">
+        <path fill="currentColor" d="M3 11h5l6-5v16l-6-5H3z"></path>
+        <path class="sound-waves" d="M18 10c2 2 2 6 0 8M21 7c4 4 4 10 0 14"></path>
+        <path class="sound-slash" d="M18 9l7 10"></path>
+      </svg>
+    </button>
     <button id="mobileShipsBtn" type="button">NAVES</button>
   </div>
 </div>
@@ -869,10 +914,12 @@ function updateExternalMobileHud() {
   mobileHudScore.textContent = score;
   mobileHudLives.textContent = lives > 0 ? "▲ ".repeat(Math.min(lives, 6)).trim() : "—";
   mobileHudWave.textContent = wave;
-  mobileHudShip.textContent = ship.name + (audioMuted ? " · SFX OFF" : " · SFX ON");
+  mobileHudShip.textContent = ship.name;
   mobileHudShip.style.color = ship.color;
   mobileHudStatus.textContent = status.join(" · ") || "MISIÓN EN CURSO";
-  mobileAudioBtn.textContent = audioMuted ? "SONIDO OFF" : "SONIDO ON";
+  mobileAudioBtn.classList.toggle("is-muted", audioMuted);
+  mobileAudioBtn.setAttribute("aria-label", audioMuted ? "Activar sonido" : "Desactivar sonido");
+  mobileAudioBtn.title = audioMuted ? "Activar sonido" : "Desactivar sonido";
   if (bossActive) {
     const ratio = Math.max(0, Math.min(1, boss.hp / Math.max(1, boss.maxHp)));
     mobileBossFill.style.width = (ratio * 100).toFixed(1) + "%";
