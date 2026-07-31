@@ -1160,7 +1160,7 @@ let lastHitSoundAt = 0;
 const useUnifiedAudioFiles = true;
 const htmlSfx = {
   ui: new Audio("./assets/sfx-ui.wav"),
-  heart: new Audio("./assets/sfx-heart.wav"),
+  water: new Audio("./assets/sfx-water.wav"),
   ammo: new Audio("./assets/sfx-ammo.wav"),
   speed: new Audio("./assets/sfx-speed.wav"),
   shield: new Audio("./assets/sfx-shield.wav"),
@@ -1195,8 +1195,8 @@ function playHtmlSfx(name) {
   if (audioMuted) return;
   const audio = name === "bossDown"
     ? htmlSfx.bossDown
-    : name === "heart"
-      ? htmlSfx.heart
+    : name === "water"
+      ? htmlSfx.water
       : name === "ammo"
         ? htmlSfx.ammo
         : name === "speed"
@@ -1209,8 +1209,8 @@ function playHtmlSfx(name) {
     audio.currentTime = 0;
     audio.volume = name === "bossDown"
       ? 0.40
-      : name === "heart"
-        ? 0.34
+      : name === "water"
+        ? 0.32
         : name === "ammo"
           ? 0.31
           : name === "speed"
@@ -6505,7 +6505,7 @@ function updateCollisions() {
       const now = performance.now();
       playSfx(
         p.type === "life"
-          ? "heart"
+          ? "water"
           : p.type === "double"
             ? "ammo"
             : p.type === "speed"

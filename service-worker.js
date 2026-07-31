@@ -1,4 +1,4 @@
-const CACHE_VERSION = "pizza-invaders-v1.0.47";
+const CACHE_VERSION = "pizza-invaders-v1.0.48";
 const CORE_CACHE = `${CACHE_VERSION}-core`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -19,7 +19,7 @@ const CORE_FILES = [
   "./assets/PIZZAINVADERS-FROZENPIZZA-VIDEO-MOBILE.mp4",
   "./assets/PIZZAINVADERS-LOGO-SIMILAE-LOADING.png",
   "./assets/sfx-ui.wav",
-  "./assets/sfx-heart.wav",
+  "./assets/sfx-water.wav",
   "./assets/sfx-ammo.wav",
   "./assets/sfx-speed.wav",
   "./assets/sfx-shield.wav",
