@@ -1051,11 +1051,7 @@ let audioMuted = localStorage.getItem("pizzaInvadersAudioMuted") === "true";
 let lastHitSoundAt = 0;
 const useUnifiedAudioFiles = true;
 const htmlSfx = {
-  confirm: new Audio("./assets/sfx-confirm.wav"),
-  powerup: new Audio("./assets/sfx-powerup.wav"),
-  hurt: new Audio("./assets/sfx-hurt.wav"),
-  boss: new Audio("./assets/sfx-boss.wav"),
-  bossDown: new Audio("./assets/sfx-boss-down.wav")
+  confirm: new Audio("./assets/sfx-confirm.wav")
 };
 let htmlSfxPrimed = false;
 
@@ -1084,14 +1080,11 @@ function primeHtmlSfx() {
 
 function playHtmlSfx(name) {
   if (audioMuted) return;
-  const key = name;
-  const audio = htmlSfx[key] || htmlSfx.confirm;
+  const audio = htmlSfx.confirm;
   try {
     audio.pause();
     audio.currentTime = 0;
-    audio.volume = key === "confirm"
-      ? 0.42
-      : (key === "hurt" || key === "boss" || key === "bossDown" ? 0.62 : 0.56);
+    audio.volume = 0.42;
     audio.play().catch(() => {});
   } catch (error) {
     console.warn("No se pudo reproducir el sonido móvil:", error);
