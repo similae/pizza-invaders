@@ -68,6 +68,15 @@
     display: none;
   }
   #mobileControls { display: none; }
+  #victoryLaunchOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 12;
+    display: none;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+  }
   button { display: none; }
   @media (max-width: 760px) {
     #wrap {
@@ -640,6 +649,7 @@
     <button id="mobileShipsBtn" type="button">NAVES</button>
   </div>
 </div>
+<canvas id="victoryLaunchOverlay" aria-hidden="true"></canvas>
 <button id="fullscreenBtn" type="button">[ ] FULL SCREEN</button>
 <button id="installPwaBtn" type="button">INSTALAR JUEGO</button>
 
@@ -720,9 +730,11 @@
 
 <script>
 const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+let ctx = canvas.getContext("2d");
 ctx.imageSmoothingEnabled = false;
 const W = canvas.width, H = canvas.height;
+const victoryLaunchOverlay = document.getElementById("victoryLaunchOverlay");
+const victoryLaunchOverlayCtx = victoryLaunchOverlay.getContext("2d");
 const mobileHudScore = document.getElementById("mobileHudScore");
 const mobileHudLives = document.getElementById("mobileHudLives");
 const mobileHudWave = document.getElementById("mobileHudWave");
@@ -5418,14 +5430,15 @@ function drawBossExplosionScreen() {
   ctx.textAlign = "left";
 }
 
-function startBossVictoryLaunch(next) {
+function startBossVictoryLaunch(next, options = {}) {
   bossVictoryLaunch = {
     x: player.x,
     startY: player.y,
     y: player.y,
     shipId: selectedShipId,
     startedAt: performance.now(),
-    duration: 1450,
+    duration: options.exitThroughViewportTop ? 1900 : 1450,
+    exitThroughViewportTop: options.exitThroughViewportTop === true,
     next,
     trailTick: 0
   };
@@ -5440,7 +5453,15 @@ function updateBossVictoryLaunch() {
   const t = Math.max(0, Math.min(1, (now - bossVictoryLaunch.startedAt) / bossVictoryLaunch.duration));
   // Movimiento acelerado: comienza suave y sale de la pantalla cada vez más rápido.
   const accelerated = t * t * t;
-  bossVictoryLaunch.y = bossVictoryLaunch.startY - accelerated * (bossVictoryLaunch.startY + 150);
+  let exitDistance = bossVictoryLaunch.startY + 150;
+  if (bossVictoryLaunch.exitThroughViewportTop && useExternalMobileHud()) {
+    const rect = canvas.getBoundingClientRect();
+    const extraDistance = rect.height > 0
+      ? ((rect.top + 150) / rect.height) * H
+      : 320;
+    exitDistance = bossVictoryLaunch.startY + Math.max(320, extraDistance);
+  }
+  bossVictoryLaunch.y = bossVictoryLaunch.startY - accelerated * exitDistance;
 
   bossVictoryLaunch.trailTick--;
   if (bossVictoryLaunch.trailTick <= 0 && t < .94) {
@@ -5467,8 +5488,74 @@ function updateBossVictoryLaunch() {
   if (t >= 1) {
     const next = bossVictoryLaunch.next;
     bossVictoryLaunch = null;
+    clearVictoryLaunchViewportOverlay();
     if (typeof next === "function") next();
   }
+}
+
+function clearVictoryLaunchViewportOverlay() {
+  victoryLaunchOverlay.style.display = "none";
+  victoryLaunchOverlayCtx.clearRect(0, 0, victoryLaunchOverlay.width, victoryLaunchOverlay.height);
+}
+
+function drawVictoryLaunchViewportOverlay(t, speedGlow) {
+  if (!bossVictoryLaunch?.exitThroughViewportTop || !useExternalMobileHud()) {
+    clearVictoryLaunchViewportOverlay();
+    return;
+  }
+
+  const rect = canvas.getBoundingClientRect();
+  const scale = rect.width / W;
+  const screenX = rect.left + bossVictoryLaunch.x * scale;
+  const screenY = rect.top + bossVictoryLaunch.y * scale;
+  if (screenY > rect.top + player.h * scale) {
+    clearVictoryLaunchViewportOverlay();
+    return;
+  }
+
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const viewportW = window.innerWidth;
+  const viewportH = window.innerHeight;
+  const targetW = Math.round(viewportW * dpr);
+  const targetH = Math.round(viewportH * dpr);
+  if (victoryLaunchOverlay.width !== targetW || victoryLaunchOverlay.height !== targetH) {
+    victoryLaunchOverlay.width = targetW;
+    victoryLaunchOverlay.height = targetH;
+  }
+  victoryLaunchOverlay.style.display = "block";
+  victoryLaunchOverlayCtx.setTransform(1, 0, 0, 1, 0, 0);
+  victoryLaunchOverlayCtx.clearRect(0, 0, targetW, targetH);
+  victoryLaunchOverlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const shipWidth = player.w * scale;
+  const shipHeight = player.h * scale;
+  const cx = screenX + shipWidth / 2;
+  const exhaustY = screenY + shipHeight - 2;
+  const beamLength = Math.min(260, viewportH - exhaustY + 40);
+  const beam = victoryLaunchOverlayCtx.createLinearGradient(cx, exhaustY, cx, exhaustY + beamLength);
+  beam.addColorStop(0, `rgba(255,255,255,${.8 * speedGlow})`);
+  beam.addColorStop(.2, `rgba(86,232,255,${.62 * speedGlow})`);
+  beam.addColorStop(1, "rgba(86,232,255,0)");
+  victoryLaunchOverlayCtx.fillStyle = beam;
+  victoryLaunchOverlayCtx.beginPath();
+  victoryLaunchOverlayCtx.moveTo(cx - 10 - speedGlow * 8, exhaustY);
+  victoryLaunchOverlayCtx.lineTo(cx + 10 + speedGlow * 8, exhaustY);
+  victoryLaunchOverlayCtx.lineTo(cx + 3, exhaustY + beamLength);
+  victoryLaunchOverlayCtx.lineTo(cx - 3, exhaustY + beamLength);
+  victoryLaunchOverlayCtx.closePath();
+  victoryLaunchOverlayCtx.fill();
+
+  const gameCtx = ctx;
+  ctx = victoryLaunchOverlayCtx;
+  ctx.save();
+  ctx.globalAlpha = 1 - Math.max(0, (t - .94) / .06);
+  ctx.translate(screenX, screenY);
+  ctx.scale(scale, scale);
+  ctx.shadowColor = "rgba(86,232,255,.95)";
+  ctx.shadowBlur = (8 + speedGlow * 24) / Math.max(scale, .01);
+  drawCharacterShip(bossVictoryLaunch.shipId, 0, 0, 1 + speedGlow * .10);
+  ctx.restore();
+  ctx = gameCtx;
 }
 
 function drawBossVictoryLaunchScreen() {
@@ -5507,6 +5594,7 @@ function drawBossVictoryLaunchScreen() {
     1 + speedGlow * .10
   );
   ctx.restore();
+  drawVictoryLaunchViewportOverlay(t, speedGlow);
 }
 
 function drawUnifiedSimilaePizza(cx, cy, scale=1) {
@@ -6003,7 +6091,13 @@ function updateCollisions() {
           );
         startBossExplosion(
           defeatedBoss,
-          shouldUseVictoryLaunch ? () => startBossVictoryLaunch(afterExplosion) : afterExplosion
+          shouldUseVictoryLaunch
+            ? () => startBossVictoryLaunch(afterExplosion, {
+                exitThroughViewportTop:
+                  defeatedBoss.type === "pineappleBoss" &&
+                  defeatedBoss.pineappleInversionStageBoss
+              })
+            : afterExplosion
         );
       }
     }
