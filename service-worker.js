@@ -1,4 +1,4 @@
-const CACHE_VERSION = "pizza-invaders-v1.0.34";
+const CACHE_VERSION = "pizza-invaders-v1.0.35";
 const CORE_CACHE = `${CACHE_VERSION}-core`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -11,6 +11,7 @@ const CORE_FILES = [
   "./assets/pwa-icon-maskable-512.png",
   "./assets/apple-touch-icon.png",
   "./assets/PizzaInvadersText-Regular.ttf",
+  "./assets/PizzaInvadersText-Bold.ttf",
   "./assets/PIZZAINVADERS-PINEAPPLE-BOSS-INTRO-MOBILE.png",
   "./assets/embedded-canvas-04-mobile.png",
   "./assets/PIZZAINVADERS-MASA-FERMENTADA-MOBILE.png",

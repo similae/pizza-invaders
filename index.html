@@ -13,13 +13,21 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./assets/pwa-icon-192.png" />
 <link rel="apple-touch-icon" sizes="180x180" href="./assets/apple-touch-icon.png" />
 <link rel="preload" href="./assets/PizzaInvadersText-Regular.ttf" as="font" type="font/ttf" crossorigin />
+<link rel="preload" href="./assets/PizzaInvadersText-Bold.ttf" as="font" type="font/ttf" crossorigin />
 <title>Pizza Invaders</title>
 <style>
   @font-face {
     font-family: "PizzaText";
     src: url("./assets/PizzaInvadersText-Regular.ttf") format("truetype");
     font-style: normal;
-    font-weight: 100 900;
+    font-weight: 100 600;
+    font-display: block;
+  }
+  @font-face {
+    font-family: "PizzaText";
+    src: url("./assets/PizzaInvadersText-Bold.ttf") format("truetype");
+    font-style: normal;
+    font-weight: 700 900;
     font-display: block;
   }
   * { box-sizing: border-box; }
@@ -35,6 +43,7 @@
     background: radial-gradient(circle at top, #24124c, #04040b 68%);
     color: white;
     font-family: "PizzaText", monospace;
+    letter-spacing: -0.15px;
     touch-action: none;
   }
   #wrap {
@@ -795,6 +804,7 @@
 const canvas = document.getElementById("game");
 let ctx = canvas.getContext("2d");
 ctx.imageSmoothingEnabled = false;
+if ("letterSpacing" in ctx) ctx.letterSpacing = "-0.35px";
 const W = canvas.width, H = canvas.height;
 const nativeCanvasFillText = ctx.fillText.bind(ctx);
 ctx.fillText = function(text, x, y, maxWidth) {
