@@ -6095,8 +6095,11 @@ function updateCollisions() {
           shouldUseVictoryLaunch
             ? () => startBossVictoryLaunch(afterExplosion, {
                 exitThroughViewportTop:
-                  defeatedBoss.type === "pineappleBoss" &&
-                  defeatedBoss.pineappleInversionStageBoss
+                  (
+                    defeatedBoss.type === "pineappleBoss" &&
+                    defeatedBoss.pineappleInversionStageBoss
+                  ) ||
+                  defeatedBoss.type === "popColaBoss"
               })
             : afterExplosion
         );
