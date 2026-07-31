@@ -517,20 +517,24 @@
   }
   .loading-fill {
     height: 100%;
-    width: 22%;
+    width: 0%;
     background: repeating-linear-gradient(90deg, #ffcc33 0 10px, #ff78d0 10px 20px);
-    animation: pizzaLoad 1.1s linear infinite;
+    transition: width .28s ease-out;
+  }
+  .loading-progress {
+    margin-top: 8px;
+    color: #56e8ff;
+    font-size: 13px;
+    font-weight: 800;
   }
   .loading-note {
     margin-top: 14px;
     color: #ffffff;
-    font-size: 12px;
-    opacity: .9;
+    font-size: 13px;
+    line-height: 1.5;
   }
-  @keyframes pizzaLoad {
-    0% { width: 18%; }
-    50% { width: 82%; }
-    100% { width: 18%; }
+  .loading-note strong {
+    color: #ffcc33;
   }
 
 </style>
@@ -584,10 +588,14 @@
 
 <div id="loadingScreen" aria-live="polite">
   <div class="loading-card">
-    <div class="loading-title">LOADING<br>PIZZA INVADERS</div>
-    <div class="loading-subtitle">PREPARANDO LA NAVE...</div>
-    <div class="loading-bar"><div class="loading-fill"></div></div>
-    <div class="loading-note">SIMILAE INTERACTIVE</div>
+    <div class="loading-title">CARGANDO<br>PIZZA INVADERS</div>
+    <div class="loading-subtitle">PACIENCIA, EL JUEGO PUEDE TARDAR UNOS MINUTOS</div>
+    <div class="loading-bar"><div id="loadingFill" class="loading-fill"></div></div>
+    <div id="loadingProgress" class="loading-progress">0%</div>
+    <div class="loading-note">
+      <strong>LO BUENO TOMA TIEMPO.</strong><br>
+      NUESTRAS MASAS FERMENTAN DURANTE 36 HORAS.
+    </div>
   </div>
 </div>
 <div id="couponOverlay" class="ui-overlay">
@@ -736,6 +744,8 @@ const rankingList = document.getElementById("rankingList");
 const bonusCouponBtn = document.getElementById("bonusCouponBtn");
 const bonusContinueBtn = document.getElementById("bonusContinueBtn");
 const loadingScreen = document.getElementById("loadingScreen");
+const loadingFill = document.getElementById("loadingFill");
+const loadingProgress = document.getElementById("loadingProgress");
 const videoStartOverlay = document.getElementById("videoStartOverlay");
 const videoStartBtn = document.getElementById("videoStartBtn");
 let gameOverProcessed = false;
@@ -1319,7 +1329,20 @@ function waitForImage(img) {
 }
 function finishLoadingWhenReady() {
   const assets = [...introImages, ...Object.values(characterImages), candyPlanetImage, pineappleIntroImage, marshmallowHeadImage, marshmallowBackdropImage, marshmallowBossImage, frozenPizzaEnemyImage, frozenPizzaBossImage, similaePowerImage, similaeFaviconImage, similaeFaviconRINGImage, freezeAdImage, pernigottiEggPrizeImage, fermentedPizzaBasesImage, coverLucaMarshmallowImage];
-  Promise.all(assets.map(waitForImage)).then(() => {
+  let loadedAssets = 0;
+  const updateLoadingProgress = () => {
+    const percent = Math.round((loadedAssets / assets.length) * 100);
+    if (loadingFill) loadingFill.style.width = percent + "%";
+    if (loadingProgress) loadingProgress.textContent = percent + "%";
+  };
+  updateLoadingProgress();
+  const trackedAssets = assets.map(img =>
+    waitForImage(img).then(() => {
+      loadedAssets++;
+      updateLoadingProgress();
+    })
+  );
+  Promise.all(trackedAssets).then(() => {
     const delay = Math.max(0, LOADING_MIN_MS - (performance.now() - loadingStartedAt));
     setTimeout(() => {
       if (loadingScreen) loadingScreen.style.display = "none";
