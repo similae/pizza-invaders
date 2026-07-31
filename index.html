@@ -622,10 +622,7 @@
       max-height: var(--game-vh, 100dvh);
     }
     #fullscreenBtn {
-      min-width: 142px;
-      min-height: 52px;
-      font-size: 14px;
-      padding: 12px 13px;
+      display: none !important;
     }
     #installPwaBtn {
       top: auto;
@@ -3531,6 +3528,7 @@ function requestGameFullscreen(e) {
     e.preventDefault();
     e.stopPropagation();
   }
+  if (isTouchDevice) return;
 
   const now = performance.now();
   if (now - fullscreenToggleLock < 450) return;
@@ -3615,6 +3613,7 @@ function setTouchTarget(pt) {
 
 
 function pointHitsFullscreenChip(pt) {
+  if (isTouchDevice) return false;
   // respaldo dentro del canvas: si el botón HTML queda fuera del área táctil del iframe,
   // tocar la esquina superior izquierda del juego también activa pantalla completa.
   return pt.x >= 0 && pt.x <= 190 && pt.y >= 0 && pt.y <= 72;
@@ -6909,6 +6908,7 @@ function drawAll() {
 
 
 function drawFullscreenHint() {
+  if (isTouchDevice) return;
   ctx.save();
   ctx.globalAlpha = .88;
   ctx.fillStyle = "rgba(5,5,16,.72)";
@@ -8769,6 +8769,10 @@ closeInstallBtn.addEventListener("click", () => {
 updatePwaBtn.addEventListener("click", () => {
   window.location.reload();
 });
+
+if (isTouchDevice) {
+  fullscreenBtn.style.display = "none";
+}
 
 if (isStandalonePwa) {
   installPwaBtn.style.display = "none";
