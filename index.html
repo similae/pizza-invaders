@@ -143,14 +143,18 @@
       display: block;
       flex: 0 0 auto;
       margin: 0;
-      padding: 9px 13px;
-      border: 2px solid #ffcc33;
-      border-radius: 0;
+      min-width: 92px;
+      min-height: 52px;
+      padding: 12px 18px;
+      border: 3px solid #ffcc33;
+      border-radius: 8px;
       background: rgba(5,7,15,.88);
       color: #fff;
       font: bold clamp(11px, 3vw, 14px) "Courier New", monospace;
       box-shadow: 3px 3px 0 #000;
       text-shadow: 2px 2px 0 #000;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
     body:not(.external-hud-active) .mobile-hud {
       visibility: hidden;
@@ -224,8 +228,38 @@
     text-transform: uppercase;
     cursor: pointer;
     box-shadow: 4px 4px 0 #000;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
   }
   .ui-card button.primary { background: #2b1a63; color: #ffcc33; }
+  .ui-card button:active, #fullscreenBtn:active, #installPwaBtn:active, #mobileShipsBtn:active {
+    transform: translate(3px, 3px);
+    box-shadow: 1px 1px 0 #000;
+    background: #2b1a63;
+    border-color: #56e8ff;
+  }
+  @media (max-width: 760px) {
+    .ui-card {
+      width: min(94vw, 440px);
+      max-height: calc(100dvh - 24px);
+      overflow-y: auto;
+      padding: 16px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .ui-card button {
+      min-height: 56px;
+      margin-top: 12px;
+      padding: 14px 12px;
+      border-radius: 8px;
+      font-size: 16px;
+      line-height: 1.2;
+    }
+    .ui-card input {
+      min-height: 54px;
+      font-size: 18px;
+    }
+  }
   .small-note { opacity: .88; font-size: 13px !important; font-family: "Courier New", monospace; }
   #gameoverOverlay {
     background:
@@ -7449,15 +7483,23 @@ function drawTriviaIntroV12() {
 /// FUNCTION BOTONES ///
 function drawTriviaButtonV12(x, y, w, h, text) {
   ctx.save();
-  px(x + 4, y + 5, w, h, "rgba(0,0,0,0.44)");
+  ctx.fillStyle = "rgba(0,0,0,.52)";
+  roundRect(x + 5, y + 6, w, h, 9);
+  ctx.fill();
   ctx.fillStyle = "#080b18";
-  ctx.fillRect(x, y, w, h);
+  roundRect(x, y, w, h, 9);
+  ctx.fill();
   ctx.strokeStyle = "#ffcc33";
   ctx.lineWidth = 4;
-  ctx.strokeRect(x, y, w, h);
+  roundRect(x, y, w, h, 9);
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(86,232,255,.72)";
+  ctx.lineWidth = 2;
+  roundRect(x + 6, y + 6, w - 12, h - 12, 5);
+  ctx.stroke();
 
   ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 19px Arial";
+  ctx.font = "bold 18px Arial";
   ctx.textAlign = "center";
   ctx.fillText(text, x + w / 2, y + h / 2 + 7);
   ctx.restore();
@@ -7743,20 +7785,24 @@ function drawCouponScreen() {
 }
 
 function drawButton(x, y, w, h, label) {
-  ctx.fillStyle = "#000";
-  ctx.fillRect(x + 5, y + 5, w, h);
+  ctx.fillStyle = "rgba(0,0,0,.72)";
+  roundRect(x + 5, y + 6, w, h, 9);
+  ctx.fill();
   ctx.fillStyle = "#17172b";
-  ctx.fillRect(x, y, w, h);
+  roundRect(x, y, w, h, 9);
+  ctx.fill();
   ctx.strokeStyle = "#ffcc33";
   ctx.lineWidth = 3;
-  ctx.strokeRect(x, y, w, h);
+  roundRect(x, y, w, h, 9);
+  ctx.stroke();
   ctx.strokeStyle = "#56e8ff";
-  ctx.lineWidth = 1;
-  ctx.strokeRect(x + 5, y + 5, w - 10, h - 10);
+  ctx.lineWidth = 2;
+  roundRect(x + 6, y + 6, w - 12, h - 12, 5);
+  ctx.stroke();
   ctx.fillStyle = "white";
-  ctx.font = "18px Courier New";
+  ctx.font = "bold 17px Courier New";
   ctx.textAlign = "center";
-  ctx.fillText(label, x + w/2, y + 36);
+  ctx.fillText(label, x + w/2, y + h/2 + 6);
 }
 
 function drawHangarStat(label, value, x, y, color) {
