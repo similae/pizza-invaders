@@ -2522,6 +2522,11 @@ function drawShot(type, x, y, friendly=false) {
 
 function drawPowerup(p) {
   if (p.type === "double") {
+    ctx.save();
+    ctx.translate(p.x+14,p.y+14);
+    ctx.rotate(Math.PI/4);
+    ctx.scale(.76,.76);
+    ctx.translate(-(p.x+14),-(p.y+14));
     px(p.x+12,p.y+1,4,4,"#ffe36a");
     px(p.x+10,p.y+5,8,4,"#ffd34a");
     px(p.x+8,p.y+9,12,4,"#ffd34a");
@@ -2530,6 +2535,7 @@ function drawPowerup(p) {
     px(p.x+2,p.y+23,24,4,"#d69a24");
     px(p.x+10,p.y+12,3,3,"#d89320");
     px(p.x+17,p.y+18,4,4,"#d89320");
+    ctx.restore();
   }
   if (p.type === "shield") {
     px(p.x+12,p.y,4,4,"#72e85e");
