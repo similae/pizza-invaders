@@ -1043,7 +1043,9 @@ function playHtmlSfx(name) {
   try {
     audio.pause();
     audio.currentTime = 0;
-    audio.volume = key === "hurt" || key === "boss" || key === "bossDown" ? 0.62 : 0.56;
+    audio.volume = key === "confirm"
+      ? 0.42
+      : (key === "hurt" || key === "boss" || key === "bossDown" ? 0.62 : 0.56);
     audio.play().catch(() => {});
   } catch (error) {
     console.warn("No se pudo reproducir el sonido móvil:", error);
@@ -1094,9 +1096,9 @@ function unlockGameAudio(playConfirmation = false) {
     : audioCtx.resume();
 
   if (playConfirmation && !audioMuted) {
-    // Programarlo ahora conserva la autorización del toque en Safari.
-    playTone(660, 0.16, "square", 0.24);
+    // Un solo tono: archivo compatible en iOS, síntesis original en escritorio.
     if (useIosAudioFiles) playHtmlSfx("confirm");
+    else playTone(660, 0.08, "square", 0.11);
   }
 
   return resumed
