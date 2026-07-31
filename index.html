@@ -139,13 +139,14 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    #mobileShipsBtn {
+    #mobileShipsBtn,
+    #mobileAudioBtn {
       display: block;
       flex: 0 0 auto;
       margin: 0;
-      min-width: 92px;
+      min-width: 82px;
       min-height: 52px;
-      padding: 12px 18px;
+      padding: 12px 13px;
       border: 3px solid #ffcc33;
       border-radius: 8px;
       background: rgba(5,7,15,.88);
@@ -233,7 +234,7 @@
     user-select: none;
   }
   .ui-card button.primary { background: #2b1a63; color: #ffcc33; }
-  .ui-card button:active, #fullscreenBtn:active, #installPwaBtn:active, #mobileShipsBtn:active {
+  .ui-card button:active, #fullscreenBtn:active, #installPwaBtn:active, #mobileShipsBtn:active, #mobileAudioBtn:active {
     transform: translate(3px, 3px);
     box-shadow: 1px 1px 0 #000;
     background: #2b1a63;
@@ -246,6 +247,7 @@
     #fullscreenBtn,
     #installPwaBtn,
     #mobileShipsBtn,
+    #mobileAudioBtn,
     #updatePwaBanner,
     #updatePwaBanner button,
     #videoStartBtn,
@@ -634,6 +636,7 @@
       <span id="mobileHudShip" class="mobile-hud-label">LUCA</span>
       <span id="mobileHudStatus">LISTO</span>
     </div>
+    <button id="mobileAudioBtn" type="button">SONIDO ON</button>
     <button id="mobileShipsBtn" type="button">NAVES</button>
   </div>
 </div>
@@ -726,6 +729,7 @@ const mobileHudWave = document.getElementById("mobileHudWave");
 const mobileHudShip = document.getElementById("mobileHudShip");
 const mobileHudStatus = document.getElementById("mobileHudStatus");
 const mobileShipsBtn = document.getElementById("mobileShipsBtn");
+const mobileAudioBtn = document.getElementById("mobileAudioBtn");
 
 function useExternalMobileHud() {
   return window.matchMedia("(max-width: 760px) and (orientation: portrait)").matches;
@@ -755,7 +759,18 @@ function updateExternalMobileHud() {
   mobileHudShip.textContent = ship.name + (audioMuted ? " · SFX OFF" : " · SFX ON");
   mobileHudShip.style.color = ship.color;
   mobileHudStatus.textContent = status.join(" · ") || "MISIÓN EN CURSO";
+  mobileAudioBtn.textContent = audioMuted ? "SONIDO OFF" : "SONIDO ON";
 }
+
+mobileAudioBtn.addEventListener("click", async () => {
+  initGameAudio();
+  setAudioMuted(!audioMuted);
+  if (!audioMuted) {
+    await unlockGameAudio();
+    playTone(660, 0.08, "square", 0.11);
+  }
+  updateExternalMobileHud();
+});
 
 mobileShipsBtn.addEventListener("click", () => {
   if (state !== "play") return;
@@ -994,6 +1009,26 @@ function initGameAudio() {
   audioMaster.connect(audioCtx.destination);
   audioStarted = true;
 }
+
+async function unlockGameAudio() {
+  initGameAudio();
+  if (!audioCtx) return false;
+  try {
+    if (audioCtx.state !== "running") await audioCtx.resume();
+    const silent = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
+    const source = audioCtx.createBufferSource();
+    source.buffer = silent;
+    source.connect(audioMaster);
+    source.start(0);
+    return audioCtx.state === "running";
+  } catch (error) {
+    console.warn("No se pudo activar el audio:", error);
+    return false;
+  }
+}
+
+document.addEventListener("pointerdown", unlockGameAudio, { capture: true, passive: true });
+document.addEventListener("touchend", unlockGameAudio, { capture: true, passive: true });
 
 function setAudioMuted(muted) {
   audioMuted = muted;
@@ -8088,6 +8123,7 @@ function prepareCinematicVideo(videoId) {
 }
 
 videoStartBtn.addEventListener("click", async () => {
+  await unlockGameAudio();
   const video = pendingCinematicVideo;
   if (!video || videoStartBtn.dataset.action === "skip") {
     finishCinematicVideo(video);
@@ -8096,6 +8132,8 @@ videoStartBtn.addEventListener("click", async () => {
 
   videoStartOverlay.style.display = "none";
   try {
+    video.muted = false;
+    video.volume = 1;
     await video.play();
   } catch (error) {
     console.warn("El video necesita confirmación del usuario:", error);
