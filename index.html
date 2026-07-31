@@ -1159,10 +1159,11 @@ let audioMuted = localStorage.getItem("pizzaInvadersAudioMuted") === "true";
 let lastHitSoundAt = 0;
 const useUnifiedAudioFiles = true;
 const htmlSfx = {
-  confirm: new Audio("./assets/sfx-confirm.wav"),
+  ui: new Audio("./assets/sfx-ui.wav"),
   heart: new Audio("./assets/sfx-heart.wav"),
   ammo: new Audio("./assets/sfx-ammo.wav"),
   speed: new Audio("./assets/sfx-speed.wav"),
+  shield: new Audio("./assets/sfx-shield.wav"),
   bossDown: new Audio("./assets/sfx-boss-down.wav")
 };
 let htmlSfxPrimed = false;
@@ -1200,7 +1201,9 @@ function playHtmlSfx(name) {
         ? htmlSfx.ammo
         : name === "speed"
           ? htmlSfx.speed
-          : htmlSfx.confirm;
+          : name === "shield"
+            ? htmlSfx.shield
+            : htmlSfx.ui;
   try {
     audio.pause();
     audio.currentTime = 0;
@@ -1212,7 +1215,9 @@ function playHtmlSfx(name) {
           ? 0.31
           : name === "speed"
             ? 0.32
-            : 0.42;
+            : name === "shield"
+              ? 0.33
+              : 0.28;
     audio.play().catch(() => {});
   } catch (error) {
     console.warn("No se pudo reproducir el sonido móvil:", error);
@@ -1263,7 +1268,7 @@ function unlockGameAudio(playConfirmation = false) {
     : audioCtx.resume();
 
   if (playConfirmation && !audioMuted) {
-    playHtmlSfx("confirm");
+    playHtmlSfx("ui");
   }
 
   return resumed
@@ -6454,7 +6459,9 @@ function updateCollisions() {
             ? "ammo"
             : p.type === "speed"
               ? "speed"
-              : "powerup"
+              : p.type === "shield"
+                ? "shield"
+                : "ui"
       );
       if (p.type==="double") {
         cheeseCount++;
