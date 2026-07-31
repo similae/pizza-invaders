@@ -762,12 +762,11 @@ function updateExternalMobileHud() {
   mobileAudioBtn.textContent = audioMuted ? "SONIDO OFF" : "SONIDO ON";
 }
 
-mobileAudioBtn.addEventListener("click", async () => {
+mobileAudioBtn.addEventListener("click", () => {
   initGameAudio();
   setAudioMuted(!audioMuted);
   if (!audioMuted) {
-    await unlockGameAudio();
-    playTone(660, 0.08, "square", 0.11);
+    unlockGameAudio(true);
   }
   updateExternalMobileHud();
 });
@@ -994,13 +993,18 @@ let audioMuted = localStorage.getItem("pizzaInvadersAudioMuted") === "true";
 let lastHitSoundAt = 0;
 
 function initGameAudio() {
-  if (audioStarted) {
-    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
-    return;
+  if (audioCtx && audioCtx.state !== "closed") {
+    if (audioCtx.state !== "running") audioCtx.resume().catch(() => {});
+    return audioCtx;
   }
   const AudioContext = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContext) return;
-  audioCtx = new AudioContext();
+  if (!AudioContext) return null;
+  audioStarted = false;
+  try {
+    audioCtx = new AudioContext({ latencyHint: "interactive" });
+  } catch (error) {
+    audioCtx = new AudioContext();
+  }
   audioMaster = audioCtx.createGain();
   audioSfxGain = audioCtx.createGain();
   audioMaster.gain.value = audioMuted ? 0 : 0.62;
@@ -1008,27 +1012,48 @@ function initGameAudio() {
   audioSfxGain.connect(audioMaster);
   audioMaster.connect(audioCtx.destination);
   audioStarted = true;
+  return audioCtx;
 }
 
-async function unlockGameAudio() {
+function unlockGameAudio(playConfirmation = false) {
   initGameAudio();
-  if (!audioCtx) return false;
+  if (!audioCtx) return Promise.resolve(false);
+
+  // Safari iOS necesita que una fuente se inicie dentro del mismo gesto.
+  // El buffer silencioso prepara la salida antes de resolver resume().
   try {
-    if (audioCtx.state !== "running") await audioCtx.resume();
     const silent = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
     const source = audioCtx.createBufferSource();
     source.buffer = silent;
-    source.connect(audioMaster);
+    source.connect(audioCtx.destination);
     source.start(0);
-    return audioCtx.state === "running";
   } catch (error) {
-    console.warn("No se pudo activar el audio:", error);
-    return false;
+    console.warn("No se pudo preparar el audio:", error);
   }
+
+  const resumed = audioCtx.state === "running"
+    ? Promise.resolve()
+    : audioCtx.resume();
+
+  if (playConfirmation && !audioMuted) {
+    // Programarlo ahora conserva la autorización del toque en Safari.
+    playTone(660, 0.16, "square", 0.24);
+  }
+
+  return resumed
+    .then(() => audioCtx.state === "running")
+    .catch(error => {
+      console.warn("No se pudo activar el audio:", error);
+      return false;
+    });
 }
 
-document.addEventListener("pointerdown", unlockGameAudio, { capture: true, passive: true });
-document.addEventListener("touchend", unlockGameAudio, { capture: true, passive: true });
+document.addEventListener("pointerdown", () => unlockGameAudio(), { capture: true, passive: true });
+document.addEventListener("touchstart", () => unlockGameAudio(), { capture: true, passive: true });
+document.addEventListener("click", () => unlockGameAudio(), { capture: true, passive: true });
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && !audioMuted) unlockGameAudio();
+});
 
 function setAudioMuted(muted) {
   audioMuted = muted;
