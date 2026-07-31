@@ -5563,16 +5563,13 @@ function clearVictoryLaunchViewportOverlay() {
   victoryLaunchOverlayCtx.clearRect(0, 0, victoryLaunchOverlay.width, victoryLaunchOverlay.height);
 }
 
-function drawSnowflakeViewportRoamers() {
+function drawSnowflakesAcrossViewport() {
   if (!useExternalMobileHud() || state !== "play" || !isIceCubeStage()) {
     clearVictoryLaunchViewportOverlay();
     return;
   }
-  const roamers = enemyBullets.filter(b =>
-    b.type === "snowflake" &&
-    (b.x < 0 || b.x + b.w > W || b.y < 0 || b.y + b.h > H)
-  );
-  if (!roamers.length) {
+  const snowflakes = enemyBullets.filter(b => b.type === "snowflake");
+  if (!snowflakes.length) {
     clearVictoryLaunchViewportOverlay();
     return;
   }
@@ -5590,17 +5587,10 @@ function drawSnowflakeViewportRoamers() {
   victoryLaunchOverlayCtx.setTransform(1, 0, 0, 1, 0, 0);
   victoryLaunchOverlayCtx.clearRect(0, 0, targetW, targetH);
   victoryLaunchOverlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  victoryLaunchOverlayCtx.save();
-  // Solo permite pintar fuera del rectángulo del juego. Así el copo es una
-  // figura continua y nunca se duplica sobre la parte que ya dibuja el canvas.
-  victoryLaunchOverlayCtx.beginPath();
-  victoryLaunchOverlayCtx.rect(0, 0, window.innerWidth, window.innerHeight);
-  victoryLaunchOverlayCtx.rect(rect.left, rect.top, rect.width, rect.height);
-  victoryLaunchOverlayCtx.clip("evenodd");
 
   const gameCtx = ctx;
   ctx = victoryLaunchOverlayCtx;
-  for (const b of roamers) {
+  for (const b of snowflakes) {
     const screenX = rect.left + b.x * scale;
     const screenY = rect.top + b.y * scale;
     ctx.save();
@@ -5612,7 +5602,6 @@ function drawSnowflakeViewportRoamers() {
     ctx.restore();
   }
   ctx = gameCtx;
-  victoryLaunchOverlayCtx.restore();
 }
 
 function drawVictoryLaunchViewportOverlay(t, speedGlow) {
@@ -6582,9 +6571,15 @@ function drawAll() {
   drawMarshmallowBackdropPass("front");
   ctx.save();
   if (isInvertedMarshmallowStage()) ctx.filter = "invert(1) hue-rotate(180deg) saturate(1.18)";
-  for (const b of enemyBullets) drawShot(b.type, b.x, b.y, false);
+  const snowflakesUseViewport =
+    useExternalMobileHud() &&
+    isIceCubeStage();
+  for (const b of enemyBullets) {
+    if (snowflakesUseViewport && b.type === "snowflake") continue;
+    drawShot(b.type, b.x, b.y, false);
+  }
   ctx.restore();
-  drawSnowflakeViewportRoamers();
+  drawSnowflakesAcrossViewport();
   for (const p of powerups) drawPowerup(p);
 
   for (const p of particles) {
