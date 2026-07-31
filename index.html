@@ -1193,6 +1193,11 @@ let touchControl = {
   active: false,
   targetX: null,
   targetY: null,
+  invertedAnchorActive: false,
+  invertedAnchorX: 0,
+  invertedAnchorY: 0,
+  invertedPlayerX: 0,
+  invertedPlayerY: 0,
   autoFire: false,
   lastAutoShot: 0,
   fullscreenAsked: false
@@ -3454,6 +3459,7 @@ if (state === "popColaIntro") {
 
   touchControl.active = true;
   touchControl.autoFire = true;
+  touchControl.invertedAnchorActive = false;
   setTouchTarget(pt);
 }
 
@@ -3472,6 +3478,7 @@ function endTouch(e) {
   // mouse position. Otherwise keyboard arrows fight against the old mouse target.
   touchControl.targetX = null;
   touchControl.targetY = null;
+  touchControl.invertedAnchorActive = false;
 
   // Keep autofire enabled only on mobile gameplay.
   touchControl.autoFire = isTouchDevice && state === "play";
@@ -4684,11 +4691,28 @@ function updatePlayer() {
     return;
   }
 
+  const relativeTouchInversion = controlsInverted && isTouchDevice && touchControl.active;
+  if (relativeTouchInversion && !touchControl.invertedAnchorActive) {
+    touchControl.invertedAnchorActive = true;
+    touchControl.invertedAnchorX = touchControl.targetX ?? player.x;
+    touchControl.invertedAnchorY = touchControl.targetY ?? player.y;
+    touchControl.invertedPlayerX = player.x;
+    touchControl.invertedPlayerY = player.y;
+  } else if (!relativeTouchInversion && touchControl.invertedAnchorActive) {
+    touchControl.invertedAnchorActive = false;
+    touchControl.targetX = player.x;
+    touchControl.targetY = player.y;
+  }
+
   if (touchControl.targetX !== null) {
     let targetX = isRunnerStage()
       ? Math.max(12, Math.min(maxX, touchControl.targetX))
       : (horizontalWrapActive ? touchControl.targetX : Math.max(0, Math.min(W - player.w, touchControl.targetX)));
-    if (controlsInverted) targetX = player.x - (targetX - player.x);
+    if (relativeTouchInversion) {
+      targetX = touchControl.invertedPlayerX - (touchControl.targetX - touchControl.invertedAnchorX);
+    } else if (controlsInverted) {
+      targetX = player.x - (targetX - player.x);
+    }
     const dx = targetX - player.x;
     const maxStep = sp * 2.1;
     player.x += Math.max(-maxStep, Math.min(maxStep, dx));
@@ -4696,7 +4720,12 @@ function updatePlayer() {
 
   if (touchControl.targetY !== null) {
     let targetY = Math.max(minY, Math.min(maxY, touchControl.targetY));
-    if (controlsInverted) targetY = player.y - (targetY - player.y);
+    if (relativeTouchInversion) {
+      targetY = touchControl.invertedPlayerY - (touchControl.targetY - touchControl.invertedAnchorY);
+      targetY = Math.max(minY, Math.min(maxY, targetY));
+    } else if (controlsInverted) {
+      targetY = player.y - (targetY - player.y);
+    }
     const dy = targetY - player.y;
     const maxStepY = sp * 2.1;
     player.y += Math.max(-maxStepY, Math.min(maxStepY, dy));
