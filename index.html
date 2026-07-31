@@ -142,21 +142,15 @@
       min-height: 30px;
       display: flex;
       align-items: center;
-      gap: 9px;
+      justify-content: center;
       visibility: hidden;
     }
     body.mobile-boss-active #mobileBossHud {
       visibility: visible;
     }
-    #mobileBossLabel {
-      flex: 0 0 auto;
-      color: #ff78d0;
-      font-size: clamp(10px, 2.7vw, 13px);
-      font-weight: 900;
-      white-space: nowrap;
-    }
     .mobile-boss-track {
-      flex: 1 1 auto;
+      flex: 0 1 min(78vw, 330px);
+      width: min(78vw, 330px);
       height: 15px;
       padding: 2px;
       border: 2px solid #fff;
@@ -705,7 +699,6 @@
       </div>
     </div>
     <div id="mobileBossHud">
-      <span id="mobileBossLabel">VIDA JEFE</span>
       <span class="mobile-boss-track"><span id="mobileBossFill"></span></span>
     </div>
   </div>
@@ -837,7 +830,6 @@ const mobileHudShip = document.getElementById("mobileHudShip");
 const mobileHudStatus = document.getElementById("mobileHudStatus");
 const mobileShipsBtn = document.getElementById("mobileShipsBtn");
 const mobileAudioBtn = document.getElementById("mobileAudioBtn");
-const mobileBossLabel = document.getElementById("mobileBossLabel");
 const mobileBossFill = document.getElementById("mobileBossFill");
 
 function useExternalMobileHud() {
@@ -873,7 +865,6 @@ function updateExternalMobileHud() {
   mobileAudioBtn.textContent = audioMuted ? "SONIDO OFF" : "SONIDO ON";
   if (bossActive) {
     const ratio = Math.max(0, Math.min(1, boss.hp / Math.max(1, boss.maxHp)));
-    mobileBossLabel.textContent = "VIDA JEFE";
     mobileBossFill.style.width = (ratio * 100).toFixed(1) + "%";
   } else {
     mobileBossFill.style.width = "100%";
@@ -1145,7 +1136,7 @@ function playHtmlSfx(name) {
   try {
     audio.pause();
     audio.currentTime = 0;
-    audio.volume = name === "bossDown" ? 0.64 : 0.42;
+    audio.volume = name === "bossDown" ? 0.40 : 0.42;
     audio.play().catch(() => {});
   } catch (error) {
     console.warn("No se pudo reproducir el sonido móvil:", error);
