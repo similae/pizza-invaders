@@ -1689,16 +1689,25 @@ function drawCharacterShip(id, x, y, s=1, showShield=true) {
 
 
 
-function drawPineapple(x, y, s=1) {
+function drawPineapple(x, y, s=1, palette=null) {
+  const colors = palette || {
+    leafA: "#48c95f",
+    leafB: "#34ad46",
+    leafC: "#4fdc69",
+    body: "#f6b72a",
+    highlight: "#ffcf3f",
+    grid: "#9b5f12",
+    mouth: "#5b1309"
+  };
   ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
-  px(16, 0, 6, 8, "#48c95f"); px(22, 0, 6, 10, "#34ad46"); px(10, 5, 8, 8, "#4fdc69"); px(27, 6, 8, 8, "#4fdc69");
-  px(8, 15, 28, 32, "#f6b72a");
-  px(12, 11, 20, 8, "#ffcf3f");
-  ctx.strokeStyle = "#9b5f12"; ctx.lineWidth = 2;
+  px(16, 0, 6, 8, colors.leafA); px(22, 0, 6, 10, colors.leafB); px(10, 5, 8, 8, colors.leafC); px(27, 6, 8, 8, colors.leafC);
+  px(8, 15, 28, 32, colors.body);
+  px(12, 11, 20, 8, colors.highlight);
+  ctx.strokeStyle = colors.grid; ctx.lineWidth = 2;
   for (let i=0;i<4;i++){ ctx.beginPath(); ctx.moveTo(9,18+i*7); ctx.lineTo(36,34+i*7); ctx.stroke(); }
   for (let i=0;i<4;i++){ ctx.beginPath(); ctx.moveTo(35,18+i*7); ctx.lineTo(8,34+i*7); ctx.stroke(); }
   px(15, 27, 5, 5, "#111"); px(27, 27, 5, 5, "#111");
-  px(18, 38, 11, 3, "#5b1309");
+  px(18, 38, 11, 3, colors.mouth);
   ctx.restore();
 }
 
@@ -2096,11 +2105,16 @@ function drawShot(type, x, y, friendly=false) {
     }
     drawMarshmallowEnemy(x - 5, y - 2, 0);
   } else if (type === "colorPineapple") {
-    const hue = (performance.now() * .11 + y * 1.8) % 360;
-    ctx.save();
-    ctx.filter = `hue-rotate(${hue}deg) saturate(1.8)`;
-    drawPineapple(x - 1, y - 2, 1.02);
-    ctx.restore();
+    const pineapplePalettes = [
+      { leafA:"#48c95f", leafB:"#34ad46", leafC:"#4fdc69", body:"#f6b72a", highlight:"#ffcf3f", grid:"#9b5f12", mouth:"#5b1309" },
+      { leafA:"#56e8ff", leafB:"#278bd6", leafC:"#8ff5ff", body:"#ff58bf", highlight:"#ff9edb", grid:"#8e246d", mouth:"#4a123b" },
+      { leafA:"#ffcc33", leafB:"#ff8b22", leafC:"#fff2a8", body:"#56e8ff", highlight:"#b9f8ff", grid:"#24779b", mouth:"#123f5b" },
+      { leafA:"#ff78d0", leafB:"#a83ca0", leafC:"#ffc1eb", body:"#62dc70", highlight:"#aaff9f", grid:"#247b35", mouth:"#174821" },
+      { leafA:"#9cff69", leafB:"#3da640", leafC:"#d2ff9c", body:"#9b72ff", highlight:"#c9b2ff", grid:"#50328f", mouth:"#291650" },
+      { leafA:"#72e6ff", leafB:"#257fa8", leafC:"#d5fbff", body:"#ff5757", highlight:"#ff9a72", grid:"#9b2424", mouth:"#551010" }
+    ];
+    const paletteIndex = Math.floor((performance.now() + y * 7) / 230) % pineapplePalettes.length;
+    drawPineapple(x - 1, y - 2, 1.02, pineapplePalettes[paletteIndex]);
   }
 }
 
