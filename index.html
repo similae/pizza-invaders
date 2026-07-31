@@ -6180,13 +6180,16 @@ function maybePowerup(x,y) {
     return;
   }
   if (Math.random() < .15) {
-    const list = [
+    const regularPowerups = [
       {type:"double"},
       {type:"shield"},
-      {type:"speed"},
       {type:"life"}
     ];
-    powerups.push({...list[Math.floor(Math.random()*list.length)], x, y, w:28, h:28});
+    const tomatoUnlocked = wave >= 16;
+    const selectedPowerup = tomatoUnlocked && Math.random() < .10
+      ? {type:"speed"}
+      : regularPowerups[Math.floor(Math.random()*regularPowerups.length)];
+    powerups.push({...selectedPowerup, x, y, w:28, h:28});
   }
 }
 
