@@ -5183,7 +5183,12 @@ function updateBullets() {
     b.x += b.vx;
     b.y += b.vy;
   });
-  enemyBullets = enemyBullets.filter(b => b.y < H+60 && b.x > -70 && b.x < W+70);
+  enemyBullets = enemyBullets.filter(b => {
+    if (b.type === "colorPineapple") {
+      return b.y > -190 && b.y < H + 190 && b.x > -190 && b.x < W + 190;
+    }
+    return b.y < H+60 && b.x > -70 && b.x < W+70;
+  });
 }
 
 function ensureCandyMarshmallowThreat() {
@@ -5496,7 +5501,49 @@ function updateBossVictoryLaunch() {
 
 function clearVictoryLaunchViewportOverlay() {
   victoryLaunchOverlay.style.display = "none";
+  victoryLaunchOverlayCtx.setTransform(1, 0, 0, 1, 0, 0);
   victoryLaunchOverlayCtx.clearRect(0, 0, victoryLaunchOverlay.width, victoryLaunchOverlay.height);
+}
+
+function drawPineappleViewportRoamers() {
+  if (!useExternalMobileHud() || state !== "play") return;
+  const roamers = enemyBullets.filter(b =>
+    b.type === "colorPineapple" &&
+    (b.x < 0 || b.x + b.w > W || b.y < 0 || b.y + b.h > H)
+  );
+  if (!roamers.length) {
+    clearVictoryLaunchViewportOverlay();
+    return;
+  }
+
+  const rect = canvas.getBoundingClientRect();
+  const scale = rect.width / W;
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const targetW = Math.round(window.innerWidth * dpr);
+  const targetH = Math.round(window.innerHeight * dpr);
+  if (victoryLaunchOverlay.width !== targetW || victoryLaunchOverlay.height !== targetH) {
+    victoryLaunchOverlay.width = targetW;
+    victoryLaunchOverlay.height = targetH;
+  }
+  victoryLaunchOverlay.style.display = "block";
+  victoryLaunchOverlayCtx.setTransform(1, 0, 0, 1, 0, 0);
+  victoryLaunchOverlayCtx.clearRect(0, 0, targetW, targetH);
+  victoryLaunchOverlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const gameCtx = ctx;
+  ctx = victoryLaunchOverlayCtx;
+  for (const b of roamers) {
+    const screenX = rect.left + b.x * scale;
+    const screenY = rect.top + b.y * scale;
+    ctx.save();
+    ctx.translate(screenX, screenY);
+    ctx.scale(scale, scale);
+    ctx.shadowColor = "rgba(255,204,51,.72)";
+    ctx.shadowBlur = 12 / Math.max(scale, .01);
+    drawShot("colorPineapple", 0, 0, false);
+    ctx.restore();
+  }
+  ctx = gameCtx;
 }
 
 function drawVictoryLaunchViewportOverlay(t, speedGlow) {
@@ -6468,6 +6515,7 @@ function drawAll() {
   if (isInvertedMarshmallowStage()) ctx.filter = "invert(1) hue-rotate(180deg) saturate(1.18)";
   for (const b of enemyBullets) drawShot(b.type, b.x, b.y, false);
   ctx.restore();
+  drawPineappleViewportRoamers();
   for (const p of powerups) drawPowerup(p);
 
   for (const p of particles) {
@@ -8315,6 +8363,9 @@ videoStartBtn.addEventListener("click", async () => {
 });
 
 function loop() {
+  if (state !== "play" && state !== "bossVictoryLaunch") {
+    clearVictoryLaunchViewportOverlay();
+  }
   updateOverlayVisibility();
   updateExternalMobileHud();
   drawBackground();
