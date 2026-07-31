@@ -5208,7 +5208,7 @@ function updateBullets() {
     b.y += b.vy;
   });
   enemyBullets = enemyBullets.filter(b => {
-    if (b.type === "colorPineapple") {
+    if (b.type === "snowflake") {
       return b.y > -190 && b.y < H + 190 && b.x > -190 && b.x < W + 190;
     }
     return b.y < H+60 && b.x > -70 && b.x < W+70;
@@ -5531,10 +5531,13 @@ function clearVictoryLaunchViewportOverlay() {
   victoryLaunchOverlayCtx.clearRect(0, 0, victoryLaunchOverlay.width, victoryLaunchOverlay.height);
 }
 
-function drawPineappleViewportRoamers() {
-  if (!useExternalMobileHud() || state !== "play") return;
+function drawSnowflakeViewportRoamers() {
+  if (!useExternalMobileHud() || state !== "play" || !isIceCubeStage()) {
+    clearVictoryLaunchViewportOverlay();
+    return;
+  }
   const roamers = enemyBullets.filter(b =>
-    b.type === "colorPineapple" &&
+    b.type === "snowflake" &&
     (b.x < 0 || b.x + b.w > W || b.y < 0 || b.y + b.h > H)
   );
   if (!roamers.length) {
@@ -5555,6 +5558,13 @@ function drawPineappleViewportRoamers() {
   victoryLaunchOverlayCtx.setTransform(1, 0, 0, 1, 0, 0);
   victoryLaunchOverlayCtx.clearRect(0, 0, targetW, targetH);
   victoryLaunchOverlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  victoryLaunchOverlayCtx.save();
+  // Solo permite pintar fuera del rectángulo del juego. Así el copo es una
+  // figura continua y nunca se duplica sobre la parte que ya dibuja el canvas.
+  victoryLaunchOverlayCtx.beginPath();
+  victoryLaunchOverlayCtx.rect(0, 0, window.innerWidth, window.innerHeight);
+  victoryLaunchOverlayCtx.rect(rect.left, rect.top, rect.width, rect.height);
+  victoryLaunchOverlayCtx.clip("evenodd");
 
   const gameCtx = ctx;
   ctx = victoryLaunchOverlayCtx;
@@ -5564,12 +5574,13 @@ function drawPineappleViewportRoamers() {
     ctx.save();
     ctx.translate(screenX, screenY);
     ctx.scale(scale, scale);
-    ctx.shadowColor = "rgba(255,204,51,.72)";
+    ctx.shadowColor = "rgba(114,230,255,.82)";
     ctx.shadowBlur = 12 / Math.max(scale, .01);
-    drawShot("colorPineapple", 0, 0, false);
+    drawShot("snowflake", 0, 0, false);
     ctx.restore();
   }
   ctx = gameCtx;
+  victoryLaunchOverlayCtx.restore();
 }
 
 function drawVictoryLaunchViewportOverlay(t, speedGlow) {
@@ -6541,7 +6552,7 @@ function drawAll() {
   if (isInvertedMarshmallowStage()) ctx.filter = "invert(1) hue-rotate(180deg) saturate(1.18)";
   for (const b of enemyBullets) drawShot(b.type, b.x, b.y, false);
   ctx.restore();
-  drawPineappleViewportRoamers();
+  drawSnowflakeViewportRoamers();
   for (const p of powerups) drawPowerup(p);
 
   for (const p of particles) {
