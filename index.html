@@ -4372,19 +4372,6 @@ function drawBackground() {
       px(s.x, s.y, Math.max(1, s.s), Math.max(1, s.s), s.layer === 2 ? "#fff2a8" : "#ffcc33");
     }
 
-    ctx.save();
-    ctx.globalAlpha = .72;
-    ctx.fillStyle = "#ffcc33";
-    ctx.font = "bold 15px Courier New";
-    ctx.textAlign = "left";
-    ctx.fillText("ETAPA 8 · PINEAPPLE PANIC", 18, 108);
-    ctx.fillStyle = "#fff2a8";
-    ctx.fillText(
-      boss ? "JEFE PIÑA · ROMPE SU DEFENSA" : "PIÑA NEGRA · CONTROLES INVERTIDOS",
-      18,
-      128
-    );
-    ctx.restore();
     ctx.globalAlpha = 1;
     return;
   }
@@ -4408,21 +4395,6 @@ function drawBackground() {
       px(s.x, s.y, Math.max(1, s.s), Math.max(1, s.s), isPopsicleMarshmallowStageBackground ? "#ffb3e4" : "#ffffff");
     }
 
-    ctx.save();
-    ctx.globalAlpha = .62;
-    ctx.fillStyle = "#ffcc33";
-    ctx.font = "bold 15px Courier New";
-    ctx.textAlign = "left";
-    ctx.fillText(isPopsicleMarshmallowStageBackground ? "ETAPA 7 · CANDY FACTORY" : "ETAPA 6 · FREEZER MACHINE", 18, 108);
-    ctx.fillStyle = isPopsicleMarshmallowStageBackground ? "#ff78d0" : "#ffffff";
-    ctx.fillText(
-      isPopsicleMarshmallowStageBackground
-        ? (boss ? "JEFE PALETA · DERRITE SU DEFENSA" : "PALETA NEGRA RESISTENTE · ESQUIVA CABEZAS MARSHMALLOW")
-        : (boss ? "FROZEN PIZZA · ONDAS DE 3 COPOS" : "DISPARA AL CUBO · ESQUIVA EL COPO PERSEGUIDOR"),
-      18,
-      128
-    );
-    ctx.restore();
     ctx.globalAlpha = 1;
     return;
   }
@@ -4476,13 +4448,6 @@ function drawBackground() {
       ctx.filter = "none";
     }
 
-    ctx.globalAlpha = .90;
-    ctx.fillStyle = "#050510";
-    ctx.font = "bold 15px Courier New";
-    ctx.textAlign = "left";
-    ctx.fillText("ETAPA 6 · MUNDO INVERTIDO", 16, 108);
-    ctx.fillStyle = "#f25191";
-    ctx.fillText("POWER UP ALIADO ACTIVO", 16, 128);
     ctx.restore();
     ctx.globalAlpha = 1;
     return;
