@@ -2130,11 +2130,6 @@ function drawBoss() {
   if (boss.type === "popColaBoss") drawPopColaBossSprite(boss.x, boss.y);
   
 
-  ctx.fillStyle = "white";
-  ctx.font = "18px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText(boss.name, W/2, boss.y - 12);
-  ctx.textAlign = "left";
   px(100, 52, 340, 14, "#333");
   px(100, 52, 340 * Math.max(0, boss.hp/boss.maxHp), 14, "#ff3f76");
 }
