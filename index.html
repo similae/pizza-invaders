@@ -57,15 +57,17 @@
       align-items: center;
       justify-content: center;
       background: #050510;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
     }
     canvas {
       border: 0;
       border-radius: 0;
       box-shadow: none;
-      width: min(100vw, calc(var(--game-vh, 100dvh) * 540 / 760));
-      height: min(var(--game-vh, 100dvh), calc(100vw * 760 / 540));
+      width: 100vw;
+      height: calc(var(--game-vh, 100dvh) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
       max-width: 100vw;
-      max-height: var(--game-vh, 100dvh);
+      max-height: calc(var(--game-vh, 100dvh) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     }
   }
 
@@ -311,6 +313,36 @@
     color: #ffcc33;
     font: bold 15px "Courier New", monospace;
   }
+  .game-cinematic {
+    display: none;
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100dvh;
+    object-fit: contain;
+    background: #050510;
+    z-index: 300000;
+  }
+  #videoStartOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 310000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(5, 5, 16, .88);
+  }
+  #videoStartBtn {
+    display: block;
+    width: min(86vw, 390px);
+    padding: 18px;
+    border: 4px solid #ffcc33;
+    background: #2b1a63;
+    color: #ffcc33;
+    font: bold 19px "Courier New", monospace;
+    box-shadow: 6px 6px 0 #000, 0 0 24px rgba(86, 232, 255, .34);
+  }
   body.fake-fullscreen #wrap {
     position: fixed;
     inset: 0;
@@ -329,6 +361,14 @@
     max-height: var(--game-vh, 100dvh);
   }
   @media (max-width: 760px) {
+    body.fake-fullscreen canvas,
+    body:fullscreen canvas,
+    html:fullscreen canvas {
+      width: 100vw;
+      height: calc(var(--game-vh, 100dvh) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      max-width: 100vw;
+      max-height: calc(var(--game-vh, 100dvh) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    }
     #fullscreenBtn {
       min-width: 142px;
       min-height: 52px;
@@ -408,37 +448,23 @@
 </head>
 <body>
 
-  <video id="stayPuffedVideo"
+  <video id="stayPuffedVideo" class="game-cinematic"
   src="assets/PIZZAINVADERS-STAY-PUFFED-VIDEO.mp4"
+  preload="metadata"
   playsinline
-  style="
-      display:none;
-      position:absolute;
-      left:50%;
-      top:50%;
-      transform:translate(-50%,-50%);
-      width:540px;
-      height:760px;
-      object-fit:cover;
-      z-index:5000;
-  ">
+  webkit-playsinline>
 </video>
 
-<video id="frozenPizzaVideo"
+<video id="frozenPizzaVideo" class="game-cinematic"
   src="assets/PIZZAINVADERS-FROZENPIZZA-VIDEO.mp4?v=2"
+  preload="metadata"
   playsinline
-  style="
-      display:none;
-      position:absolute;
-      left:50%;
-      top:50%;
-      transform:translate(-50%,-50%);
-      width:540px;
-      height:760px;
-      object-fit:cover;
-      z-index:5000;
-  ">
+  webkit-playsinline>
 </video>
+
+<div id="videoStartOverlay">
+  <button id="videoStartBtn" type="button">TOCAR PARA VER TRANSMISIÓN</button>
+</div>
 
 <div id="wrap">
   <canvas id="game" width="540" height="760" tabindex="0"></canvas>
@@ -518,9 +544,53 @@
 
 <script>
 const canvas = document.getElementById("game");
+const LEGACY_GAME_HEIGHT = 760;
+
+function mobileSafeAreaHeight() {
+  const probe = document.createElement("div");
+  probe.style.cssText = [
+    "position:fixed",
+    "visibility:hidden",
+    "pointer-events:none",
+    "padding-top:env(safe-area-inset-top)",
+    "padding-bottom:env(safe-area-inset-bottom)"
+  ].join(";");
+  document.body.appendChild(probe);
+  const styles = getComputedStyle(probe);
+  const safeTop = parseFloat(styles.paddingTop) || 0;
+  const safeBottom = parseFloat(styles.paddingBottom) || 0;
+  probe.remove();
+  return safeTop + safeBottom;
+}
+
+function initialCanvasHeight() {
+  const viewportWidth = window.innerWidth || 540;
+  const viewportHeight =
+    (window.innerHeight || LEGACY_GAME_HEIGHT) - mobileSafeAreaHeight();
+  if (viewportWidth <= 760 && viewportHeight > viewportWidth) {
+    return Math.max(
+      LEGACY_GAME_HEIGHT,
+      Math.min(1240, Math.round(540 * viewportHeight / viewportWidth))
+    );
+  }
+  return LEGACY_GAME_HEIGHT;
+}
+
+canvas.height = initialCanvasHeight();
 const ctx = canvas.getContext("2d");
 ctx.imageSmoothingEnabled = false;
 const W = canvas.width, H = canvas.height;
+const LEGACY_SCREEN_OFFSET = Math.max(0, (H - LEGACY_GAME_HEIGHT) / 2);
+
+function usesLegacyCanvasLayout(targetState = state) {
+  return [
+    "loading", "intro", "pineappleIntro", "candyIntro", "popColaIntro",
+    "freezerTransmission", "transition", "start", "hangar", "devMenu",
+    "stageSelect", "coupon", "rewardTeaser", "bonusCoupon", "eggPrize",
+    "gaiaRescued", "similaeFinale", "fermentationInfo", "trivia",
+    "similaeTest", "stageCompleteV12", "bossDetectedV12"
+  ].includes(targetState);
+}
 
 function syncViewportHeight() {
   const vh = window.innerHeight || document.documentElement.clientHeight || 760;
@@ -552,6 +622,8 @@ const rankingList = document.getElementById("rankingList");
 const bonusCouponBtn = document.getElementById("bonusCouponBtn");
 const bonusContinueBtn = document.getElementById("bonusContinueBtn");
 const loadingScreen = document.getElementById("loadingScreen");
+const videoStartOverlay = document.getElementById("videoStartOverlay");
+const videoStartBtn = document.getElementById("videoStartBtn");
 let gameOverProcessed = false;
 
 let state = "loading";
@@ -2287,7 +2359,8 @@ function canvasPointFromEvent(e) {
   const t = e.touches ? e.touches[0] : e;
   const rect = canvas.getBoundingClientRect();
   const x = (t.clientX - rect.left) * (canvas.width / rect.width);
-  const y = (t.clientY - rect.top) * (canvas.height / rect.height);
+  let y = (t.clientY - rect.top) * (canvas.height / rect.height);
+  if (usesLegacyCanvasLayout()) y -= LEGACY_SCREEN_OFFSET;
   return { x, y };
 }
 
@@ -2599,8 +2672,26 @@ function showFermentationInfo(afterAction) {
   powerups = [];
 }
 
+function openExternalUrl(url) {
+  const standalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.matchMedia("(display-mode: fullscreen)").matches ||
+    window.navigator.standalone === true;
+  const touchDevice = navigator.maxTouchPoints > 0;
+
+  // En una PWA de iPhone, navegar directamente es más fiable que abrir
+  // una pestaña nueva y permite que iOS entregue el enlace a WhatsApp.
+  if (standalone || touchDevice) {
+    window.location.assign(url);
+    return;
+  }
+
+  const opened = window.open(url, "_blank", "noopener,noreferrer");
+  if (!opened) window.location.assign(url);
+}
+
 function openFermentationShop() {
-  window.open(FERMENTATION_SHOP_URL, "_blank", "noopener,noreferrer");
+  openExternalUrl(FERMENTATION_SHOP_URL);
   canvas.focus();
 }
 
@@ -2727,15 +2818,7 @@ function requestBonusCouponWhatsApp() {
   const text = "Hola Similae! Derroté al Marshmallow Boss en Pizza Invaders y quiero solicitar mis $10.000 en créditos para gastar en www.similae.com.";
   const url = `https://wa.me/56949898555?text=${encodeURIComponent(text)}`;
   bonusWhatsAppOpened = true;
-
-  const link = document.createElement("a");
-  link.href = url;
-  link.target = "_blank";
-  link.rel = "noopener noreferrer";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-
+  openExternalUrl(url);
   canvas.focus();
 }
 
@@ -2743,14 +2826,7 @@ function requestEggPrizeWhatsApp() {
   const text = `Hola Similae! Derroté a PopCola King, el padre de Colin, en Pizza Invaders y gané el Gran Huevo Pernigotti. Adjunto un pantallazo de la pantalla del premio para validarlo. Mi puntaje fue ${score}.`;
   const url = `https://wa.me/56949898555?text=${encodeURIComponent(text)}`;
   eggPrizeWhatsAppOpened = true;
-
-  const link = document.createElement("a");
-  link.href = url;
-  link.target = "_blank";
-  link.rel = "noopener noreferrer";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
+  openExternalUrl(url);
   canvas.focus();
 }
 
@@ -2819,13 +2895,13 @@ function showRewardTeaser() {
 function shareCouponWhatsApp() {
   const text = `🍕 Desbloqueé despacho gratis en Pizza Invaders. Cupón: ${COUPON_CODE}. ¿Puedes rescatar a Gaia? ${GAME_URL}`;
   const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-  window.open(url, "_blank");
+  openExternalUrl(url);
 }
 
 function shareWhatsApp() {
   const text = `🍕 Hice ${score} puntos en Pizza Invaders. ¿Puedes rescatar a Gaia? ${GAME_URL}`;
   const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-  window.open(url, "_blank");
+  openExternalUrl(url);
 }
 
 function getRanking() {
@@ -7705,9 +7781,66 @@ function drawGameOver() {
   ctx.textAlign = "left";
 }
 
+let pendingCinematicVideo = null;
+
+function finishCinematicVideo(video) {
+  if (video) {
+    video.pause();
+    video.style.display = "none";
+    video.dataset.prepared = "false";
+  }
+  pendingCinematicVideo = null;
+  videoStartOverlay.style.display = "none";
+  videoStartBtn.dataset.action = "play";
+  videoStartBtn.textContent = "TOCAR PARA VER TRANSMISIÓN";
+  state = "play";
+  startBoss();
+  canvas.focus();
+}
+
+function prepareCinematicVideo(videoId) {
+  const video = document.getElementById(videoId);
+  if (!video || video.dataset.prepared === "true") return;
+
+  video.dataset.prepared = "true";
+  video.currentTime = 0;
+  video.style.display = "block";
+  pendingCinematicVideo = video;
+  videoStartBtn.dataset.action = "play";
+  videoStartBtn.textContent = "TOCAR PARA VER TRANSMISIÓN";
+  videoStartOverlay.style.display = "flex";
+
+  video.onended = () => finishCinematicVideo(video);
+  video.onerror = () => {
+    videoStartBtn.dataset.action = "skip";
+    videoStartBtn.textContent = "VIDEO NO DISPONIBLE · CONTINUAR";
+    videoStartOverlay.style.display = "flex";
+  };
+}
+
+videoStartBtn.addEventListener("click", async () => {
+  const video = pendingCinematicVideo;
+  if (!video || videoStartBtn.dataset.action === "skip") {
+    finishCinematicVideo(video);
+    return;
+  }
+
+  videoStartOverlay.style.display = "none";
+  try {
+    await video.play();
+  } catch (error) {
+    console.warn("El video necesita confirmación del usuario:", error);
+    videoStartBtn.dataset.action = "skip";
+    videoStartBtn.textContent = "NO SE PUDO REPRODUCIR · CONTINUAR";
+    videoStartOverlay.style.display = "flex";
+  }
+});
+
 function loop() {
   updateOverlayVisibility();
   drawBackground();
+  ctx.save();
+  if (usesLegacyCanvasLayout()) ctx.translate(0, LEGACY_SCREEN_OFFSET);
 
   if (state === "loading") {
     drawLoadingScreen();
@@ -7749,39 +7882,9 @@ function loop() {
   } else if (state === "stageSelect") {
     drawStageSelect();
   } else if (state === "videoTest") {
-    const video = document.getElementById("stayPuffedVideo");
-
-    if (video && video.dataset.started !== "true") {
-      video.dataset.started = "true";
-      video.currentTime = 0;
-      video.style.display = "block";
-      video.play();
-
-      video.onended = () => {
-        video.style.display = "none";
-        video.dataset.started = "false";
-        state = "play";
-        startBoss();
-        canvas.focus();
-      };
-    }
+    prepareCinematicVideo("stayPuffedVideo");
   } else if (state === "frozenPizzaVideo") {
-    const video = document.getElementById("frozenPizzaVideo");
-
-    if (video && video.dataset.started !== "true") {
-      video.dataset.started = "true";
-      video.currentTime = 0;
-      video.style.display = "block";
-      video.play();
-
-      video.onended = () => {
-        video.style.display = "none";
-        video.dataset.started = "false";
-        state = "play";
-        startBoss();
-        canvas.focus();
-      };
-    }
+    prepareCinematicVideo("frozenPizzaVideo");
   } else if (state === "coupon") {
     drawCouponV12();
   } else if (state === "rewardTeaser") {
@@ -7809,6 +7912,7 @@ function loop() {
     drawGameOver();
   }
 
+  ctx.restore();
   requestAnimationFrame(loop);
 }
 resetGame();
