@@ -64,6 +64,9 @@
     image-rendering: pixelated;
     touch-action: none;
   }
+  .mobile-hud {
+    display: none;
+  }
   #mobileControls { display: none; }
   button { display: none; }
   @media (max-width: 760px) {
@@ -79,6 +82,81 @@
       height: min(var(--game-vh, 100dvh), calc(100vw * 760 / 540));
       max-width: 100vw;
       max-height: var(--game-vh, 100dvh);
+    }
+  }
+  @media (max-width: 760px) and (orientation: portrait) {
+    .mobile-hud {
+      width: 100%;
+      min-height: 0;
+      flex: 1 1 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding-left: max(14px, env(safe-area-inset-left));
+      padding-right: max(14px, env(safe-area-inset-right));
+      color: #fff;
+      font-family: "Courier New", monospace;
+      text-shadow: 2px 2px 0 #000;
+      z-index: 2;
+    }
+    #mobileHudTop {
+      padding-top: env(safe-area-inset-top);
+      border-bottom: 2px solid rgba(86,232,255,.55);
+    }
+    #mobileHudBottom {
+      padding-bottom: env(safe-area-inset-bottom);
+      border-top: 2px solid rgba(86,232,255,.55);
+    }
+    .mobile-hud-block {
+      min-width: 0;
+      text-align: center;
+    }
+    .mobile-hud-label {
+      display: block;
+      margin-bottom: 3px;
+      color: #56e8ff;
+      font-size: clamp(9px, 2.5vw, 12px);
+      font-weight: 700;
+    }
+    .mobile-hud-value {
+      display: block;
+      color: #fff;
+      font-size: clamp(14px, 4vw, 19px);
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    #mobileHudLives {
+      color: #ffcc33;
+      letter-spacing: 1px;
+    }
+    #mobileHudStatus {
+      max-width: 48vw;
+      overflow: hidden;
+      color: #9cff69;
+      font-size: clamp(10px, 2.8vw, 13px);
+      line-height: 1.25;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #mobileShipsBtn {
+      display: block;
+      flex: 0 0 auto;
+      margin: 0;
+      padding: 9px 13px;
+      border: 2px solid #ffcc33;
+      border-radius: 0;
+      background: rgba(5,7,15,.88);
+      color: #fff;
+      font: bold clamp(11px, 3vw, 14px) "Courier New", monospace;
+      box-shadow: 3px 3px 0 #000;
+      text-shadow: 2px 2px 0 #000;
+    }
+    body:not(.external-hud-active) .mobile-hud {
+      visibility: hidden;
+    }
+    body.external-hud-active #fullscreenBtn {
+      display: none !important;
     }
   }
 
@@ -478,7 +556,28 @@
 </div>
 
 <div id="wrap">
+  <div id="mobileHudTop" class="mobile-hud" aria-hidden="true">
+    <div class="mobile-hud-block">
+      <span class="mobile-hud-label">PUNTAJE</span>
+      <span id="mobileHudScore" class="mobile-hud-value">0</span>
+    </div>
+    <div class="mobile-hud-block">
+      <span class="mobile-hud-label">VIDAS</span>
+      <span id="mobileHudLives" class="mobile-hud-value">▲ ▲ ▲</span>
+    </div>
+    <div class="mobile-hud-block">
+      <span class="mobile-hud-label">OLEADA</span>
+      <span id="mobileHudWave" class="mobile-hud-value">1</span>
+    </div>
+  </div>
   <canvas id="game" width="540" height="760" tabindex="0"></canvas>
+  <div id="mobileHudBottom" class="mobile-hud" aria-hidden="true">
+    <div class="mobile-hud-block">
+      <span id="mobileHudShip" class="mobile-hud-label">LUCA</span>
+      <span id="mobileHudStatus">LISTO</span>
+    </div>
+    <button id="mobileShipsBtn" type="button">NAVES</button>
+  </div>
 </div>
 <button id="fullscreenBtn" type="button">[ ] FULL SCREEN</button>
 <button id="installPwaBtn" type="button">INSTALAR JUEGO</button>
@@ -558,6 +657,54 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 ctx.imageSmoothingEnabled = false;
 const W = canvas.width, H = canvas.height;
+const mobileHudScore = document.getElementById("mobileHudScore");
+const mobileHudLives = document.getElementById("mobileHudLives");
+const mobileHudWave = document.getElementById("mobileHudWave");
+const mobileHudShip = document.getElementById("mobileHudShip");
+const mobileHudStatus = document.getElementById("mobileHudStatus");
+const mobileShipsBtn = document.getElementById("mobileShipsBtn");
+
+function useExternalMobileHud() {
+  return window.matchMedia("(max-width: 760px) and (orientation: portrait)").matches;
+}
+
+function updateExternalMobileHud() {
+  const active = state === "play" && useExternalMobileHud();
+  document.body.classList.toggle("external-hud-active", active);
+  if (!active) return;
+  const now = performance.now();
+  const ship = SHIP_DEFS[selectedShipId] || SHIP_DEFS.luca;
+  const status = [];
+  if (wave >= 6 && cheeseCount > 0) status.push("QUESOS " + cheeseCount + "/2");
+  if (now < shieldUntil) status.push("ESCUDO");
+  if (now < tripleUntil) status.push("TRIPLE QUESO");
+  else if (now < doubleUntil) status.push("QUESO DOBLE");
+  if (now < (player?.frozenUntil || 0)) status.push("CONGELADO");
+  if (now < (player?.slowedUntil || 0)) status.push("LENTO");
+  if (now < (player?.controlsInvertedUntil || 0)) status.push("CONTROLES INVERTIDOS");
+  if (now < similaeModeUntil) status.push("ANILLO SIMILAE");
+  if (allyShip) status.push("ALIADO " + (SHIP_DEFS[allyShip.id] || SHIP_DEFS.gino).name);
+  if (isRunnerStage()) status.push("RUTA " + Math.floor(runnerDistance) + "m");
+  if (isGaiaTunnelStage()) status.push("PISOS " + Math.floor(Math.min(1, tunnelDistance / 1250) * 100) + "%");
+  mobileHudScore.textContent = score;
+  mobileHudLives.textContent = lives > 0 ? "▲ ".repeat(Math.min(lives, 6)).trim() : "—";
+  mobileHudWave.textContent = wave;
+  mobileHudShip.textContent = ship.name + (audioMuted ? " · SFX OFF" : " · SFX ON");
+  mobileHudShip.style.color = ship.color;
+  mobileHudStatus.textContent = status.join(" · ") || "MISIÓN EN CURSO";
+}
+
+mobileShipsBtn.addEventListener("click", () => {
+  if (state !== "play") return;
+  hangarReturnState = "play";
+  hangarOriginalShipId = selectedShipId;
+  state = "hangar";
+  touchControl.autoFire = false;
+  touchControl.active = false;
+  touchControl.targetX = null;
+  touchControl.targetY = null;
+  canvas.focus();
+});
 
 function syncViewportHeight() {
   const vh = window.innerHeight || document.documentElement.clientHeight || 760;
@@ -5981,6 +6128,7 @@ function drawAll() {
   }
   ctx.globalAlpha = 1;
 
+  if (!useExternalMobileHud()) {
   ctx.fillStyle = "white";
   ctx.font = "19px Arial";
   ctx.fillText("Score: " + score, 16, 28);
@@ -6074,6 +6222,7 @@ function drawAll() {
   if (performance.now() < (player.slowedUntil || 0)) {
     ctx.fillStyle = "#ff78d0";
     ctx.fillText("Lento: " + Math.ceil((player.slowedUntil - performance.now()) / 1000) + "s", W-116, 128);
+  }
   }
   drawFreezeAd();
   if (shipUnlockNotice) {
@@ -7804,6 +7953,7 @@ videoStartBtn.addEventListener("click", async () => {
 
 function loop() {
   updateOverlayVisibility();
+  updateExternalMobileHud();
   drawBackground();
 
   if (state === "loading") {
