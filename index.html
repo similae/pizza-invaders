@@ -124,8 +124,51 @@
       z-index: 2;
     }
     #mobileHudTop {
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
       padding-top: env(safe-area-inset-top);
       border-bottom: 2px solid rgba(86,232,255,.55);
+    }
+    .mobile-hud-stats {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    #mobileBossHud {
+      width: 100%;
+      min-height: 30px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      visibility: hidden;
+    }
+    body.mobile-boss-active #mobileBossHud {
+      visibility: visible;
+    }
+    #mobileBossLabel {
+      flex: 0 0 auto;
+      color: #ff78d0;
+      font-size: clamp(10px, 2.7vw, 13px);
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .mobile-boss-track {
+      flex: 1 1 auto;
+      height: 15px;
+      padding: 2px;
+      border: 2px solid #fff;
+      background: #24243a;
+      box-shadow: 2px 2px 0 #000;
+    }
+    #mobileBossFill {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #ff3f76;
+      transition: width .08s linear;
     }
     #mobileHudBottom {
       padding-bottom: env(safe-area-inset-bottom);
@@ -647,17 +690,23 @@
 
 <div id="wrap">
   <div id="mobileHudTop" class="mobile-hud" aria-hidden="true">
-    <div class="mobile-hud-block">
-      <span class="mobile-hud-label">PUNTAJE</span>
-      <span id="mobileHudScore" class="mobile-hud-value">0</span>
+    <div class="mobile-hud-stats">
+      <div class="mobile-hud-block">
+        <span class="mobile-hud-label">PUNTAJE</span>
+        <span id="mobileHudScore" class="mobile-hud-value">0</span>
+      </div>
+      <div class="mobile-hud-block">
+        <span class="mobile-hud-label">VIDAS</span>
+        <span id="mobileHudLives" class="mobile-hud-value">▲ ▲ ▲</span>
+      </div>
+      <div class="mobile-hud-block">
+        <span class="mobile-hud-label">OLEADA</span>
+        <span id="mobileHudWave" class="mobile-hud-value">1</span>
+      </div>
     </div>
-    <div class="mobile-hud-block">
-      <span class="mobile-hud-label">VIDAS</span>
-      <span id="mobileHudLives" class="mobile-hud-value">▲ ▲ ▲</span>
-    </div>
-    <div class="mobile-hud-block">
-      <span class="mobile-hud-label">OLEADA</span>
-      <span id="mobileHudWave" class="mobile-hud-value">1</span>
+    <div id="mobileBossHud">
+      <span id="mobileBossLabel">VIDA JEFE</span>
+      <span class="mobile-boss-track"><span id="mobileBossFill"></span></span>
     </div>
   </div>
   <canvas id="game" width="540" height="760" tabindex="0"></canvas>
@@ -788,6 +837,8 @@ const mobileHudShip = document.getElementById("mobileHudShip");
 const mobileHudStatus = document.getElementById("mobileHudStatus");
 const mobileShipsBtn = document.getElementById("mobileShipsBtn");
 const mobileAudioBtn = document.getElementById("mobileAudioBtn");
+const mobileBossLabel = document.getElementById("mobileBossLabel");
+const mobileBossFill = document.getElementById("mobileBossFill");
 
 function useExternalMobileHud() {
   return window.matchMedia("(max-width: 760px) and (orientation: portrait)").matches;
@@ -795,7 +846,9 @@ function useExternalMobileHud() {
 
 function updateExternalMobileHud() {
   const active = state === "play" && useExternalMobileHud();
+  const bossActive = active && !!boss;
   document.body.classList.toggle("external-hud-active", active);
+  document.body.classList.toggle("mobile-boss-active", bossActive);
   if (!active) return;
   const now = performance.now();
   const ship = SHIP_DEFS[selectedShipId] || SHIP_DEFS.luca;
@@ -818,6 +871,13 @@ function updateExternalMobileHud() {
   mobileHudShip.style.color = ship.color;
   mobileHudStatus.textContent = status.join(" · ") || "MISIÓN EN CURSO";
   mobileAudioBtn.textContent = audioMuted ? "SONIDO OFF" : "SONIDO ON";
+  if (bossActive) {
+    const ratio = Math.max(0, Math.min(1, boss.hp / Math.max(1, boss.maxHp)));
+    mobileBossLabel.textContent = "VIDA JEFE";
+    mobileBossFill.style.width = (ratio * 100).toFixed(1) + "%";
+  } else {
+    mobileBossFill.style.width = "100%";
+  }
 }
 
 mobileAudioBtn.addEventListener("click", () => {
@@ -1051,7 +1111,8 @@ let audioMuted = localStorage.getItem("pizzaInvadersAudioMuted") === "true";
 let lastHitSoundAt = 0;
 const useUnifiedAudioFiles = true;
 const htmlSfx = {
-  confirm: new Audio("./assets/sfx-confirm.wav")
+  confirm: new Audio("./assets/sfx-confirm.wav"),
+  bossDown: new Audio("./assets/sfx-boss-down.wav")
 };
 let htmlSfxPrimed = false;
 
@@ -1080,11 +1141,11 @@ function primeHtmlSfx() {
 
 function playHtmlSfx(name) {
   if (audioMuted) return;
-  const audio = htmlSfx.confirm;
+  const audio = name === "bossDown" ? htmlSfx.bossDown : htmlSfx.confirm;
   try {
     audio.pause();
     audio.currentTime = 0;
-    audio.volume = 0.42;
+    audio.volume = name === "bossDown" ? 0.64 : 0.42;
     audio.play().catch(() => {});
   } catch (error) {
     console.warn("No se pudo reproducir el sonido móvil:", error);
@@ -2270,8 +2331,10 @@ function drawBoss() {
   if (boss.type === "popColaBoss") drawPopColaBossSprite(boss.x, boss.y);
   
 
-  px(100, 52, 340, 14, "#333");
-  px(100, 52, 340 * Math.max(0, boss.hp/boss.maxHp), 14, "#ff3f76");
+  if (!useExternalMobileHud()) {
+    px(100, 52, 340, 14, "#333");
+    px(100, 52, 340 * Math.max(0, boss.hp/boss.maxHp), 14, "#ff3f76");
+  }
 }
 
 function drawSimilaeRingSprite(cx, cy, size, spin=0) {
