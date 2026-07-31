@@ -6505,11 +6505,11 @@ function updateCollisions() {
       const now = performance.now();
       playSfx(
         p.type === "life"
-          ? "water"
+          ? "speed"
           : p.type === "double"
             ? "ammo"
             : p.type === "speed"
-              ? "speed"
+              ? "water"
               : p.type === "shield"
                 ? "shield"
                 : "ui"
