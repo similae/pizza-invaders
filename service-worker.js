@@ -1,4 +1,4 @@
-const CACHE_VERSION = "pizza-invaders-v1.0.21";
+const CACHE_VERSION = "pizza-invaders-v1.0.22";
 const CORE_CACHE = `${CACHE_VERSION}-core`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -19,7 +19,8 @@ const CORE_FILES = [
   "./assets/sfx-confirm.wav",
   "./assets/sfx-powerup.wav",
   "./assets/sfx-hurt.wav",
-  "./assets/sfx-boss.wav"
+  "./assets/sfx-boss.wav",
+  "./assets/sfx-boss-down.wav"
 ];
 
 self.addEventListener("install", event => {
