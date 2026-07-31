@@ -1942,6 +1942,16 @@ function drawPineapple(x, y, s=1, palette=null) {
   ctx.restore();
 }
 
+const BLACK_PINEAPPLE_PALETTE = {
+  leafA: "#20242a",
+  leafB: "#080a0d",
+  leafC: "#343a42",
+  body: "#090a0d",
+  highlight: "#202329",
+  grid: "#4a4f58",
+  mouth: "#000000"
+};
+
 function drawStonePineapple(x, y, hp=4) {
   ctx.save();
   ctx.translate(x, y);
@@ -2212,10 +2222,7 @@ function drawBoss() {
   if (boss.type === "colaBoss") drawCola(boss.x, boss.y + 10, 1, true);
   if (boss.type === "pineappleBoss") {
     if (boss.pineappleInversionStageBoss) {
-      ctx.save();
-      ctx.filter = "grayscale(1) brightness(.24) contrast(1.9)";
-      drawPineapple(boss.x + 24, boss.y + 15, 2.2);
-      ctx.restore();
+      drawPineapple(boss.x + 24, boss.y + 15, 2.2, BLACK_PINEAPPLE_PALETTE);
       // Ojos amarillos para que la silueta negra siga siendo legible.
       px(boss.x + 57, boss.y + 75, 10, 10, "#ffcc33");
       px(boss.x + 83, boss.y + 75, 10, 10, "#ffcc33");
@@ -5407,10 +5414,12 @@ function drawBossSnapshot(ex) {
   if (ex.type === "colaBoss") drawCola(ex.x, ex.y + 10, 1, true);
   if (ex.type === "pineappleBoss") {
     if (ex.pineappleInversionStageBoss) {
-      ctx.filter = "grayscale(1) brightness(.24) contrast(1.9)";
+      drawPineapple(ex.x + 24, ex.y + 15, 2.2, BLACK_PINEAPPLE_PALETTE);
+      px(ex.x + 57, ex.y + 75, 10, 10, "#ffcc33");
+      px(ex.x + 83, ex.y + 75, 10, 10, "#ffcc33");
+    } else {
+      drawPineapple(ex.x + 24, ex.y + 15, 2.2);
     }
-    drawPineapple(ex.x + 24, ex.y + 15, 2.2);
-    ctx.filter = "none";
   }
   if (ex.type === "marshmallowBoss") drawMarshmallowBossSprite(ex.x, ex.y);
   if (ex.type === "frozenPizzaBoss") drawFrozenPizzaBossSprite(ex.x, ex.y);
