@@ -12,8 +12,16 @@
 <link rel="manifest" href="./manifest.webmanifest" />
 <link rel="icon" type="image/png" sizes="192x192" href="./assets/pwa-icon-192.png" />
 <link rel="apple-touch-icon" sizes="180x180" href="./assets/apple-touch-icon.png" />
+<link rel="preload" href="./assets/PizzaInvadersText-Regular.ttf" as="font" type="font/ttf" crossorigin />
 <title>Pizza Invaders</title>
 <style>
+  @font-face {
+    font-family: "PizzaText";
+    src: url("./assets/PizzaInvadersText-Regular.ttf") format("truetype");
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: block;
+  }
   * { box-sizing: border-box; }
   html, body {
     margin: 0;
@@ -26,7 +34,7 @@
   body {
     background: radial-gradient(circle at top, #24124c, #04040b 68%);
     color: white;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: "PizzaText", monospace;
     touch-action: none;
   }
   #wrap {
@@ -111,7 +119,7 @@
       padding-left: max(14px, env(safe-area-inset-left));
       padding-right: max(14px, env(safe-area-inset-right));
       color: #fff;
-      font-family: Arial, Helvetica, sans-serif;
+      font-family: "PizzaText", monospace;
       text-shadow: 2px 2px 0 #000;
       z-index: 2;
     }
@@ -166,7 +174,7 @@
       border-radius: 8px;
       background: rgba(5,7,15,.88);
       color: #fff;
-      font: bold clamp(11px, 3vw, 14px) "Courier New", monospace;
+      font: bold clamp(11px, 3vw, 14px) "PizzaText", monospace;
       box-shadow: 3px 3px 0 #000;
       text-shadow: 2px 2px 0 #000;
       touch-action: manipulation;
@@ -188,7 +196,7 @@
     align-items: center;
     justify-content: center;
     pointer-events: none;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: "PizzaText", monospace;
   }
   .ui-card {
     width: min(92vw, 440px);
@@ -199,7 +207,7 @@
     text-align: center;
     box-shadow: 8px 8px 0 #000, 0 0 0 4px #56e8ff;
     pointer-events: auto;
-    font-family: "Courier New", monospace;
+    font-family: "PizzaText", monospace;
     image-rendering: pixelated;
   }
   .ui-card h2 { margin: 0 0 12px; color: #ffcc33; font-size: 25px; letter-spacing: 1px; text-transform: uppercase; }
@@ -224,7 +232,7 @@
     border: 3px solid #56e8ff;
     background: #000;
     color: white;
-    font-family: "Courier New", monospace;
+    font-family: "PizzaText", monospace;
     font-size: 18px;
     text-align: center;
     text-transform: uppercase;
@@ -238,7 +246,7 @@
     border: 3px solid #ffcc33;
     background: #17172b;
     color: white;
-    font-family: "Courier New", monospace;
+    font-family: "PizzaText", monospace;
     font-size: 17px;
     font-weight: 800;
     text-transform: uppercase;
@@ -267,7 +275,7 @@
     #updatePwaBanner button,
     #videoStartBtn,
     #loadingScreen {
-      font-family: "Courier New", Courier, monospace;
+      font-family: "PizzaText", Courier, monospace;
     }
     .ui-card {
       width: min(94vw, 440px);
@@ -289,7 +297,7 @@
       font-size: 18px;
     }
   }
-  .small-note { opacity: .88; font-size: 13px !important; font-family: "Courier New", monospace; }
+  .small-note { opacity: .88; font-size: 13px !important; font-family: "PizzaText", monospace; }
   #gameoverOverlay {
     background:
       radial-gradient(circle at 50% 20%, rgba(86, 232, 255, .16), transparent 34%),
@@ -319,7 +327,7 @@
   #gameoverOverlay h2 {
     margin-bottom: 6px;
     color: #ffcc33;
-    font-family: Arial Black, Impact, sans-serif;
+    font-family: PizzaText, Impact, sans-serif;
     font-size: 34px;
     letter-spacing: 0;
     text-shadow: 4px 4px 0 #000, 0 0 12px rgba(255, 204, 51, .42);
@@ -452,7 +460,7 @@
     background: #050510;
     color: #fff;
     text-align: center;
-    font: bold 14px "Courier New", monospace;
+    font: bold 14px "PizzaText", monospace;
     box-shadow: 5px 5px 0 #000, 0 0 20px rgba(86, 232, 255, .35);
   }
   #updatePwaBanner button {
@@ -463,7 +471,7 @@
     border: 3px solid #ffcc33;
     background: #2b1a63;
     color: #ffcc33;
-    font: bold 15px "Courier New", monospace;
+    font: bold 15px "PizzaText", monospace;
   }
   .game-cinematic {
     display: none;
@@ -492,7 +500,7 @@
     border: 4px solid #ffcc33;
     background: #2b1a63;
     color: #ffcc33;
-    font: bold 19px "Courier New", monospace;
+    font: bold 19px "PizzaText", monospace;
     box-shadow: 6px 6px 0 #000, 0 0 24px rgba(86, 232, 255, .34);
   }
   body.fake-fullscreen #wrap {
@@ -547,7 +555,7 @@
     justify-content: center;
     background: #050510;
     color: white;
-    font-family: "Courier New", monospace;
+    font-family: "PizzaText", monospace;
   }
   .loading-card {
     width: min(86vw, 420px);
@@ -1009,7 +1017,7 @@ let audioSfxGain = null;
 let audioStarted = false;
 let audioMuted = localStorage.getItem("pizzaInvadersAudioMuted") === "true";
 let lastHitSoundAt = 0;
-const useIosAudioFiles = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const useUnifiedAudioFiles = true;
 const htmlSfx = {
   confirm: new Audio("./assets/sfx-confirm.wav"),
   powerup: new Audio("./assets/sfx-powerup.wav"),
@@ -1025,7 +1033,7 @@ Object.values(htmlSfx).forEach(audio => {
 });
 
 function primeHtmlSfx() {
-  if (!useIosAudioFiles || htmlSfxPrimed) return;
+  if (!useUnifiedAudioFiles || htmlSfxPrimed) return;
   htmlSfxPrimed = true;
   Object.values(htmlSfx).forEach(audio => {
     audio.volume = 0;
@@ -1102,9 +1110,7 @@ function unlockGameAudio(playConfirmation = false) {
     : audioCtx.resume();
 
   if (playConfirmation && !audioMuted) {
-    // Un solo tono: archivo compatible en iOS, síntesis original en escritorio.
-    if (useIosAudioFiles) playHtmlSfx("confirm");
-    else playTone(660, 0.08, "square", 0.11);
+    playHtmlSfx("confirm");
   }
 
   return resumed
@@ -1115,7 +1121,10 @@ function unlockGameAudio(playConfirmation = false) {
     });
 }
 
-document.addEventListener("pointerdown", () => unlockGameAudio(), { capture: true, passive: true });
+document.addEventListener("pointerdown", () => {
+  primeHtmlSfx();
+  unlockGameAudio();
+}, { capture: true, passive: true });
 document.addEventListener("touchstart", () => {
   primeHtmlSfx();
   unlockGameAudio();
@@ -1165,7 +1174,7 @@ function playNoise(duration = 0.08, volume = 0.12, destination = null) {
 }
 
 function playSfx(name) {
-  if (useIosAudioFiles) {
+  if (useUnifiedAudioFiles) {
     playHtmlSfx(name);
     return;
   }
@@ -2881,7 +2890,7 @@ function drawTransitionScreen() {
   ctx.textAlign = "center";
 
   // título con sombra
-  ctx.font = "bold 34px Courier New";
+  ctx.font = "bold 34px PizzaText";
   ctx.fillStyle = "#000";
   ctx.fillText(t.title || "MISSION", W / 2 + 4, y + 92);
   ctx.fillStyle = pulse ? "#ffea33" : "#ffcc33";
@@ -2891,7 +2900,7 @@ function drawTransitionScreen() {
   px(x + 60, y + 120, w - 120, 4, "#ff3f9a");
 
   // subtítulo multi-línea
-  ctx.font = "bold 22px Courier New";
+  ctx.font = "bold 22px PizzaText";
   ctx.fillStyle = "#ffffff";
 
   const subtitle = t.subtitle || "PREPÁRATE";
@@ -2902,7 +2911,7 @@ function drawTransitionScreen() {
   });
 
   // footer
-  ctx.font = "bold 15px Courier New";
+  ctx.font = "bold 15px PizzaText";
   ctx.fillStyle = "#56e8ff";
   ctx.fillText("PIZZA INVADERS SYSTEM", W / 2, y + h - 38);
 
@@ -2934,11 +2943,11 @@ function drawWorldMapV12(activeIndex = 0, statusText = "SIGUIENTE DESTINO") {
 
   ctx.save();
   ctx.textAlign = "center";
-  ctx.font = "bold 19px Courier New";
+  ctx.font = "bold 19px PizzaText";
   ctx.fillStyle = "#56e8ff";
   ctx.fillText("MAPA DE MISIÓN", W / 2, 122);
 
-  ctx.font = "bold 43px Arial Black";
+  ctx.font = "bold 43px PizzaText";
   ctx.fillStyle = "#ffcc33";
   ctx.fillText("RUTA", W / 2, 185);
   ctx.fillText("GALÁCTICA", W / 2, 238);
@@ -2981,22 +2990,22 @@ function drawWorldMapV12(activeIndex = 0, statusText = "SIGUIENTE DESTINO") {
     ctx.fill();
     ctx.stroke();
 
-    ctx.font = isActive ? "bold 18px Arial Black" : "bold 14px Arial Black";
+    ctx.font = isActive ? "bold 18px PizzaText" : "bold 14px PizzaText";
     ctx.fillStyle = isActive ? "#050914" : (isCleared ? "#050914" : node.color);
     ctx.fillText(isCleared ? "✓" : String(index + 1), x, y + 6);
 
-    ctx.font = "bold 12px Courier New";
+    ctx.font = "bold 12px PizzaText";
     ctx.fillStyle = isActive ? "#ffffff" : "rgba(255,255,255,0.64)";
     node.lines.forEach((line, lineIndex) => {
       ctx.fillText(line, x, y + 50 + lineIndex * 15);
     });
   });
 
-  ctx.font = "bold 23px Courier New";
+  ctx.font = "bold 23px PizzaText";
   ctx.fillStyle = "#ffffff";
   ctx.fillText(statusText || "SIGUIENTE DESTINO", W / 2, 575);
 
-  ctx.font = "bold 16px Courier New";
+  ctx.font = "bold 16px PizzaText";
   ctx.fillStyle = "#9dbf40";
   ctx.fillText("PIZZA INVADERS // SIMILAE", W / 2, 635);
   ctx.restore();
@@ -3891,7 +3900,7 @@ function drawAllyShip() {
   drawCharacterShip(allyShip.id, allyShip.x, allyShip.y, .82, false);
   ctx.globalAlpha = .85;
   ctx.fillStyle = (SHIP_DEFS[allyShip.id] || SHIP_DEFS.gino).color;
-  ctx.font = "bold 10px Courier New";
+  ctx.font = "bold 10px PizzaText";
   ctx.textAlign = "center";
   ctx.fillText((SHIP_DEFS[allyShip.id] || SHIP_DEFS.gino).name, allyShip.x + 23, allyShip.y - 7);
   ctx.restore();
@@ -4486,7 +4495,7 @@ function drawBackground() {
 
     ctx.globalAlpha = .65;
     ctx.fillStyle = "#f25191";
-    ctx.font = "bold 15px Courier New";
+    ctx.font = "bold 15px PizzaText";
     ctx.textAlign = "left";
     ctx.fillText("", 18, 108);
     ctx.fillStyle = "#56e8ff";
@@ -4653,11 +4662,11 @@ function drawBackground() {
 
     ctx.globalAlpha = .90;
     ctx.fillStyle = "#ffcc33";
-    ctx.font = "bold 15px Courier New";
+    ctx.font = "bold 15px PizzaText";
     ctx.textAlign = "left";
     ctx.fillText("CINTA TRANSPORTADORA", 16, 108);
     ctx.globalAlpha = .62;
-    ctx.font = "12px Courier New";
+    ctx.font = "12px PizzaText";
     ctx.fillText("ESQUIVA CARGA / DESTRUYE VEHICULOS", 16, 126);
     ctx.restore();
     ctx.globalAlpha = 1;
@@ -5447,7 +5456,7 @@ function drawBossExplosionScreen() {
   }
 
   ctx.textAlign = "center";
-  ctx.font = "34px Courier New";
+  ctx.font = "34px PizzaText";
   ctx.fillStyle = "#ffcc33";
   ctx.fillText("BOOM!", W/2, 420);
   ctx.textAlign = "left";
@@ -5819,7 +5828,7 @@ function drawSimilaeFinale() {
 
   if (elapsed < 2850) {
     ctx.fillStyle = "#56e8ff";
-    ctx.font = "bold 18px Courier New";
+    ctx.font = "bold 18px PizzaText";
     ctx.fillText("PROTOCOLO DE UNIÓN SIMILAE", centerX, 92);
 
     if (gather > .72) {
@@ -5907,17 +5916,17 @@ function drawSimilaeFinale() {
     // La definición de Gaia permanece fija; solo alterna el planeta/símbolo.
     ctx.globalAlpha = reveal;
     ctx.fillStyle = "#ffcc33";
-    ctx.font = "bold 48px Arial Black";
+    ctx.font = "bold 48px PizzaText";
     ctx.fillText("GAIA", centerX, 505);
     ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 17px Arial";
+    ctx.font = "bold 17px PizzaText";
     ctx.fillText("Es el planeta Tierra entendido", centerX, 550);
     ctx.fillText("como un solo sistema:", centerX, 578);
     ctx.fillStyle = "#56e8ff";
     ctx.fillText("seres humanos, animales, plantas", centerX, 614);
     ctx.fillText("y naturaleza, todos conectados.", centerX, 642);
     ctx.fillStyle = "#9dbf40";
-    ctx.font = "bold 15px Courier New";
+    ctx.font = "bold 15px PizzaText";
     ctx.fillText("TODOS SOMOS PARTE DE GAIA.", centerX, 674);
     if (elapsed >= 5200) {
       drawButton(105, 694, 330, 52, "VOLVER A JUGAR");
@@ -6473,7 +6482,7 @@ function drawFreezeAd() {
     ctx.shadowBlur = 0;
     ctx.textAlign = "center";
     ctx.fillStyle = "#000000";
-    ctx.font = "bold 30px Arial";
+    ctx.font = "bold 30px PizzaText";
     ctx.fillText("Horneamos todos los dias.", W / 2, adY + adH * .45);
     ctx.fillStyle = "#f5bd2e";
     ctx.fillText("No congelamos.", W / 2, adY + adH * .65);
@@ -6542,17 +6551,17 @@ function drawAll() {
 
   if (!useExternalMobileHud()) {
   ctx.fillStyle = "white";
-  ctx.font = "19px Arial";
+  ctx.font = "19px PizzaText";
   ctx.fillText("Score: " + score, 16, 28);
   ctx.fillText("Vidas: " + lives, 16, 56);
   for (let i=0;i<lives;i++) drawCharacterShip(selectedShipId, 86+i*26, 38, .34, false);
   ctx.fillStyle = (SHIP_DEFS[selectedShipId] || SHIP_DEFS.luca).color;
-  ctx.font = "bold 14px Courier New";
+  ctx.font = "bold 14px PizzaText";
   ctx.fillText((SHIP_DEFS[selectedShipId] || SHIP_DEFS.luca).name, 16, 82);
   ctx.fillStyle = "white";
-  ctx.font = "19px Arial";
+  ctx.font = "19px PizzaText";
   ctx.fillText("Oleada: " + wave, W-118, 28);
-  ctx.font = "bold 12px Courier New";
+  ctx.font = "bold 12px PizzaText";
   ctx.fillStyle = audioMuted ? "#ff78d0" : "#9dbf40";
   ctx.fillText(audioMuted ? "M: SFX OFF" : "M: SFX ON", W - 108, 158);
   if (isRunnerStage()) {
@@ -6567,7 +6576,7 @@ function drawAll() {
     ctx.fillStyle = "#3a9a4e";
     ctx.fillRect(W - 170, 64, 134 * progress, 5);
     ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 12px Courier New";
+    ctx.font = "bold 12px PizzaText";
     ctx.textAlign = "center";
     ctx.fillText("RUTA " + Math.floor(runnerDistance) + "m", W - 103, 58);
     ctx.restore();
@@ -6583,7 +6592,7 @@ function drawAll() {
     ctx.fillStyle = "#4bffbd";
     ctx.fillRect(W - 180, 64, 144 * progress, 5);
     ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 12px Courier New";
+    ctx.font = "bold 12px PizzaText";
     ctx.textAlign = "center";
     ctx.fillText("PISOS " + Math.floor(progress * 100) + "%", W - 108, 58);
     if (performance.now() < jumpBoostUntil) {
@@ -6599,7 +6608,7 @@ function drawAll() {
   ctx.lineWidth = shipUnlockNotice ? 3 : 2;
   ctx.strokeRect(220, 8, 100, 36);
   ctx.fillStyle = "white";
-  ctx.font = "bold 14px Courier New";
+  ctx.font = "bold 14px PizzaText";
   ctx.textAlign = "center";
   ctx.fillText("NAVES", 270, 31);
   ctx.restore();
@@ -6624,7 +6633,7 @@ function drawAll() {
     if (performance.now() < allyShip.noticeUntil) {
       ctx.save();
       ctx.textAlign = "center";
-      ctx.font = "bold 24px Courier New";
+      ctx.font = "bold 24px PizzaText";
       ctx.fillStyle = "#ffcc33";
       ctx.fillText(allyDef.name + " ENTRA AL COMBATE", W/2, 128);
       ctx.restore();
@@ -6649,10 +6658,10 @@ function drawAll() {
       ctx.strokeRect(58, 150, W-116, 76);
       ctx.textAlign = "center";
       ctx.fillStyle = "#ffcc33";
-      ctx.font = "bold 18px Courier New";
+      ctx.font = "bold 18px PizzaText";
       ctx.fillText("NAVE DESBLOQUEADA", W/2, 181);
       ctx.fillStyle = "white";
-      ctx.font = "bold 22px Courier New";
+      ctx.font = "bold 22px PizzaText";
       ctx.fillText(unlocked.name + " · " + unlocked.ingredient, W/2, 211);
       ctx.restore();
     } else {
@@ -6678,7 +6687,7 @@ function drawFullscreenHint() {
   ctx.stroke();
   ctx.globalAlpha = 1;
   ctx.fillStyle = "white";
-  ctx.font = "15px Arial";
+  ctx.font = "15px PizzaText";
   ctx.textAlign = "center";
   const active = document.fullscreenElement || document.webkitFullscreenElement || document.body.classList.contains("fake-fullscreen");
   ctx.fillText(active ? "[X] SALIR" : "[ ] FULL SCREEN", 98, 37);
@@ -6690,7 +6699,7 @@ function drawLoadingScreen() {
   px(0, 0, W, H, "#050510");
   ctx.textAlign = "center";
   ctx.fillStyle = "#ffcc33";
-  ctx.font = "34px Courier New";
+  ctx.font = "34px PizzaText";
   ctx.fillText("LOADING", W/2, H/2 - 54);
   ctx.fillText("PIZZA INVADERS", W/2, H/2 - 16);
   ctx.fillStyle = "#56e8ff";
@@ -6701,7 +6710,7 @@ function drawLoadingScreen() {
   ctx.fillStyle = "#ff78d0";
   ctx.fillRect(120, H/2 + 29, fill, 10);
   ctx.fillStyle = "white";
-  ctx.font = "15px Courier New";
+  ctx.font = "15px PizzaText";
   ctx.fillText("SIMILAE INTERACTIVE", W/2, H/2 + 78);
   ctx.textAlign = "left";
 }
@@ -6780,7 +6789,7 @@ function drawCanvasIntroPizzaSlice(x, y, flip=false) {
 function drawCanvasIntroLogoText(text, x, y, size, fill, shade) {
   ctx.save();
   ctx.textAlign = "center";
-  ctx.font = `900 ${size}px Arial Black`;
+  ctx.font = `900 ${size}px PizzaText`;
   ctx.lineWidth = Math.max(5, size * 0.11);
   ctx.strokeStyle = "#031024";
   ctx.strokeText(text, x + 8, y + 8);
@@ -6823,18 +6832,18 @@ function drawCanvasIntroGuide() {
   drawCanvasIntroIconCheese(98, 568, 1.1);
 
   ctx.textAlign = "left";
-  ctx.font = "900 34px Courier New";
+  ctx.font = "900 34px PizzaText";
   ctx.fillStyle = "#ffffff";
   ctx.fillText("+ VIDA", 218, 358);
   ctx.fillText("+ PROTECCIÓN", 218, 488);
   ctx.fillText("+ BALAS", 218, 618);
 
   ctx.textAlign = "center";
-  ctx.font = "900 36px Courier New";
+  ctx.font = "900 36px PizzaText";
   ctx.fillStyle = "#ff3f78";
   ctx.fillText("RESCATA A GAIA", W / 2, 720);
 
-  ctx.font = "900 37px Courier New";
+  ctx.font = "900 37px PizzaText";
   ctx.fillStyle = "#ffcc33";
   ctx.fillText("GET READY...", W / 2, 810);
   ctx.restore();
@@ -6872,19 +6881,19 @@ function drawIntroStoryCrawl() {
     ctx.drawImage(similaeLogoImage, W / 2 - 78, 34, 156, 62);
   }
 
-  ctx.font = "900 29px Courier New";
+  ctx.font = "900 29px PizzaText";
   ctx.fillStyle = "#ffcc33";
   ctx.fillText("PIZZA INVADERS", W / 2, 132);
 
   if (page.character) {
     drawIntroCharacterImage(page.character, W / 2, 322, 300, 300);
-    ctx.font = "900 42px Arial Black";
+    ctx.font = "900 42px PizzaText";
     ctx.fillStyle = page.color || "#ffffff";
     ctx.fillText(page.title, W / 2, 522);
-    ctx.font = "900 20px Courier New";
+    ctx.font = "900 20px PizzaText";
     ctx.fillStyle = "#ffcc33";
     ctx.fillText(page.subtitle, W / 2, 558);
-    ctx.font = "bold 21px Arial";
+    ctx.font = "bold 21px PizzaText";
     ctx.fillStyle = "#ffffff";
     let y = 612;
     page.lines.forEach((line) => {
@@ -6892,11 +6901,11 @@ function drawIntroStoryCrawl() {
       y += 31;
     });
   } else {
-    ctx.font = "900 36px Arial Black";
+    ctx.font = "900 36px PizzaText";
     ctx.fillStyle = "#ffffff";
     ctx.fillText(page.title, W / 2, 250);
 
-    ctx.font = "bold 25px Arial";
+    ctx.font = "bold 25px PizzaText";
     ctx.fillStyle = "#ffcc33";
     let y = 332;
     page.lines.forEach((line) => {
@@ -6909,7 +6918,7 @@ function drawIntroStoryCrawl() {
   ctx.save();
   ctx.textAlign = "center";
   ctx.globalAlpha = .78;
-  ctx.font = "bold 15px Arial";
+  ctx.font = "bold 15px PizzaText";
   ctx.fillStyle = "#ffffff";
   ctx.fillText(`${pageIndex + 1}/${INTRO_STORY_PAGES.length}`, W / 2, H - 102);
   ctx.fillText("Haz clic o toca para continuar", W / 2, H - 74);
@@ -6952,7 +6961,7 @@ function drawIntroScreen() {
   } else {
     ctx.textAlign = "center";
     ctx.fillStyle = "#ffcc33";
-    ctx.font = "36px Arial";
+    ctx.font = "36px PizzaText";
     ctx.fillText("SIMILAE INTERACTIVE", W/2, H/2);
   }
 
@@ -7095,7 +7104,7 @@ function drawV12WrappedText(text, x, y, maxWidth, lineHeight) {
 }
 
 function drawV12BrandFooter() {
-  ctx.font = "bold 18px Courier New";
+  ctx.font = "bold 18px PizzaText";
   ctx.fillStyle = "#9dbf40";
   ctx.fillText("SIMILAE.COM", W / 2, 650);
 }
@@ -7134,24 +7143,24 @@ function drawStageCompleteV12(planetName = "PLANETA DESPEJADO", message = "Recom
 
   ctx.save();
   ctx.textAlign = "center";
-  ctx.font = "bold 22px Courier New";
+  ctx.font = "bold 22px PizzaText";
   ctx.fillStyle = "#56e8ff";
   ctx.fillText("TRANSMISIÓN SIMILAE", W / 2, 220);
 
-  ctx.font = "bold 45px Arial Black";
+  ctx.font = "bold 45px PizzaText";
   ctx.fillStyle = "#ffcc33";
   ctx.fillText("PLANETA", W / 2, 292);
   ctx.fillText("DESPEJADO", W / 2, 346);
 
-  ctx.font = "bold 25px Arial";
+  ctx.font = "bold 25px PizzaText";
   ctx.fillStyle = "#ffffff";
   ctx.fillText(planetName, W / 2, 402);
 
-  ctx.font = "bold 19px Arial";
+  ctx.font = "bold 19px PizzaText";
   ctx.fillStyle = "#9dbf40";
   drawV12WrappedText(message, W / 2, 456, 390, 26);
 
-  ctx.font = "bold 20px Courier New";
+  ctx.font = "bold 20px PizzaText";
   ctx.fillStyle = "#ffcc33";
   ctx.fillText("SIGUIENTE MISIÓN EN CURSO", W / 2, 525);
   drawV12BrandFooter();
@@ -7164,22 +7173,22 @@ function drawBossDetectedV12() {
 
   ctx.save();
   ctx.textAlign = "center";
-  ctx.font = "bold 20px Courier New";
+  ctx.font = "bold 20px PizzaText";
   ctx.fillStyle = "#56e8ff";
   ctx.fillText("ALERTA DE GAIA", W / 2, 155);
 
-  ctx.font = "bold 47px Arial Black";
+  ctx.font = "bold 47px PizzaText";
   ctx.fillStyle = "#ffcc33";
   ctx.fillText("JEFE", W / 2, 220);
   ctx.fillText("DETECTADO", W / 2, 275);
 
   drawBossPortraitV12(b, W / 2, 385);
 
-  ctx.font = "bold 27px Arial";
+  ctx.font = "bold 27px PizzaText";
   ctx.fillStyle = "#ffffff";
   ctx.fillText(b ? b.name : "OBJETIVO HOSTIL", W / 2, 530);
 
-  ctx.font = "bold 18px Courier New";
+  ctx.font = "bold 18px PizzaText";
   ctx.fillStyle = "#9dbf40";
   ctx.fillText("PREPÁRATE PARA DEFENDER A GAIA", W / 2, 575);
   ctx.restore();
@@ -7191,16 +7200,16 @@ function drawTransmissionReceivedV12() {
 
   ctx.save();
   ctx.textAlign = "center";
-  ctx.font = "bold 20px Courier New";
+  ctx.font = "bold 20px PizzaText";
   ctx.fillStyle = "#56e8ff";
   ctx.fillText("JEFE DERROTADO", W / 2, 238);
 
-  ctx.font = "bold 42px Arial Black";
+  ctx.font = "bold 42px PizzaText";
   ctx.fillStyle = "#ffcc33";
   ctx.fillText("NUEVA", W / 2, 315);
   ctx.fillText("TRANSMISIÓN", W / 2, 365);
 
-  ctx.font = "bold 21px Arial";
+  ctx.font = "bold 21px PizzaText";
   ctx.fillStyle = "#ffffff";
   ctx.fillText("Señal de Gaia detectada.", W / 2, 430);
   ctx.fillStyle = "#9dbf40";
@@ -7225,15 +7234,15 @@ function drawCouponV12() {
     ctx.drawImage(similaeLogoImage, W / 2 - 65, 18, 130, 52);
   }
 
-  ctx.font = "bold 19px Courier New";
+  ctx.font = "bold 19px PizzaText";
   ctx.fillStyle = "#56e8ff";
   ctx.fillText("★ RECOMPENSA DE RESCATE ★", W / 2, 94);
 
-  ctx.font = "bold 54px Arial Black";
+  ctx.font = "bold 54px PizzaText";
   ctx.fillStyle = "#ffcc33";
   ctx.fillText("¡GANASTE!", W / 2, 157);
 
-  ctx.font = "bold 30px Arial Black";
+  ctx.font = "bold 30px PizzaText";
   ctx.fillStyle = "#ffffff";
   ctx.fillText("UN CUPÓN DE", W / 2, 187);
   ctx.fillStyle = "#9dbf40";
@@ -7255,25 +7264,25 @@ function drawCouponV12() {
   ctx.lineWidth = 2;
   ctx.strokeRect(59, 269, W - 118, 114);
 
-  ctx.font = "bold 14px Courier New";
+  ctx.font = "bold 14px PizzaText";
   ctx.fillStyle = "#56e8ff";
   ctx.fillText("TU CÓDIGO ES", W / 2, 298);
-  ctx.font = "bold 49px Arial Black";
+  ctx.font = "bold 49px PizzaText";
   ctx.fillStyle = "#ff78d0";
   ctx.fillText(COUPON_CODE || "RESCUEGAIA", W / 2, 354);
   ctx.restore();
 
-  ctx.font = "bold 17px Arial";
+  ctx.font = "bold 17px PizzaText";
   ctx.fillStyle = "#ffffff";
   ctx.fillText("Úsalo al finalizar tu compra en", W / 2, 431);
-  ctx.font = "bold 20px Courier New";
+  ctx.font = "bold 20px PizzaText";
   ctx.fillStyle = "#9dbf40";
   ctx.fillText("SIMILAE.COM", W / 2, 459);
 
   drawTriviaButtonV12(105, 500, 330, 56, couponCanvasCopied ? "✓ CUPÓN COPIADO" : "COPIAR CUPÓN");
   drawTriviaButtonV12(105, 570, 330, 56, "CONTINUAR MISIÓN");
 
-  ctx.font = "bold 13px Courier New";
+  ctx.font = "bold 13px PizzaText";
   ctx.fillStyle = couponCanvasCopied ? "#ffcc33" : "rgba(255,255,255,.68)";
   ctx.fillText(
     couponCanvasCopied ? "GUARDADO EN TU PORTAPAPELES" : "GUÁRDALO AHORA PARA USARLO DESPUÉS",
@@ -7294,15 +7303,15 @@ function drawRewardTeaserV12() {
     ctx.drawImage(similaeLogoImage, W / 2 - 65, 18, 130, 52);
   }
 
-  ctx.font = "bold 18px Courier New";
+  ctx.font = "bold 18px PizzaText";
   ctx.fillStyle = "#56e8ff";
   ctx.fillText("TRANSMISIÓN SIMILAE", W / 2, 82);
 
-  ctx.font = "bold 40px Arial Black";
+  ctx.font = "bold 40px PizzaText";
   ctx.fillStyle = "#ffcc33";
   ctx.fillText("SIGUE JUGANDO", W / 2, 132);
 
-  ctx.font = "bold 21px Arial";
+  ctx.font = "bold 21px PizzaText";
   ctx.fillStyle = "#ffffff";
   ctx.fillText("HAY MÁS PREMIOS EN LA RUTA", W / 2, 170);
 
@@ -7311,10 +7320,10 @@ function drawRewardTeaserV12() {
   ctx.strokeStyle = "#9dbf40";
   ctx.lineWidth = 3;
   ctx.strokeRect(48, 196, W - 96, 66);
-  ctx.font = "bold 14px Courier New";
+  ctx.font = "bold 14px PizzaText";
   ctx.fillStyle = "#9dbf40";
   ctx.fillText("✓ PREMIO DESBLOQUEADO", W / 2, 221);
-  ctx.font = "bold 21px Arial";
+  ctx.font = "bold 21px PizzaText";
   ctx.fillStyle = "#ffffff";
   ctx.fillText("DESPACHO GRATIS", W / 2, 248);
 
@@ -7324,7 +7333,7 @@ function drawRewardTeaserV12() {
   ctx.strokeStyle = `rgba(255,120,208,${creditPulse})`;
   ctx.lineWidth = 5;
   ctx.strokeRect(48, 284, W - 96, 272);
-  ctx.font = "bold 15px Courier New";
+  ctx.font = "bold 15px PizzaText";
   ctx.fillStyle = "#ff78d0";
   ctx.fillText("[ PRÓXIMOS GRANDES PREMIOS ]", W / 2, 313);
 
@@ -7334,13 +7343,13 @@ function drawRewardTeaserV12() {
   ctx.strokeStyle = "rgba(255,204,51,.45)";
   ctx.lineWidth = 2;
   ctx.strokeRect(61, 329, 201, 205);
-  ctx.font = "bold 34px Arial Black";
+  ctx.font = "bold 34px PizzaText";
   ctx.fillStyle = "#ffcc33";
   ctx.fillText("$10.000", 161, 400);
-  ctx.font = "bold 18px Arial";
+  ctx.font = "bold 18px PizzaText";
   ctx.fillStyle = "#ffffff";
   ctx.fillText("EN CRÉDITOS", 161, 431);
-  ctx.font = "bold 12px Courier New";
+  ctx.font = "bold 12px PizzaText";
   ctx.fillStyle = "#9dbf40";
   ctx.fillText("PARA USAR EN", 161, 468);
   ctx.fillText("SIMILAE.COM", 161, 488);
@@ -7357,16 +7366,16 @@ function drawRewardTeaserV12() {
     ctx.drawImage(pernigottiEggPrizeImage, 303, 338, 151, 151);
     ctx.restore();
   }
-  ctx.font = "bold 15px Arial Black";
+  ctx.font = "bold 15px PizzaText";
   ctx.fillStyle = "#ffffff";
   ctx.fillText("GRAN HUEVO", 378, 505);
-  ctx.font = "bold 12px Courier New";
+  ctx.font = "bold 12px PizzaText";
   ctx.fillStyle = "#56e8ff";
   ctx.fillText("PERNIGOTTI", 378, 524);
 
   drawTriviaButtonV12(95, 590, 350, 60, "SEGUIR JUGANDO");
 
-  ctx.font = "bold 13px Courier New";
+  ctx.font = "bold 13px PizzaText";
   ctx.fillStyle = "rgba(255,255,255,.68)";
   ctx.fillText("DERROTA JEFES · DESBLOQUEA RECOMPENSAS", W / 2, 687);
   ctx.restore();
@@ -7384,15 +7393,15 @@ function drawBonusCouponV12() {
     ctx.drawImage(similaeLogoImage, W / 2 - 65, 18, 130, 52);
   }
 
-  ctx.font = "bold 19px Courier New";
+  ctx.font = "bold 19px PizzaText";
   ctx.fillStyle = "#56e8ff";
   ctx.fillText("★ RECOMPENSA ESPECIAL SIMILAE ★", W / 2, 94);
 
-  ctx.font = "bold 54px Arial Black";
+  ctx.font = "bold 54px PizzaText";
   ctx.fillStyle = "#ffcc33";
   ctx.fillText("¡GANASTE!", W / 2, 157);
 
-  ctx.font = "bold 27px Arial Black";
+  ctx.font = "bold 27px PizzaText";
   ctx.fillStyle = "#ffffff";
   ctx.fillText("CRÉDITOS PARA COMPRAR EN", W / 2, 202);
 
@@ -7412,23 +7421,23 @@ function drawBonusCouponV12() {
   ctx.lineWidth = 2;
   ctx.strokeRect(59, 249, W - 118, 168);
 
-  ctx.font = "bold 15px Courier New";
+  ctx.font = "bold 15px PizzaText";
   ctx.fillStyle = "#56e8ff";
   ctx.fillText("PREMIO DESBLOQUEADO", W / 2, 278);
 
-  ctx.font = "bold 66px Arial Black";
+  ctx.font = "bold 66px PizzaText";
   ctx.fillStyle = "#ff78d0";
   ctx.fillText("$10.000", W / 2, 355);
 
-  ctx.font = "bold 20px Arial";
+  ctx.font = "bold 20px PizzaText";
   ctx.fillStyle = "#ffffff";
   ctx.fillText("EN CRÉDITOS", W / 2, 389);
-  ctx.font = "bold 18px Courier New";
+  ctx.font = "bold 18px PizzaText";
   ctx.fillStyle = "#9dbf40";
   ctx.fillText("PARA USAR EN SIMILAE.COM", W / 2, 416);
   ctx.restore();
 
-  ctx.font = "bold 15px Courier New";
+  ctx.font = "bold 15px PizzaText";
   ctx.fillStyle = "#ffffff";
   ctx.fillText("SOLICITA TU PREMIO Y CONTINÚA LA MISIÓN", W / 2, 468);
 
@@ -7436,11 +7445,11 @@ function drawBonusCouponV12() {
   drawTriviaButtonV12(95, 590, 350, 56, "CONTINUAR MISIÓN");
 
   if (bonusWhatsAppOpened) {
-    ctx.font = "bold 14px Courier New";
+    ctx.font = "bold 14px PizzaText";
     ctx.fillStyle = "#ffcc33";
     ctx.fillText("WHATSAPP ABIERTO EN OTRA PESTAÑA", W / 2, 660);
   } else {
-    ctx.font = "bold 13px Courier New";
+    ctx.font = "bold 13px PizzaText";
     ctx.fillStyle = "rgba(255,255,255,.68)";
     ctx.fillText("GUARDA TU PREMIO ANTES DE CONTINUAR", W / 2, 660);
   }
@@ -7477,10 +7486,10 @@ function drawEggPrizeUnlockTransition() {
 
   const intrigueReveal = clamp01((elapsed - 120) / 650) * (1 - clamp01((elapsed - 2050) / 500));
   ctx.globalAlpha = intrigueReveal;
-  ctx.font = "bold 16px Courier New";
+  ctx.font = "bold 16px PizzaText";
   ctx.fillStyle = "#56e8ff";
   ctx.fillText("POPCOLA KING HA CAÍDO", W / 2, 108);
-  ctx.font = "bold 22px Courier New";
+  ctx.font = "bold 22px PizzaText";
   ctx.fillStyle = "#ffffff";
   ctx.fillText("ALGO EXTRAORDINARIO SE ACERCA...", W / 2, 151);
   ctx.globalAlpha = 1;
@@ -7511,13 +7520,13 @@ function drawEggPrizeUnlockTransition() {
   ctx.restore();
 
   ctx.globalAlpha = textReveal;
-  ctx.font = "bold 20px Courier New";
+  ctx.font = "bold 20px PizzaText";
   ctx.fillStyle = "#ffcc33";
   ctx.fillText("GRAN PREMIO DESBLOQUEADO", W / 2, 506);
-  ctx.font = "bold 38px Arial Black";
+  ctx.font = "bold 38px PizzaText";
   ctx.fillStyle = "#ffffff";
   ctx.fillText("GRAN HUEVO", W / 2, 545);
-  ctx.font = "bold 27px Courier New";
+  ctx.font = "bold 27px PizzaText";
   ctx.fillStyle = "#56e8ff";
   ctx.fillText("PERNIGOTTI", W / 2, 582);
   ctx.globalAlpha = 1;
@@ -7590,11 +7599,11 @@ function drawEggPrizeV12() {
     ctx.drawImage(similaeLogoImage, W / 2 - 65, 14, 130, 52);
   }
 
-  ctx.font = "bold 17px Courier New";
+  ctx.font = "bold 17px PizzaText";
   ctx.fillStyle = "#56e8ff";
   ctx.fillText("POPCOLA KING DERROTADO", W / 2, 91);
 
-  ctx.font = "bold 50px Arial Black";
+  ctx.font = "bold 50px PizzaText";
   ctx.fillStyle = "#ffcc33";
   ctx.fillText("¡GANASTE!", W / 2, 149);
 
@@ -7615,15 +7624,15 @@ function drawEggPrizeV12() {
     ctx.drawImage(pernigottiEggPrizeImage, W / 2 - 102, 184, 204, 204);
   }
 
-  ctx.font = "bold 31px Arial Black";
+  ctx.font = "bold 31px PizzaText";
   ctx.fillStyle = "#ffffff";
   ctx.fillText("GRAN HUEVO", W / 2, 410);
-  ctx.font = "bold 22px Courier New";
+  ctx.font = "bold 22px PizzaText";
   ctx.fillStyle = "#56e8ff";
   ctx.fillText("PERNIGOTTI", W / 2, 442);
   ctx.restore();
 
-  ctx.font = "bold 14px Courier New";
+  ctx.font = "bold 14px PizzaText";
   ctx.fillStyle = "#ffcc33";
   ctx.fillText("TOMA UN PANTALLAZO DE ESTA PANTALLA", W / 2, 489);
   ctx.fillStyle = "#ffffff";
@@ -7632,7 +7641,7 @@ function drawEggPrizeV12() {
   drawTriviaButtonV12(95, 520, 350, 56, "SOLICITAR POR WHATSAPP");
   drawTriviaButtonV12(95, 590, 350, 56, "CONTINUAR MISIÓN");
 
-  ctx.font = "bold 12px Courier New";
+  ctx.font = "bold 12px PizzaText";
   ctx.fillStyle = eggPrizeWhatsAppOpened ? "#ffcc33" : "rgba(255,255,255,.68)";
   ctx.fillText(
     eggPrizeWhatsAppOpened
@@ -7649,26 +7658,26 @@ function drawGaiaRescuedV12() {
   ctx.save();
   ctx.textAlign = "center";
   ctx.fillStyle = "#56e8ff";
-  ctx.font = "bold 18px Courier New";
+  ctx.font = "bold 18px PizzaText";
   ctx.fillText("MISION COMPLETADA", W/2, 68);
 
   drawCharacterShip("gaia", W/2 - 62, 90, 2.2, false);
 
   ctx.fillStyle = "#ffcc33";
-  ctx.font = "bold 40px Arial Black";
+  ctx.font = "bold 40px PizzaText";
   ctx.fillText("GAIA", W/2, 300);
   ctx.fillText("RESCATADA", W/2, 347);
 
   ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 21px Courier New";
+  ctx.font = "bold 21px PizzaText";
   ctx.fillText("NAVE GAIA DESBLOQUEADA", W/2, 406);
   ctx.fillStyle = "#ff78d0";
-  ctx.font = "bold 16px Courier New";
+  ctx.font = "bold 16px PizzaText";
   ctx.fillText("DANO +20% · TRIPLE INGREDIENTE", W/2, 441);
   ctx.fillText("MAYOR COBERTURA · ESCUDO INICIAL", W/2, 469);
 
   ctx.fillStyle = "#9dbf40";
-  ctx.font = "bold 17px Courier New";
+  ctx.font = "bold 17px PizzaText";
   ctx.fillText("EL ESCUADRON SIMILAE ESTA LISTO", W/2, 526);
   drawTriviaButtonV12(95, 590, 350, 56, "ETAPA 6");
   ctx.restore();
@@ -7681,17 +7690,17 @@ function drawGaiaMessageV12() {
 
   ctx.save();
   ctx.textAlign = "center";
-  ctx.font = "bold 20px Courier New";
+  ctx.font = "bold 20px PizzaText";
   ctx.fillStyle = "#56e8ff";
   ctx.fillText("CANAL GAIA", W / 2, 238);
 
-  ctx.font = "bold 45px Arial Black";
+  ctx.font = "bold 45px PizzaText";
   ctx.fillStyle = "#ffcc33";
   ctx.fillText("GAIA", W / 2, 312);
   ctx.fillText("TE ENVÍA", W / 2, 365);
   ctx.fillText("UN MENSAJE", W / 2, 418);
 
-  ctx.font = "bold 22px Arial";
+  ctx.font = "bold 22px PizzaText";
   ctx.fillStyle = "#ffffff";
   ctx.fillText("Misión especial desbloqueada.", W / 2, 480);
   ctx.fillStyle = "#9dbf40";
@@ -7709,20 +7718,20 @@ function drawTriviaIntroV12() {
     ctx.drawImage(similaeLogoImage, W / 2 - 88, 92, 176, 70);
   }
 
-  ctx.font = "bold 18px Courier New";
+  ctx.font = "bold 18px PizzaText";
   ctx.fillStyle = "#9dbf40";
   ctx.fillText("PAUSA DE CRITERIO", W / 2, 235);
 
-  ctx.font = "bold 40px Arial Black";
+  ctx.font = "bold 40px PizzaText";
   ctx.fillStyle = "#ffcc33";
   ctx.fillText("TRIVIA", W / 2, 308);
   ctx.fillText("MEDITERRANEA", W / 2, 358);
 
-  ctx.font = "bold 22px Arial";
+  ctx.font = "bold 22px PizzaText";
   ctx.fillStyle = "#ffffff";
   ctx.fillText("Comer bien tambien es cultura.", W / 2, 438);
 
-  ctx.font = "bold 18px Arial";
+  ctx.font = "bold 18px PizzaText";
   ctx.fillStyle = "#9dbf40";
   ctx.fillText("Variedad, medida y buenos ingredientes.", W / 2, 480);
   ctx.restore();
@@ -7747,7 +7756,7 @@ function drawTriviaButtonV12(x, y, w, h, text) {
   ctx.stroke();
 
   ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 18px Arial";
+  ctx.font = "bold 18px PizzaText";
   ctx.textAlign = "center";
   ctx.fillText(text, x + w / 2, y + h / 2 + 7);
   ctx.restore();
@@ -7762,11 +7771,11 @@ function drawFermentationInfoV12() {
     ctx.drawImage(similaeLogoImage, W / 2 - 65, 15, 130, 52);
   }
 
-  ctx.font = "bold 14px Courier New";
+  ctx.font = "bold 14px PizzaText";
   ctx.fillStyle = "#9dbf40";
   ctx.fillText("CULTURA MEDITERRÁNEA", W / 2, 86);
 
-  ctx.font = "bold 31px Arial Black";
+  ctx.font = "bold 31px PizzaText";
   ctx.fillStyle = "#ffcc33";
   ctx.fillText("EL VALOR DE FERMENTAR", W / 2, 122);
 
@@ -7792,7 +7801,7 @@ function drawFermentationInfoV12() {
   ctx.shadowBlur = 0;
   ctx.restore();
 
-  ctx.font = "bold 18px Arial";
+  ctx.font = "bold 18px PizzaText";
   ctx.fillStyle = "#ffffff";
   drawV12WrappedText(
     "Una masa bien fermentada puede ser más fácil de digerir. Durante la fermentación, los microorganismos descomponen parte de sus componentes antes de que la comamos, desarrollando además mejor sabor, aroma y textura.",
@@ -7805,7 +7814,7 @@ function drawFermentationInfoV12() {
   drawTriviaButtonV12(85, 545, 370, 52, "COMPRAR EN SIMILAE");
   drawTriviaButtonV12(85, 609, 370, 52, "CONTINUAR MISIÓN");
 
-  ctx.font = "bold 15px Courier New";
+  ctx.font = "bold 15px PizzaText";
   ctx.fillStyle = "#9dbf40";
   ctx.fillText("www.similae.com", W / 2, 696);
   ctx.restore();
@@ -7823,24 +7832,24 @@ function drawTriviaV12() {
     ctx.drawImage(similaeLogoImage, W / 2 - 70, 54, 140, 56);
   }
 
-  ctx.font = "bold 15px Courier New";
+  ctx.font = "bold 15px PizzaText";
   ctx.fillStyle = "#9dbf40";
   ctx.fillText("CULTURA MEDITERRANEA", W / 2, 140);
 
-  ctx.font = "bold 39px Arial Black";
+  ctx.font = "bold 39px PizzaText";
   ctx.fillStyle = "#ffcc33";
   ctx.fillText("TRIVIA", W / 2, 188);
 
-  ctx.font = "bold 18px Courier New";
+  ctx.font = "bold 18px PizzaText";
   ctx.fillStyle = "#ffffff";
   ctx.fillText("SIMILAE", W / 2, 218);
 
-  ctx.font = "bold 22px Arial";
+  ctx.font = "bold 22px PizzaText";
   ctx.fillStyle = "#9dbf40";
   ctx.fillText(trivia.title, W / 2, 272);
 
   if (!triviaAnswered) {
-    ctx.font = "bold 25px Arial";
+    ctx.font = "bold 25px PizzaText";
     ctx.fillStyle = "#ffffff";
     ctx.fillText(trivia.question[0], W / 2, 326);
     ctx.fillText(trivia.question[1], W / 2, 360);
@@ -7848,33 +7857,33 @@ function drawTriviaV12() {
     drawTriviaButtonV12(80, 430, 380, 62, trivia.answers[0]);
     drawTriviaButtonV12(80, 515, 380, 62, trivia.answers[1]);
 
-    ctx.font = "bold 15px Arial";
+    ctx.font = "bold 15px PizzaText";
     ctx.fillStyle = "rgba(255,255,255,0.72)";
     ctx.fillText("Elige con criterio, no por moda.", W / 2, 642);
   } else {
     const isCorrect = triviaSelectedIndex === trivia.correctIndex;
 
-    ctx.font = "bold 18px Courier New";
+    ctx.font = "bold 18px PizzaText";
     ctx.fillStyle = "#56e8ff";
     ctx.fillText("RESULTADO", W / 2, 318);
 
-    ctx.font = "bold 34px Arial Black";
+    ctx.font = "bold 34px PizzaText";
     ctx.fillStyle = isCorrect ? "#9dbf40" : "#ff3f9a";
     ctx.fillText(isCorrect ? "CORRECTO" : "INCORRECTO", W / 2, 365);
 
     if (isCorrect) {
-      ctx.font = "bold 22px Arial";
+      ctx.font = "bold 22px PizzaText";
       ctx.fillStyle = "#ffcc33";
       ctx.fillText("+500 PUNTOS", W / 2, 405);
     } else {
-      ctx.font = "bold 16px Arial";
+      ctx.font = "bold 16px PizzaText";
       ctx.fillStyle = "#ffcc33";
       ctx.fillText("RESPUESTA CORRECTA", W / 2, 402);
-      ctx.font = "bold 21px Arial";
+      ctx.font = "bold 21px PizzaText";
       ctx.fillText(trivia.answers[trivia.correctIndex].replace(/^[AB]\)\s*/, ""), W / 2, 432);
     }
 
-    ctx.font = "bold 20px Arial";
+    ctx.font = "bold 20px PizzaText";
     ctx.fillStyle = "#ffffff";
     drawV12WrappedText(
       trivia.explanation,
@@ -7903,10 +7912,10 @@ function drawPineappleIntro() {
   } else {
     ctx.textAlign = "center";
     ctx.fillStyle = "#ffcc33";
-    ctx.font = "26px Courier New";
+    ctx.font = "26px PizzaText";
     ctx.fillText("PINEAPPLE ALERT", W/2, H/2 - 20);
     ctx.fillStyle = "white";
-    ctx.font = "17px Courier New";
+    ctx.font = "17px PizzaText";
     ctx.fillText("Gaia needs your help!", W/2, H/2 + 24);
   }
   const elapsed = performance.now() - pineappleIntroStartedAt;
@@ -7928,10 +7937,10 @@ function drawCandyPlanetIntro() {
   } else {
     ctx.textAlign = "center";
     ctx.fillStyle = "#ff78d0";
-    ctx.font = "30px Courier New";
+    ctx.font = "30px PizzaText";
     ctx.fillText("CANDY PLANET", W/2, H/2);
     ctx.fillStyle = "white";
-    ctx.font = "18px Courier New";
+    ctx.font = "18px PizzaText";
     ctx.fillText("Gaia is being taken away!", W/2, H/2 + 44);
   }
   const elapsed = performance.now() - candyIntroStartedAt;
@@ -7954,7 +7963,7 @@ function drawPopColaIntro() {
   } else {
     ctx.textAlign = "center";
     ctx.fillStyle = "#ffcc33";
-    ctx.font = "28px Courier New";
+    ctx.font = "28px PizzaText";
     ctx.fillText("POPCOLA TRANSMISSION", W / 2, H / 2);
   }
 
@@ -7972,10 +7981,10 @@ function drawFreezerTransmission() {
   ctx.lineWidth = 2;
   ctx.strokeRect(54, 122, W-108, 496);
   ctx.textAlign = "center";
-  ctx.font = "28px Courier New";
+  ctx.font = "28px PizzaText";
   ctx.fillStyle = "#72e6ff";
   ctx.fillText("TRANSMISIÓN RECIBIDA...", W/2, 175);
-  ctx.font = "24px Courier New";
+  ctx.font = "24px PizzaText";
   ctx.fillStyle = "#ff78d0";
   ctx.fillText("GAIA:", W/2, 245);
   ctx.fillStyle = "white";
@@ -7986,7 +7995,7 @@ function drawFreezerTransmission() {
     y += line ? 34 : 18;
   }
   ctx.fillStyle = "#9fc53a";
-  ctx.font = "18px Courier New";
+  ctx.font = "18px PizzaText";
   ctx.fillText("SIMILAE POWER WILL HELP YOU", W/2, 590);
   const elapsed = performance.now() - freezerTransmissionStartedAt;
   if (elapsed > 4000) continueToLevel5();
@@ -8001,10 +8010,10 @@ function drawCouponScreen() {
   ctx.fillRect(0,0,W,H);
   ctx.textAlign = "center";
   ctx.fillStyle = "#ffcc33";
-  ctx.font = "29px Courier New";
+  ctx.font = "29px PizzaText";
   ctx.fillText("★ CUPON DESBLOQUEADO ★", W/2, 140);
   ctx.fillStyle = "white";
-  ctx.font = "20px Courier New";
+  ctx.font = "20px PizzaText";
   ctx.fillText("PREMIO DE RESCATE", W/2, 195);
   ctx.fillText("DESPACHO GRATIS", W/2, 228);
 
@@ -8017,17 +8026,17 @@ function drawCouponScreen() {
   ctx.lineWidth = 2;
   ctx.strokeRect(80, 283, 380, 96);
   ctx.fillStyle = "#56e8ff";
-  ctx.font = "18px Courier New";
+  ctx.font = "18px PizzaText";
   ctx.fillText("CODIGO", W/2, 312);
   ctx.fillStyle = "#ff78d0";
-  ctx.font = "34px Courier New";
+  ctx.font = "34px PizzaText";
   ctx.fillText(COUPON_CODE, W/2, 358);
 
   drawButton(105, 465, 330, 54, "COPIAR CUPON");
   drawButton(105, 535, 330, 54, "WHATSAPP");
   drawButton(105, 605, 330, 54, "CONTINUAR");
   ctx.fillStyle = "rgba(255,255,255,.76)";
-  ctx.font = "14px Courier New";
+  ctx.font = "14px PizzaText";
   ctx.fillText("VALIDO EN SIMILAE.COM", W/2, 700);
   ctx.textAlign = "left";
 }
@@ -8048,7 +8057,7 @@ function drawButton(x, y, w, h, label) {
   roundRect(x + 6, y + 6, w - 12, h - 12, 5);
   ctx.stroke();
   ctx.fillStyle = "white";
-  ctx.font = "bold 17px Courier New";
+  ctx.font = "bold 17px PizzaText";
   ctx.textAlign = "center";
   ctx.fillText(label, x + w/2, y + h/2 + 6);
 }
@@ -8056,7 +8065,7 @@ function drawButton(x, y, w, h, label) {
 function drawHangarStat(label, value, x, y, color) {
   ctx.textAlign = "left";
   ctx.fillStyle = "#cbd3df";
-  ctx.font = "bold 13px Courier New";
+  ctx.font = "bold 13px PizzaText";
   ctx.fillText(label, x, y);
   ctx.fillStyle = "#171b27";
   ctx.fillRect(x, y + 7, 145, 8);
@@ -8106,7 +8115,7 @@ function drawHangar() {
 
   ctx.textAlign = "center";
   ctx.fillStyle = "#ffcc33";
-  ctx.font = "bold 38px Courier New";
+  ctx.font = "bold 38px PizzaText";
   ctx.fillText("HANGAR SIMILAE", W/2, 58);
 
   ctx.save();
@@ -8119,22 +8128,22 @@ function drawHangar() {
   drawCharacterShip(selectedShipId, W/2 - 67, 96, 2.4, false);
 
   ctx.fillStyle = ship.color;
-  ctx.font = "bold 32px Courier New";
+  ctx.font = "bold 32px PizzaText";
   ctx.fillText(ship.name, W/2, 285);
   ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 18px Courier New";
+  ctx.font = "bold 18px PizzaText";
   ctx.fillText(ship.ingredient, W/2, 316);
   if (shipUnlockNotice && shipUnlockNotice.id && unlockedShips.has(shipUnlockNotice.id)) {
     ctx.fillStyle = "#9dbf40";
-    ctx.font = "bold 13px Courier New";
+    ctx.font = "bold 13px PizzaText";
     ctx.fillText("NUEVA NAVE DESBLOQUEADA · SELECCIONA Y EQUIPA", W / 2, 343);
   } else if (selectedShipId === "gaia") {
     ctx.fillStyle = "#ff78d0";
-    ctx.font = "bold 14px Courier New";
+    ctx.font = "bold 14px PizzaText";
     ctx.fillText("NAVE SUPERIOR · PREMIO DE RESCATE", W/2, 343);
   } else {
     ctx.fillStyle = "#9ca6b8";
-    ctx.font = "14px Courier New";
+    ctx.font = "14px PizzaText";
     ctx.fillText("POTENCIA EQUILIBRADA · ESTILO UNICO", W/2, 343);
   }
 
@@ -8155,7 +8164,7 @@ function drawHangar() {
     ctx.strokeRect(x, 455, 84, 100);
     drawCharacterShip(id, x + 27, 465, .55, false);
     ctx.fillStyle = "white";
-    ctx.font = "bold 12px Courier New";
+    ctx.font = "bold 12px PizzaText";
     ctx.fillText(def.name, x + 42, 540);
     ctx.globalAlpha = 1;
     if (!unlocked) {
@@ -8165,17 +8174,17 @@ function drawHangar() {
       ctx.lineWidth = 2;
       ctx.strokeRect(x + 20, 478, 44, 38);
       ctx.fillStyle = "#ffcc33";
-      ctx.font = "bold 13px Courier New";
+      ctx.font = "bold 13px PizzaText";
       ctx.fillText("LOCK", x + 42, 502);
     }
   });
 
   drawButton(95, 584, 350, 60, selectingReplayStage ? "EQUIPAR Y ELEGIR ETAPA" : (returningToGame ? "EQUIPAR Y CONTINUAR" : "INICIAR MISION"));
   ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 14px Courier New";
+  ctx.font = "bold 14px PizzaText";
   ctx.fillText("SELECCIONA UNA NAVE DESBLOQUEADA", W/2, 671);
   ctx.fillStyle = "#56e8ff";
-  ctx.font = "bold 17px Courier New";
+  ctx.font = "bold 17px PizzaText";
   ctx.fillText(selectingReplayStage ? "IR A SELECCIÓN DE ETAPA" : (returningToGame ? "CONTINUAR SIN CAMBIOS" : "VOLVER"), W/2, 704);
   ctx.restore();
 }
@@ -8186,7 +8195,7 @@ function drawStart() {
 
   // Título arcade con volumen, contorno y resplandor.
   ctx.save();
-  ctx.font = "bold 51px Arial Black";
+  ctx.font = "bold 51px PizzaText";
   ctx.lineJoin = "round";
   ctx.lineWidth = 10;
   ctx.strokeStyle = "#160922";
@@ -8239,20 +8248,20 @@ function drawStart() {
   ctx.restore();
 
   ctx.fillStyle = "#56e8ff";
-  ctx.font = "20px Arial";
+  ctx.font = "20px PizzaText";
   ctx.fillText("Escuadrones, ataques en picada y jefes finales", W/2, 510);
 
   ctx.fillStyle = "white";
-  ctx.font = "18px Arial";
+  ctx.font = "18px PizzaText";
   ctx.fillText(isTouchDevice ? "Arrastra el dedo para mover" : "← → mover · Espacio disparar", W/2, 541);
   ctx.fillStyle = "#9dbf40";
-  ctx.font = "15px Arial";
+  ctx.font = "15px PizzaText";
   ctx.fillText("M activa o silencia los sonidos", W/2, 566);
 
   drawButton(105, 585, 330, 62, "START GAME");
 
   ctx.fillStyle = "#56e8ff";
-  ctx.font = "bold 21px Courier New";
+  ctx.font = "bold 21px PizzaText";
   ctx.fillText("DEV MODE", W/2, 694);
   ctx.textAlign = "left";
 }
@@ -8260,17 +8269,17 @@ function drawStart() {
 function drawDevMenu() {
   ctx.textAlign = "center";
   ctx.fillStyle = "#ffcc33";
-  ctx.font = "42px Arial";
+  ctx.font = "42px PizzaText";
   ctx.fillText("DEV MENU", W/2, 150);
 
   ctx.fillStyle = "white";
-  ctx.font = "24px Arial";
+  ctx.font = "24px PizzaText";
   ctx.fillText("1. STAGE SELECT", W/2, 260);
   ctx.fillText("2. VIDEO TEST", W/2, 340);
   ctx.fillText("3. BACK TO START", W/2, 420);
 
   ctx.fillStyle = "#56e8ff";
-  ctx.font = "18px Arial";
+  ctx.font = "18px PizzaText";
   ctx.fillText("V10 DEVELOPMENT TOOLS", W/2, 440);
 
   ctx.textAlign = "left";
@@ -8280,11 +8289,11 @@ function drawStageSelect() {
   ctx.textAlign = "center";
 
   ctx.fillStyle = "#ffcc33";
-  ctx.font = "42px Arial";
+  ctx.font = "42px PizzaText";
   ctx.fillText(finaleReplayUnlocked ? "ELIGE TU ETAPA" : "STAGE SELECT", W/2, 150);
 
   ctx.fillStyle = "white";
-  ctx.font = "24px Arial";
+  ctx.font = "24px PizzaText";
   ctx.fillText("1. PINEAPPLE / START", W/2, 260);
   ctx.fillText("2. CANDY PLANET", W/2, 320);
   ctx.fillText("3. FROZEN PIZZA", W/2, 380);
@@ -8293,11 +8302,11 @@ function drawStageSelect() {
   ctx.fillText("6. FREEZER MACHINE", W/2, 560);
   ctx.fillText("7. CANDY FACTORY", W/2, 620);
   ctx.fillText("8. PINEAPPLE PANIC", W/2, 680);
-  ctx.font = "20px Arial";
+  ctx.font = "20px PizzaText";
   ctx.fillText(finaleReplayUnlocked ? "9. VOLVER AL HANGAR" : "9. BACK TO DEV MENU", W/2, 726);
 
   ctx.fillStyle = "#56e8ff";
-  ctx.font = "12px Arial";
+  ctx.font = "12px PizzaText";
   ctx.fillText(finaleReplayUnlocked ? "ACCESO TOTAL DESBLOQUEADO" : "V13 STAGE TEST", W/2, 752);
 
   ctx.textAlign = "left";
@@ -8308,10 +8317,10 @@ function drawGameOver() {
   ctx.fillStyle = "rgba(0,0,0,.62)";
   ctx.fillRect(0,0,W,H);
   ctx.fillStyle = "#ff4f7b";
-  ctx.font = "50px Arial";
+  ctx.font = "50px PizzaText";
   ctx.fillText("GAME OVER", W/2, 280);
   ctx.fillStyle = "white";
-  ctx.font = "24px Arial";
+  ctx.font = "24px PizzaText";
   ctx.fillText("Puntaje: " + score, W/2, 330);
   ctx.fillText("Oleada alcanzada: " + wave, W/2, 365);
   ctx.fillStyle = "#ffcc33";
