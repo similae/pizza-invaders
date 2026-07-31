@@ -1,4 +1,4 @@
-const CACHE_VERSION = "pizza-invaders-v1.0.36";
+const CACHE_VERSION = "pizza-invaders-v1.0.37";
 const CORE_CACHE = `${CACHE_VERSION}-core`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -21,6 +21,7 @@ const CORE_FILES = [
   "./assets/sfx-confirm.wav",
   "./assets/sfx-heart.wav",
   "./assets/sfx-ammo.wav",
+  "./assets/sfx-speed.wav",
   "./assets/sfx-boss-down.wav"
 ];
 
