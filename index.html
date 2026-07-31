@@ -4017,9 +4017,15 @@ function drawTopBomber() {
     ctx.scale(.62, .62);
     drawMarshmallowBossSprite(0, 0);
   } else if (topBomber.kind === "blackPineapple") {
-    ctx.filter = "grayscale(1) brightness(.25) contrast(1.8)";
-    drawPineapple(7, 2, 1.42);
-    ctx.filter = "none";
+    drawPineapple(7, 2, 1.42, {
+      leafA: "#20242a",
+      leafB: "#080a0d",
+      leafC: "#343a42",
+      body: "#090a0d",
+      highlight: "#202329",
+      grid: "#4a4f58",
+      mouth: "#000000"
+    });
     px(28, 41, 7, 7, "#ffcc33");
     px(47, 41, 7, 7, "#ffcc33");
   } else {
