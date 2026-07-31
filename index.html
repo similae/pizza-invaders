@@ -212,6 +212,13 @@
   }
   .ui-card h2 { margin: 0 0 12px; color: #ffcc33; font-size: 25px; letter-spacing: 1px; text-transform: uppercase; }
   .ui-card p { margin: 8px 0; font-size: 16px; line-height: 1.35; text-transform: uppercase; }
+  .ui-card h2,
+  .ui-card p,
+  .ui-card button {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
   .coupon-code {
     margin: 14px auto;
     padding: 12px;
@@ -747,6 +754,31 @@ const canvas = document.getElementById("game");
 let ctx = canvas.getContext("2d");
 ctx.imageSmoothingEnabled = false;
 const W = canvas.width, H = canvas.height;
+const nativeCanvasFillText = ctx.fillText.bind(ctx);
+ctx.fillText = function(text, x, y, maxWidth) {
+  const value = String(text);
+  let safeWidth = Number.isFinite(maxWidth) && maxWidth > 0 ? maxWidth : Infinity;
+
+  // La fuente incluida tiene métricas idénticas en todos los dispositivos,
+  // pero algunas frases antiguas fueron diseñadas con fuentes más angostas.
+  // Solo ajustamos las que realmente cruzarían el borde del canvas.
+  if (x >= 0 && x <= W) {
+    const align = this.textAlign || "start";
+    let available;
+    if (align === "center") available = Math.max(20, 2 * Math.min(x, W - x) - 20);
+    else if (align === "right" || align === "end") available = Math.max(20, x - 10);
+    else available = Math.max(20, W - x - 10);
+    safeWidth = Math.min(safeWidth, available);
+  }
+
+  if (Number.isFinite(safeWidth) && this.measureText(value).width > safeWidth) {
+    nativeCanvasFillText(value, x, y, safeWidth);
+  } else if (Number.isFinite(maxWidth) && maxWidth > 0) {
+    nativeCanvasFillText(value, x, y, maxWidth);
+  } else {
+    nativeCanvasFillText(value, x, y);
+  }
+};
 const victoryLaunchOverlay = document.getElementById("victoryLaunchOverlay");
 const victoryLaunchOverlayCtx = victoryLaunchOverlay.getContext("2d");
 const mobileHudScore = document.getElementById("mobileHudScore");
