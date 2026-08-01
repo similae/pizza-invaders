@@ -1873,7 +1873,11 @@ if (!SHIP_DEFS[selectedShipId] || !unlockedShips.has(selectedShipId)) selectedSh
 function unlockShip(id) {
   if (!SHIP_DEFS[id] || unlockedShips.has(id)) return false;
   unlockedShips.add(id);
-  localStorage.setItem("pizzaInvadersUnlockedShips", JSON.stringify([...unlockedShips]));
+  try {
+    localStorage.setItem("pizzaInvadersUnlockedShips", JSON.stringify([...unlockedShips]));
+  } catch (error) {
+    console.warn("No se pudo guardar la nave desbloqueada; continuará disponible durante esta partida.", error);
+  }
   shipUnlockNotice = { id, shownAt: 0 };
   return true;
 }
@@ -1881,7 +1885,11 @@ function unlockShip(id) {
 function selectShip(id) {
   if (!unlockedShips.has(id)) return false;
   selectedShipId = id;
-  localStorage.setItem("pizzaInvadersSelectedShip", id);
+  try {
+    localStorage.setItem("pizzaInvadersSelectedShip", id);
+  } catch (error) {
+    console.warn("No se pudo guardar la nave seleccionada.", error);
+  }
   return true;
 }
 
@@ -6157,7 +6165,21 @@ function updateBossExplosion() {
   if (now - bossExplosion.startedAt > bossExplosion.duration) {
     const next = bossExplosion.next;
     bossExplosion = null;
-    if (typeof next === "function") next();
+    // Nunca dejar el juego atrapado en una explosión si una acción posterior falla.
+    state = "play";
+    if (typeof next === "function") {
+      try {
+        next();
+      } catch (error) {
+        console.error("No se pudo completar la transición posterior al jefe:", error);
+        enemyBullets = [];
+        bullets = [];
+        powerups = [];
+        wave += 1;
+        createWave();
+        state = "play";
+      }
+    }
   }
 }
 
