@@ -1142,25 +1142,6 @@ function drawColaEnvironmentBackground() {
       colaBackgroundCtx.fillRect(star.x, star.y, star.size, star.size);
     }
 
-    const planetX = viewportW * .18;
-    const planetY = viewportH * .30;
-    const planetRadius = Math.max(38, Math.min(76, Math.min(viewportW, viewportH) * .085));
-    const planetGlow = colaBackgroundCtx.createRadialGradient(
-      planetX - planetRadius * .28,
-      planetY - planetRadius * .32,
-      2,
-      planetX,
-      planetY,
-      planetRadius
-    );
-    planetGlow.addColorStop(0, "rgba(86,232,255,.45)");
-    planetGlow.addColorStop(.48, "rgba(43,26,99,.72)");
-    planetGlow.addColorStop(1, "rgba(9,5,27,0)");
-    colaBackgroundCtx.globalAlpha = .74;
-    colaBackgroundCtx.fillStyle = planetGlow;
-    colaBackgroundCtx.beginPath();
-    colaBackgroundCtx.arc(planetX, planetY, planetRadius, 0, Math.PI * 2);
-    colaBackgroundCtx.fill();
     colaBackgroundCtx.globalAlpha = 1;
     return;
   }
@@ -2092,7 +2073,7 @@ function waitForImage(img) {
   });
 }
 function finishLoadingWhenReady() {
-  const assets = [...introImages, ...Object.values(characterImages), candyPlanetImage, pineappleIntroImage, marshmallowHeadImage, marshmallowBackdropImage, marshmallowBossImage, frozenPizzaEnemyImage, frozenPizzaBossImage, similaePowerImage, similaeFaviconImage, similaeFaviconRINGImage, freezeAdImage, pernigottiEggPrizeImage, fermentedPizzaBasesImage, coverLucaMarshmallowImage];
+  const assets = [...introImages, ...Object.values(characterImages), candyPlanetImage, pineappleIntroImage, marshmallowHeadImage, marshmallowBackdropImage, marshmallowBossImage, frozenPizzaEnemyImage, frozenPizzaBossImage, similaePowerImage, similaeFaviconImage, similaeFaviconRINGImage, similaeLogoImage, freezeAdImage, pernigottiEggPrizeImage, fermentedPizzaBasesImage, coverLucaMarshmallowImage];
   let loadedAssets = 0;
   const updateLoadingProgress = () => {
     const percent = Math.round((loadedAssets / assets.length) * 100);
@@ -9073,6 +9054,14 @@ function drawHangar() {
 function drawStart() {
   const now = performance.now();
   ctx.textAlign = "center";
+
+  if (similaeLogoImage && similaeLogoImage.complete && similaeLogoImage.naturalWidth) {
+    ctx.save();
+    ctx.shadowColor = "rgba(196,255,74,.48)";
+    ctx.shadowBlur = 10;
+    ctx.drawImage(similaeLogoImage, W / 2 - 45, 2, 90, 36);
+    ctx.restore();
+  }
 
   // Título arcade con volumen, contorno y resplandor.
   ctx.save();
