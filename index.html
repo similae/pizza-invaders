@@ -308,7 +308,7 @@
       min-width: 82px;
       min-height: 52px;
       padding: 12px 13px;
-      border: 3px solid #ffcc33;
+      border: 3px solid #9dbf40;
       border-radius: 8px;
       background: rgba(5,7,15,.88);
       color: #fff;
@@ -370,19 +370,42 @@
     pointer-events: none;
     font-family: "PizzaText", monospace;
   }
+  :root {
+    --sim-neon-green: #9dbf40;
+    --sim-neon-green-light: #bddb63;
+    --sim-neon-green-deep: #4b651e;
+    --sim-neon-cyan: #56e8ff;
+    --sim-neon-pink: #ff78d0;
+    --sim-neon-ink: #050914;
+    --sim-neon-panel: #091221;
+    --sim-neon-panel-2: #101a2c;
+    --sim-neon-white: #f5fbff;
+  }
   .ui-card {
     width: min(92vw, 440px);
-    background: #050510;
-    border: 4px solid #ffcc33;
-    border-radius: 0;
+    position: relative;
+    background: linear-gradient(180deg, rgba(16, 26, 44, .98), rgba(5, 9, 20, .98));
+    border: 4px solid var(--sim-neon-green);
+    border-radius: 10px;
     padding: 20px;
     text-align: center;
-    box-shadow: 8px 8px 0 #000, 0 0 0 4px #56e8ff;
+    box-shadow:
+      7px 7px 0 #000,
+      0 0 0 3px var(--sim-neon-cyan),
+      0 0 26px rgba(156, 255, 105, .22),
+      inset 0 0 0 2px rgba(255, 120, 208, .16);
     pointer-events: auto;
     font-family: "PizzaText", monospace;
     image-rendering: pixelated;
   }
-  .ui-card h2 { margin: 0 0 12px; color: #ffcc33; font-size: 25px; letter-spacing: 1px; text-transform: uppercase; }
+  .ui-card h2 {
+    margin: 0 0 12px;
+    color: var(--sim-neon-green);
+    font-size: 25px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    text-shadow: 3px 3px 0 #000, 0 0 11px rgba(156, 255, 105, .38);
+  }
   .ui-card p { margin: 8px 0; font-size: 16px; line-height: 1.35; text-transform: uppercase; }
   .ui-card h2,
   .ui-card p,
@@ -395,9 +418,9 @@
     margin: 14px auto;
     padding: 12px;
     background: #000;
-    border: 4px solid #56e8ff;
-    border-radius: 0;
-    color: #ff78d0;
+    border: 4px solid var(--sim-neon-cyan);
+    border-radius: 8px;
+    color: var(--sim-neon-pink);
     font-size: 32px;
     font-weight: 800;
     letter-spacing: 2px;
@@ -407,10 +430,10 @@
     width: 100%;
     padding: 13px;
     margin: 10px 0;
-    border-radius: 0;
-    border: 3px solid #56e8ff;
-    background: #000;
-    color: white;
+    border-radius: 8px;
+    border: 3px solid var(--sim-neon-cyan);
+    background: var(--sim-neon-ink);
+    color: var(--sim-neon-white);
     font-family: "PizzaText", monospace;
     font-size: 18px;
     text-align: center;
@@ -421,26 +444,43 @@
     width: 100%;
     margin: 10px 0 0;
     padding: 13px 16px;
-    border-radius: 0;
-    border: 3px solid #ffcc33;
-    background: #17172b;
-    color: white;
+    min-height: 54px;
+    border-radius: 8px;
+    border: 3px solid var(--sim-neon-cyan);
+    background:
+      linear-gradient(90deg, rgba(157, 191, 64, .13), transparent 34%),
+      linear-gradient(180deg, #16302f, #091a21);
+    color: var(--sim-neon-white);
     font-family: "PizzaText", monospace;
     font-size: 17px;
     font-weight: 800;
     text-transform: uppercase;
     cursor: pointer;
-    box-shadow: 4px 4px 0 #000;
+    box-shadow: 4px 4px 0 #000, inset 0 0 0 1px rgba(86, 232, 255, .22);
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
     user-select: none;
   }
-  .ui-card button.primary { background: #2b1a63; color: #ffcc33; }
+  .ui-card button.primary {
+    border-color: var(--sim-neon-green);
+    background:
+      linear-gradient(90deg, rgba(255,255,255,.16), transparent 32%),
+      linear-gradient(180deg, var(--sim-neon-green-light), var(--sim-neon-green-deep));
+    color: #fff;
+    text-shadow: 2px 2px 0 rgba(0,0,0,.72);
+    box-shadow: 4px 4px 0 #000, 0 0 15px rgba(156, 255, 105, .22);
+  }
+  .ui-card button:hover,
+  #fullscreenBtn:hover,
+  #installPwaBtn:hover {
+    border-color: var(--sim-neon-green);
+    filter: brightness(1.12);
+  }
   .ui-card button:active, #fullscreenBtn:active, #installPwaBtn:active, #mobileShipsBtn:active, #mobileAudioBtn:active {
     transform: translate(3px, 3px);
     box-shadow: 1px 1px 0 #000;
-    background: #2b1a63;
-    border-color: #56e8ff;
+    background: #183528;
+    border-color: var(--sim-neon-green);
   }
   @media (max-width: 760px) {
     .ui-card,
@@ -487,12 +527,12 @@
     position: relative;
     width: min(92vw, 460px);
     padding: 22px 20px 20px;
-    background: linear-gradient(180deg, #09091d 0%, #050510 100%);
-    border: 4px solid #ffcc33;
+    background: linear-gradient(180deg, #101a2c 0%, #050914 100%);
+    border: 4px solid var(--sim-neon-green);
     box-shadow:
       8px 8px 0 #000,
       0 0 0 4px #56e8ff,
-      0 0 28px rgba(255, 204, 51, .22),
+      0 0 28px rgba(156, 255, 105, .22),
       inset 0 0 0 2px rgba(255, 120, 208, .42);
     overflow: hidden;
   }
@@ -500,16 +540,16 @@
     content: "";
     position: absolute;
     inset: 8px;
-    border: 2px solid rgba(255, 204, 51, .38);
+    border: 2px solid rgba(86, 232, 255, .38);
     pointer-events: none;
   }
   #gameoverOverlay h2 {
     margin-bottom: 6px;
-    color: #ffcc33;
+    color: var(--sim-neon-green);
     font-family: PizzaText, Impact, sans-serif;
     font-size: 34px;
     letter-spacing: 0;
-    text-shadow: 4px 4px 0 #000, 0 0 12px rgba(255, 204, 51, .42);
+    text-shadow: 4px 4px 0 #000, 0 0 12px rgba(156, 255, 105, .42);
   }
   #gameoverOverlay .ranking-note {
     margin: 0 0 12px;
@@ -563,20 +603,25 @@
     flex: 0 0 auto;
   }
   #gameoverOverlay input {
-    border-color: #ffcc33;
+    border-color: var(--sim-neon-green);
     color: #56e8ff;
     box-shadow: inset 0 0 0 2px rgba(86, 232, 255, .22);
   }
   #gameoverOverlay button {
     position: relative;
     z-index: 1;
-    border-color: #ffcc33;
-    background: #17172b;
+    border-color: var(--sim-neon-cyan);
+    background:
+      linear-gradient(90deg, rgba(157, 191, 64, .13), transparent 34%),
+      linear-gradient(180deg, #16302f, #091a21);
     color: #fff;
   }
   #gameoverOverlay button.primary {
-    background: #2b1a63;
-    color: #ffcc33;
+    border-color: var(--sim-neon-green);
+    background:
+      linear-gradient(90deg, rgba(255,255,255,.16), transparent 32%),
+      linear-gradient(180deg, var(--sim-neon-green-light), var(--sim-neon-green-deep));
+    color: #fff;
   }
   #fullscreenBtn {
     position: fixed;
@@ -611,8 +656,10 @@
     touch-action: manipulation;
     padding: 13px 15px;
     font-size: 14px;
-    background: #2b1a63;
-    color: #ffcc33;
+    background:
+      linear-gradient(90deg, rgba(157, 191, 64, .13), transparent 34%),
+      linear-gradient(180deg, #16302f, #091a21);
+    color: #fff;
   }
   #installOverlay {
     background: rgba(5, 5, 16, .88);
@@ -647,9 +694,11 @@
     width: 100%;
     margin-top: 9px;
     padding: 10px;
-    border: 3px solid #ffcc33;
-    background: #2b1a63;
-    color: #ffcc33;
+    border: 3px solid #9dbf40;
+    background:
+      linear-gradient(90deg, rgba(157, 191, 64, .13), transparent 34%),
+      linear-gradient(180deg, #16302f, #091a21);
+    color: #fff;
     font: bold 15px "PizzaText", monospace;
   }
   .game-cinematic {
@@ -676,11 +725,17 @@
     display: block;
     width: min(86vw, 390px);
     padding: 18px;
-    border: 4px solid #ffcc33;
-    background: #2b1a63;
-    color: #ffcc33;
+    border: 4px solid var(--sim-neon-green);
+    border-radius: 9px;
+    background:
+      linear-gradient(90deg, rgba(157, 191, 64, .13), transparent 34%),
+      linear-gradient(180deg, #16302f, #091a21);
+    color: #fff;
     font: bold 19px "PizzaText", monospace;
-    box-shadow: 6px 6px 0 #000, 0 0 24px rgba(86, 232, 255, .34);
+    box-shadow:
+      6px 6px 0 #000,
+      0 0 0 2px var(--sim-neon-cyan),
+      0 0 24px rgba(157, 191, 64, .28);
   }
   body.fake-fullscreen #wrap {
     position: fixed;
@@ -735,8 +790,8 @@
   }
   .loading-card {
     width: min(86vw, 420px);
-    border: 4px solid #ffcc33;
-    box-shadow: 6px 6px 0 #000, 0 0 0 4px #56e8ff;
+    border: 4px solid #9dbf40;
+    box-shadow: 6px 6px 0 #000, 0 0 0 4px #56e8ff, 0 0 28px rgba(157,191,64,.22);
     padding: 22px;
     text-align: center;
     background: #09091a;
@@ -3811,11 +3866,11 @@ function drawTransitionScreen() {
   // sombra dura arcade
   px(x + 10, y + 10, w, h, "#050505");
 
-  // marco amarillo
-  px(x, y, w, 6, "#ffcc33");
-  px(x, y + h - 6, w, 6, "#ffcc33");
-  px(x, y, 6, h, "#ffcc33");
-  px(x + w - 6, y, 6, h, "#ffcc33");
+  // marco principal Similae
+  px(x, y, w, 6, "#9dbf40");
+  px(x, y + h - 6, w, 6, "#9dbf40");
+  px(x, y, 6, h, "#9dbf40");
+  px(x + w - 6, y, 6, h, "#9dbf40");
 
   // marco interno azul
   px(x + 14, y + 14, w - 28, 3, "#56e8ff");
@@ -3909,7 +3964,7 @@ function drawWorldMapV12(activeIndex = 0, statusText = "SIGUIENTE DESTINO") {
   ctx.stroke();
 
   ctx.lineWidth = 7;
-  ctx.strokeStyle = "#ffcc33";
+  ctx.strokeStyle = "#9dbf40";
   ctx.beginPath();
   ctx.moveTo(nodes[0].x, nodes[0].y);
   for (let i = 1; i <= Math.max(0, Math.min(activeIndex, nodes.length - 1)); i++) {
@@ -7338,7 +7393,7 @@ function drawSimilaeFinale() {
     ctx.font = "bold 15px PizzaText";
     ctx.fillText("TODOS SOMOS PARTE DE GAIA.", centerX, 674);
     if (elapsed >= 5200) {
-      drawButton(105, 694, 330, 52, "VOLVER A JUGAR");
+      drawTriviaButtonV12(105, 694, 330, 52, "VOLVER A JUGAR");
     }
     ctx.globalAlpha = 1;
   }
@@ -8064,7 +8119,7 @@ function drawAll() {
     ctx.save();
     ctx.fillStyle = "rgba(5,7,15,.82)";
     ctx.fillRect(W - 188, 42, 160, 34);
-    ctx.strokeStyle = "#ffcc33";
+    ctx.strokeStyle = "#9dbf40";
     ctx.lineWidth = 2;
     ctx.strokeRect(W - 188, 42, 160, 34);
     ctx.fillStyle = "#4bffbd";
@@ -8512,7 +8567,7 @@ function drawTriviaBackdropV12() {
 
   ctx.save();
   ctx.globalAlpha = .16;
-  ctx.strokeStyle = "#ffcc33";
+  ctx.strokeStyle = "#9dbf40";
   ctx.lineWidth = 1;
   for (let x = -W; x < W * 2; x += 38) {
     ctx.beginPath();
@@ -8547,13 +8602,16 @@ function drawTriviaBackdropV12() {
 
 function drawV12Panel(x, y, w, h, accent = "#ff3f9a") {
   px(x + 10, y + 10, w, h, "rgba(0,0,0,0.55)");
-  ctx.fillStyle = "rgba(5, 8, 18, 0.90)";
+  const panelGradient = ctx.createLinearGradient(x, y, x, y + h);
+  panelGradient.addColorStop(0, "rgba(16, 26, 44, 0.96)");
+  panelGradient.addColorStop(1, "rgba(5, 9, 20, 0.96)");
+  ctx.fillStyle = panelGradient;
   ctx.fillRect(x, y, w, h);
 
-  px(x, y, w, 6, "#ffcc33");
-  px(x, y + h - 6, w, 6, "#ffcc33");
-  px(x, y, 6, h, "#ffcc33");
-  px(x + w - 6, y, 6, h, "#ffcc33");
+  px(x, y, w, 6, "#9dbf40");
+  px(x, y + h - 6, w, 6, "#9dbf40");
+  px(x, y, 6, h, "#9dbf40");
+  px(x + w - 6, y, 6, h, "#9dbf40");
 
   px(x + 14, y + 14, w - 28, 3, "#56e8ff");
   px(x + 14, y + h - 17, w - 28, 3, "#56e8ff");
@@ -8762,7 +8820,7 @@ function drawCouponV12() {
   ctx.shadowBlur = 18 + Math.sin(now * .008) * 7;
   ctx.fillStyle = "rgba(3,5,12,.94)";
   ctx.fillRect(48, 258, W - 96, 136);
-  ctx.strokeStyle = "#ffcc33";
+  ctx.strokeStyle = "#9dbf40";
   ctx.lineWidth = 6;
   ctx.strokeRect(48, 258, W - 96, 136);
   ctx.strokeStyle = "#56e8ff";
@@ -8919,7 +8977,7 @@ function drawBonusCouponV12() {
   ctx.shadowBlur = 20 + Math.sin(bonusNow * .008) * 8;
   ctx.fillStyle = "rgba(3,5,12,.95)";
   ctx.fillRect(48, 238, W - 96, 190);
-  ctx.strokeStyle = "#ffcc33";
+  ctx.strokeStyle = "#9dbf40";
   ctx.lineWidth = 6;
   ctx.strokeRect(48, 238, W - 96, 190);
   ctx.strokeStyle = "#56e8ff";
@@ -9236,13 +9294,16 @@ function drawTriviaIntroV12() {
 /// FUNCTION BOTONES ///
 function drawTriviaButtonV12(x, y, w, h, text) {
   ctx.save();
-  ctx.fillStyle = "rgba(0,0,0,.52)";
+  ctx.fillStyle = "rgba(0,0,0,.68)";
   roundRect(x + 5, y + 6, w, h, 9);
   ctx.fill();
-  ctx.fillStyle = "#080b18";
+  const buttonGradient = ctx.createLinearGradient(x, y, x, y + h);
+  buttonGradient.addColorStop(0, "#16302f");
+  buttonGradient.addColorStop(1, "#091a21");
+  ctx.fillStyle = buttonGradient;
   roundRect(x, y, w, h, 9);
   ctx.fill();
-  ctx.strokeStyle = "#ffcc33";
+  ctx.strokeStyle = "#9dbf40";
   ctx.lineWidth = 4;
   roundRect(x, y, w, h, 9);
   ctx.stroke();
@@ -9473,7 +9534,7 @@ function drawFreezerTransmission() {
   ctx.strokeStyle = "#72e6ff";
   ctx.lineWidth = 4;
   ctx.strokeRect(42, 110, W-84, 520);
-  ctx.strokeStyle = "#ffcc33";
+  ctx.strokeStyle = "#9dbf40";
   ctx.lineWidth = 2;
   ctx.strokeRect(54, 122, W-108, 496);
   ctx.textAlign = "center";
@@ -9515,7 +9576,7 @@ function drawCouponScreen() {
 
   ctx.fillStyle = "#000";
   ctx.fillRect(72, 275, 396, 112);
-  ctx.strokeStyle = "#ffcc33";
+  ctx.strokeStyle = "#9dbf40";
   ctx.lineWidth = 4;
   ctx.strokeRect(72, 275, 396, 112);
   ctx.strokeStyle = "#56e8ff";
@@ -9528,9 +9589,9 @@ function drawCouponScreen() {
   ctx.font = "34px PizzaText";
   ctx.fillText(COUPON_CODE, W/2, 358);
 
-  drawButton(105, 465, 330, 54, "COPIAR CUPON");
-  drawButton(105, 535, 330, 54, "WHATSAPP");
-  drawButton(105, 605, 330, 54, "CONTINUAR");
+  drawTriviaButtonV12(105, 465, 330, 54, "COPIAR CUPON");
+  drawTriviaButtonV12(105, 535, 330, 54, "WHATSAPP");
+  drawTriviaButtonV12(105, 605, 330, 54, "CONTINUAR");
   ctx.fillStyle = "rgba(255,255,255,.76)";
   ctx.font = "14px PizzaText";
   ctx.fillText("VALIDO EN SIMILAE.COM", W/2, 700);
@@ -9538,13 +9599,18 @@ function drawCouponScreen() {
 }
 
 function drawButton(x, y, w, h, label) {
+  ctx.save();
   ctx.fillStyle = "rgba(0,0,0,.72)";
   roundRect(x + 5, y + 6, w, h, 9);
   ctx.fill();
-  ctx.fillStyle = "#17172b";
+  const buttonGradient = ctx.createLinearGradient(x, y, x, y + h);
+  buttonGradient.addColorStop(0, "#bddb63");
+  buttonGradient.addColorStop(0.48, "#8eae38");
+  buttonGradient.addColorStop(1, "#4b651e");
+  ctx.fillStyle = buttonGradient;
   roundRect(x, y, w, h, 9);
   ctx.fill();
-  ctx.strokeStyle = "#ffcc33";
+  ctx.strokeStyle = "#9dbf40";
   ctx.lineWidth = 3;
   roundRect(x, y, w, h, 9);
   ctx.stroke();
@@ -9555,7 +9621,11 @@ function drawButton(x, y, w, h, label) {
   ctx.fillStyle = "white";
   ctx.font = "bold 17px PizzaText";
   ctx.textAlign = "center";
+  ctx.shadowColor = "rgba(0,0,0,.85)";
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 2;
   ctx.fillText(label, x + w/2, y + h/2 + 6);
+  ctx.restore();
 }
 
 function drawHangarStat(label, value, x, y, color) {
@@ -9636,9 +9706,9 @@ function drawHangar() {
     const x = 30 + index * 96;
     const unlocked = unlockedShips.has(id);
     ctx.globalAlpha = unlocked ? 1 : .58;
-    ctx.fillStyle = selectedShipId === id ? "rgba(255,204,51,.26)" : "rgba(8,11,20,.96)";
+    ctx.fillStyle = selectedShipId === id ? "rgba(157,191,64,.24)" : "rgba(8,11,20,.96)";
     ctx.fillRect(x, 455, 84, 100);
-    ctx.strokeStyle = selectedShipId === id ? "#ffcc33" : def.color;
+    ctx.strokeStyle = selectedShipId === id ? "#9dbf40" : def.color;
     ctx.lineWidth = selectedShipId === id ? 4 : 2;
     ctx.strokeRect(x, 455, 84, 100);
     drawCharacterShip(id, x + 27, 465, .55, false);
@@ -9658,7 +9728,7 @@ function drawHangar() {
     }
   });
 
-  drawButton(95, 584, 350, 60, selectingReplayStage ? "EQUIPAR Y ELEGIR ETAPA" : (returningToGame ? "EQUIPAR Y CONTINUAR" : "INICIAR MISION"));
+  drawTriviaButtonV12(95, 584, 350, 60, selectingReplayStage ? "EQUIPAR Y ELEGIR ETAPA" : (returningToGame ? "EQUIPAR Y CONTINUAR" : "INICIAR MISION"));
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 14px PizzaText";
   ctx.fillText("SELECCIONA UNA NAVE DESBLOQUEADA", W/2, 671);
@@ -9741,7 +9811,7 @@ function drawStart() {
   ctx.fillStyle = "white";
   ctx.font = "18px PizzaText";
   ctx.fillText(isTouchDevice ? "Arrastra el dedo para mover" : "← → mover · Espacio disparar", W/2, 541);
-  drawButton(105, 585, 330, 62, "START GAME");
+  drawTriviaButtonV12(105, 585, 330, 62, "START GAME");
 
   ctx.fillStyle = "#56e8ff";
   ctx.font = "bold 21px PizzaText";
@@ -9815,8 +9885,8 @@ function drawGameOver() {
   ctx.fillText("Oleada alcanzada: " + wave, W/2, 365);
   ctx.fillStyle = "#ffcc33";
   ctx.fillText("¿Puedes rescatar a Gaia?", W/2, 410);
-  drawButton(95, 450, 350, 56, "JUGAR OTRA VEZ");
-  drawButton(95, 520, 350, 56, "WHATSAPP");
+  drawTriviaButtonV12(95, 450, 350, 56, "JUGAR OTRA VEZ");
+  drawTriviaButtonV12(95, 520, 350, 56, "WHATSAPP");
   ctx.textAlign = "left";
 }
 
