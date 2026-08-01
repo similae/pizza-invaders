@@ -5492,13 +5492,13 @@ function updateBoss() {
     performance.now() >= boss.sideIceBossFireAt
   ) {
     const shotX = W + 48;
-    const shotY = Math.max(150, Math.min(H - 180, player.y - 80));
     const targetX = player.x + player.w / 2;
     const targetY = player.y + player.h / 2;
+    const shotY = targetY;
     const dx = targetX - shotX;
     const dy = targetY - shotY;
     const distance = Math.max(1, Math.hypot(dx, dy));
-    const shotSpeed = 4.35;
+    const shotSpeed = 6.25;
     addEnemyBullet(
       shotX,
       shotY,
@@ -6036,7 +6036,7 @@ function drawFreezerSideBossInDesktopMargin() {
   const miniScale = scale * .52;
   const visibleWidth = 230 * miniScale;
   const x = rect.right + 8 + (1 - slide) * visibleWidth * .72;
-  const y = Math.max(80, Math.min(viewportH - 182 * miniScale - 30, rect.top + Math.max(150, Math.min(H - 180, player.y - 80)) * scale - 70 * miniScale));
+  const y = Math.max(80, Math.min(viewportH - 182 * miniScale - 30, rect.top + (player.y + player.h / 2) * scale - 70 * miniScale));
   const gameCtx = ctx;
   ctx = victoryLaunchOverlayCtx;
   ctx.save();
