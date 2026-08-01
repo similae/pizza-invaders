@@ -73,17 +73,20 @@
   }
   body.cola-environment #wrap,
   body.freezer-environment #wrap,
-  body.candy-environment #wrap {
+  body.candy-environment #wrap,
+  body.pineapple-environment #wrap {
     background: transparent;
   }
   body.cola-environment #game,
   body.freezer-environment #game,
-  body.candy-environment #game {
+  body.candy-environment #game,
+  body.pineapple-environment #game {
     background: transparent;
   }
   @media (min-width: 761px) {
     body.freezer-environment #game,
-    body.candy-environment #game {
+    body.candy-environment #game,
+    body.pineapple-environment #game {
       border: 0;
       border-radius: 0;
       box-shadow: none;
@@ -934,6 +937,7 @@ const colaBackgroundCtx = colaBackgroundCanvas.getContext("2d");
 let colaBackgroundBubbles = [];
 let freezerBackgroundStars = [];
 let candyBackgroundStars = [];
+let pineappleBackgroundStars = [];
 const mobileHudScore = document.getElementById("mobileHudScore");
 const mobileHudLives = document.getElementById("mobileHudLives");
 const mobileHudWave = document.getElementById("mobileHudWave");
@@ -974,9 +978,18 @@ function updateExternalMobileHud() {
       state === "bossExplosion" ||
       state === "bossVictoryLaunch"
     );
+  const pineappleEnvironmentActive =
+    wave >= 46 &&
+    wave <= 50 &&
+    (
+      state === "play" ||
+      state === "bossExplosion" ||
+      state === "bossVictoryLaunch"
+    );
   document.body.classList.toggle("cola-environment", colaEnvironmentActive);
   document.body.classList.toggle("freezer-environment", freezerEnvironmentActive);
   document.body.classList.toggle("candy-environment", candyEnvironmentActive);
+  document.body.classList.toggle("pineapple-environment", pineappleEnvironmentActive);
   document.body.classList.toggle("external-hud-active", active);
   document.body.classList.toggle("mobile-boss-active", bossActive);
   if (!active) return;
@@ -1016,7 +1029,8 @@ function drawColaEnvironmentBackground() {
   const colaActive = document.body.classList.contains("cola-environment");
   const freezerActive = document.body.classList.contains("freezer-environment");
   const candyActive = document.body.classList.contains("candy-environment");
-  if (!colaActive && !freezerActive && !candyActive) {
+  const pineappleActive = document.body.classList.contains("pineapple-environment");
+  if (!colaActive && !freezerActive && !candyActive && !pineappleActive) {
     colaBackgroundCanvas.style.display = "none";
     return;
   }
@@ -1032,9 +1046,55 @@ function drawColaEnvironmentBackground() {
     colaBackgroundBubbles = [];
     freezerBackgroundStars = [];
     candyBackgroundStars = [];
+    pineappleBackgroundStars = [];
   }
   colaBackgroundCanvas.style.display = "block";
   colaBackgroundCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  if (pineappleActive) {
+    const pineappleGradient = colaBackgroundCtx.createLinearGradient(0, 0, 0, viewportH);
+    pineappleGradient.addColorStop(0, "#1c1704");
+    pineappleGradient.addColorStop(.55, "#31270a");
+    pineappleGradient.addColorStop(1, "#100d03");
+    colaBackgroundCtx.fillStyle = pineappleGradient;
+    colaBackgroundCtx.fillRect(0, 0, viewportW, viewportH);
+
+    const pineappleGlow = colaBackgroundCtx.createRadialGradient(
+      viewportW * .5,
+      viewportH * .34,
+      20,
+      viewportW * .5,
+      viewportH * .34,
+      Math.max(viewportW, viewportH) * .72
+    );
+    pineappleGlow.addColorStop(0, "rgba(255,204,51,.20)");
+    pineappleGlow.addColorStop(1, "rgba(255,204,51,0)");
+    colaBackgroundCtx.fillStyle = pineappleGlow;
+    colaBackgroundCtx.fillRect(0, 0, viewportW, viewportH);
+
+    const desiredPineappleStars = Math.max(55, Math.round((viewportW * viewportH) / 12500));
+    while (pineappleBackgroundStars.length < desiredPineappleStars) {
+      pineappleBackgroundStars.push({
+        x: Math.random() * viewportW,
+        y: Math.random() * viewportH,
+        size: 1 + Math.random() * 3.2,
+        speed: .45 + Math.random() * .82,
+        alpha: .38 + Math.random() * .34
+      });
+    }
+    for (const star of pineappleBackgroundStars) {
+      star.y += star.speed;
+      if (star.y > viewportH + 10) {
+        star.y = -10;
+        star.x = Math.random() * viewportW;
+      }
+      colaBackgroundCtx.globalAlpha = star.alpha;
+      colaBackgroundCtx.fillStyle = star.size > 2.6 ? "#fff2a8" : "#ffcc33";
+      colaBackgroundCtx.fillRect(star.x, star.y, star.size, star.size);
+    }
+    colaBackgroundCtx.globalAlpha = 1;
+    return;
+  }
 
   if (candyActive) {
     const candyGradient = colaBackgroundCtx.createLinearGradient(0, 0, 0, viewportH);
@@ -4949,30 +5009,7 @@ function drawBackground() {
   }
 
   if (isPineappleInversionStageBackground) {
-    const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, "#1c1704");
-    grad.addColorStop(.55, "#31270a");
-    grad.addColorStop(1, "#100d03");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
-
-    const glow = ctx.createRadialGradient(W * .5, H * .34, 20, W * .5, H * .34, W * .72);
-    glow.addColorStop(0, "rgba(255,204,51,.20)");
-    glow.addColorStop(1, "rgba(255,204,51,0)");
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, W, H);
-
-    for (const s of stars) {
-      s.y += 0.48 + s.v * 0.45;
-      if (s.y > H + 12) {
-        s.y = -12;
-        s.x = Math.random() * W;
-      }
-      ctx.globalAlpha = .38 + Math.min(.34, s.s / 7);
-      px(s.x, s.y, Math.max(1, s.s), Math.max(1, s.s), s.layer === 2 ? "#fff2a8" : "#ffcc33");
-    }
-
-    ctx.globalAlpha = 1;
+    ctx.clearRect(0, 0, W, H);
     return;
   }
 
@@ -5645,20 +5682,33 @@ function updateBullets() {
   });
   const gameRect = canvas.getBoundingClientRect();
   const viewportScale = gameRect.width > 0 ? gameRect.width / W : 1;
-  const snowflakeMarginX = isIceCubeStage()
+  const fullViewportThreats =
+    isIceCubeStage() ||
+    (
+      isPineappleInversionStage() &&
+      window.matchMedia("(min-width: 761px)").matches
+    );
+  const snowflakeMarginX = fullViewportThreats
     ? Math.max(
         190,
         Math.max(gameRect.left, window.innerWidth - gameRect.right) / Math.max(.01, viewportScale) + 90
       )
     : 190;
-  const snowflakeMarginY = isIceCubeStage()
+  const snowflakeMarginY = fullViewportThreats
     ? Math.max(
         190,
         Math.max(gameRect.top, window.innerHeight - gameRect.bottom) / Math.max(.01, viewportScale) + 90
       )
     : 190;
   enemyBullets = enemyBullets.filter(b => {
-    if (b.type === "snowflake") {
+    if (
+      b.type === "snowflake" ||
+      (
+        b.type === "colorPineapple" &&
+        isPineappleInversionStage() &&
+        window.matchMedia("(min-width: 761px)").matches
+      )
+    ) {
       return (
         b.y > -snowflakeMarginY &&
         b.y < H + snowflakeMarginY &&
@@ -6142,12 +6192,18 @@ function drawFreezerMarginActors() {
 }
 
 function drawSnowflakesAcrossViewport() {
-  if (state !== "play" || !isIceCubeStage()) {
+  const pineappleViewportActive =
+    isPineappleInversionStage() &&
+    window.matchMedia("(min-width: 761px)").matches;
+  const threatType = isIceCubeStage()
+    ? "snowflake"
+    : (pineappleViewportActive ? "colorPineapple" : null);
+  if (state !== "play" || !threatType) {
     clearFreezerSnowflakeOverlay();
     return;
   }
-  const snowflakes = enemyBullets.filter(b => b.type === "snowflake");
-  if (!snowflakes.length) {
+  const viewportThreats = enemyBullets.filter(b => b.type === threatType);
+  if (!viewportThreats.length) {
     clearFreezerSnowflakeOverlay();
     return;
   }
@@ -6168,15 +6224,17 @@ function drawSnowflakesAcrossViewport() {
 
   const gameCtx = ctx;
   ctx = freezerSnowflakeOverlayCtx;
-  for (const b of snowflakes) {
+  for (const b of viewportThreats) {
     const screenX = rect.left + b.x * scale;
     const screenY = rect.top + b.y * scale;
     ctx.save();
     ctx.translate(screenX, screenY);
     ctx.scale(scale, scale);
-    ctx.shadowColor = "rgba(114,230,255,.82)";
+    ctx.shadowColor = threatType === "snowflake"
+      ? "rgba(114,230,255,.82)"
+      : "rgba(255,204,51,.82)";
     ctx.shadowBlur = 12 / Math.max(scale, .01);
-    drawShot("snowflake", 0, 0, false);
+    drawShot(threatType, 0, 0, false);
     ctx.restore();
   }
   ctx = gameCtx;
@@ -7234,9 +7292,22 @@ function drawAll() {
   ctx.save();
   if (isInvertedMarshmallowStage()) ctx.filter = "invert(1) hue-rotate(180deg) saturate(1.18)";
   const snowflakesUseViewport =
-    isIceCubeStage();
+    isIceCubeStage() ||
+    (
+      isPineappleInversionStage() &&
+      window.matchMedia("(min-width: 761px)").matches
+    );
   for (const b of enemyBullets) {
-    if (snowflakesUseViewport && b.type === "snowflake") continue;
+    if (
+      snowflakesUseViewport &&
+      (
+        b.type === "snowflake" ||
+        (
+          b.type === "colorPineapple" &&
+          isPineappleInversionStage()
+        )
+      )
+    ) continue;
     drawShot(b.type, b.x, b.y, false);
   }
   ctx.restore();
