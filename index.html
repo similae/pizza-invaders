@@ -71,10 +71,12 @@
       100% 100%,
       100% 100%;
   }
-  body.cola-environment #wrap {
+  body.cola-environment #wrap,
+  body.freezer-environment #wrap {
     background: transparent;
   }
-  body.cola-environment #game {
+  body.cola-environment #game,
+  body.freezer-environment #game {
     background: transparent;
   }
   #colaBackgroundCanvas {
@@ -902,6 +904,7 @@ const victoryLaunchOverlayCtx = victoryLaunchOverlay.getContext("2d");
 const colaBackgroundCanvas = document.getElementById("colaBackgroundCanvas");
 const colaBackgroundCtx = colaBackgroundCanvas.getContext("2d");
 let colaBackgroundBubbles = [];
+let freezerBackgroundStars = [];
 const mobileHudScore = document.getElementById("mobileHudScore");
 const mobileHudLives = document.getElementById("mobileHudLives");
 const mobileHudWave = document.getElementById("mobileHudWave");
@@ -926,7 +929,16 @@ function updateExternalMobileHud() {
       state === "bossExplosion" ||
       state === "bossVictoryLaunch"
     );
+  const freezerEnvironmentActive =
+    wave >= 36 &&
+    wave <= 40 &&
+    (
+      state === "play" ||
+      state === "bossExplosion" ||
+      state === "bossVictoryLaunch"
+    );
   document.body.classList.toggle("cola-environment", colaEnvironmentActive);
+  document.body.classList.toggle("freezer-environment", freezerEnvironmentActive);
   document.body.classList.toggle("external-hud-active", active);
   document.body.classList.toggle("mobile-boss-active", bossActive);
   if (!active) return;
@@ -963,8 +975,9 @@ function updateExternalMobileHud() {
 }
 
 function drawColaEnvironmentBackground() {
-  const active = document.body.classList.contains("cola-environment");
-  if (!active) {
+  const colaActive = document.body.classList.contains("cola-environment");
+  const freezerActive = document.body.classList.contains("freezer-environment");
+  if (!colaActive && !freezerActive) {
     colaBackgroundCanvas.style.display = "none";
     return;
   }
@@ -978,9 +991,43 @@ function drawColaEnvironmentBackground() {
     colaBackgroundCanvas.width = targetW;
     colaBackgroundCanvas.height = targetH;
     colaBackgroundBubbles = [];
+    freezerBackgroundStars = [];
   }
   colaBackgroundCanvas.style.display = "block";
   colaBackgroundCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  if (freezerActive) {
+    const freezerGradient = colaBackgroundCtx.createLinearGradient(0, 0, 0, viewportH);
+    freezerGradient.addColorStop(0, "#050510");
+    freezerGradient.addColorStop(.55, "#0d1326");
+    freezerGradient.addColorStop(1, "#09070e");
+    colaBackgroundCtx.fillStyle = freezerGradient;
+    colaBackgroundCtx.fillRect(0, 0, viewportW, viewportH);
+
+    const desiredStars = Math.max(55, Math.round((viewportW * viewportH) / 12500));
+    while (freezerBackgroundStars.length < desiredStars) {
+      freezerBackgroundStars.push({
+        x: Math.random() * viewportW,
+        y: Math.random() * viewportH,
+        size: 1 + Math.random() * 3.2,
+        speed: .38 + Math.random() * .95,
+        alpha: .40 + Math.random() * .36
+      });
+    }
+    for (const star of freezerBackgroundStars) {
+      star.y += star.speed;
+      if (star.y > viewportH + 10) {
+        star.y = -10;
+        star.x = Math.random() * viewportW;
+      }
+      colaBackgroundCtx.globalAlpha = star.alpha;
+      colaBackgroundCtx.fillStyle = star.size > 2.6 ? "#d5fbff" : "#ffffff";
+      colaBackgroundCtx.fillRect(star.x, star.y, star.size, star.size);
+    }
+    colaBackgroundCtx.globalAlpha = 1;
+    return;
+  }
+
   colaBackgroundCtx.fillStyle = "#210006";
   colaBackgroundCtx.fillRect(0, 0, viewportW, viewportH);
 
@@ -4841,7 +4888,12 @@ function drawBackground() {
     return;
   }
 
-  if (isIceCubeStageBackground || isPopsicleMarshmallowStageBackground) {
+  if (isIceCubeStageBackground) {
+    ctx.clearRect(0, 0, W, H);
+    return;
+  }
+
+  if (isPopsicleMarshmallowStageBackground) {
     const now = performance.now();
     const grad = ctx.createLinearGradient(0, 0, 0, H);
     grad.addColorStop(0, isPopsicleMarshmallowStageBackground ? "#19051d" : "#050510");
