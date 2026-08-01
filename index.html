@@ -72,15 +72,18 @@
       100% 100%;
   }
   body.cola-environment #wrap,
-  body.freezer-environment #wrap {
+  body.freezer-environment #wrap,
+  body.candy-environment #wrap {
     background: transparent;
   }
   body.cola-environment #game,
-  body.freezer-environment #game {
+  body.freezer-environment #game,
+  body.candy-environment #game {
     background: transparent;
   }
   @media (min-width: 761px) {
-    body.freezer-environment #game {
+    body.freezer-environment #game,
+    body.candy-environment #game {
       border: 0;
       border-radius: 0;
       box-shadow: none;
@@ -912,6 +915,7 @@ const colaBackgroundCanvas = document.getElementById("colaBackgroundCanvas");
 const colaBackgroundCtx = colaBackgroundCanvas.getContext("2d");
 let colaBackgroundBubbles = [];
 let freezerBackgroundStars = [];
+let candyBackgroundStars = [];
 const mobileHudScore = document.getElementById("mobileHudScore");
 const mobileHudLives = document.getElementById("mobileHudLives");
 const mobileHudWave = document.getElementById("mobileHudWave");
@@ -944,8 +948,17 @@ function updateExternalMobileHud() {
       state === "bossExplosion" ||
       state === "bossVictoryLaunch"
     );
+  const candyEnvironmentActive =
+    wave >= 41 &&
+    wave <= 45 &&
+    (
+      state === "play" ||
+      state === "bossExplosion" ||
+      state === "bossVictoryLaunch"
+    );
   document.body.classList.toggle("cola-environment", colaEnvironmentActive);
   document.body.classList.toggle("freezer-environment", freezerEnvironmentActive);
+  document.body.classList.toggle("candy-environment", candyEnvironmentActive);
   document.body.classList.toggle("external-hud-active", active);
   document.body.classList.toggle("mobile-boss-active", bossActive);
   if (!active) return;
@@ -984,7 +997,8 @@ function updateExternalMobileHud() {
 function drawColaEnvironmentBackground() {
   const colaActive = document.body.classList.contains("cola-environment");
   const freezerActive = document.body.classList.contains("freezer-environment");
-  if (!colaActive && !freezerActive) {
+  const candyActive = document.body.classList.contains("candy-environment");
+  if (!colaActive && !freezerActive && !candyActive) {
     colaBackgroundCanvas.style.display = "none";
     return;
   }
@@ -999,9 +1013,42 @@ function drawColaEnvironmentBackground() {
     colaBackgroundCanvas.height = targetH;
     colaBackgroundBubbles = [];
     freezerBackgroundStars = [];
+    candyBackgroundStars = [];
   }
   colaBackgroundCanvas.style.display = "block";
   colaBackgroundCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  if (candyActive) {
+    const candyGradient = colaBackgroundCtx.createLinearGradient(0, 0, 0, viewportH);
+    candyGradient.addColorStop(0, "#19051d");
+    candyGradient.addColorStop(.55, "#2a0b35");
+    candyGradient.addColorStop(1, "#100614");
+    colaBackgroundCtx.fillStyle = candyGradient;
+    colaBackgroundCtx.fillRect(0, 0, viewportW, viewportH);
+
+    const desiredCandyStars = Math.max(55, Math.round((viewportW * viewportH) / 12500));
+    while (candyBackgroundStars.length < desiredCandyStars) {
+      candyBackgroundStars.push({
+        x: Math.random() * viewportW,
+        y: Math.random() * viewportH,
+        size: 1 + Math.random() * 3.2,
+        speed: .38 + Math.random() * .95,
+        alpha: .42 + Math.random() * .34
+      });
+    }
+    for (const star of candyBackgroundStars) {
+      star.y += star.speed;
+      if (star.y > viewportH + 10) {
+        star.y = -10;
+        star.x = Math.random() * viewportW;
+      }
+      colaBackgroundCtx.globalAlpha = star.alpha;
+      colaBackgroundCtx.fillStyle = star.size > 2.6 ? "#ffffff" : "#ffb3e4";
+      colaBackgroundCtx.fillRect(star.x, star.y, star.size, star.size);
+    }
+    colaBackgroundCtx.globalAlpha = 1;
+    return;
+  }
 
   if (freezerActive) {
     const freezerGradient = colaBackgroundCtx.createLinearGradient(0, 0, 0, viewportH);
@@ -4917,25 +4964,7 @@ function drawBackground() {
   }
 
   if (isPopsicleMarshmallowStageBackground) {
-    const now = performance.now();
-    const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, isPopsicleMarshmallowStageBackground ? "#19051d" : "#050510");
-    grad.addColorStop(.55, isPopsicleMarshmallowStageBackground ? "#2a0b35" : "#0d1326");
-    grad.addColorStop(1, isPopsicleMarshmallowStageBackground ? "#100614" : "#09070e");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
-
-    for (const s of stars) {
-      s.y += 0.48 + s.v * 0.45;
-      if (s.y > H + 12) {
-        s.y = -12;
-        s.x = Math.random() * W;
-      }
-      ctx.globalAlpha = .42 + Math.min(.35, s.s / 7);
-      px(s.x, s.y, Math.max(1, s.s), Math.max(1, s.s), isPopsicleMarshmallowStageBackground ? "#ffb3e4" : "#ffffff");
-    }
-
-    ctx.globalAlpha = 1;
+    ctx.clearRect(0, 0, W, H);
     return;
   }
 
