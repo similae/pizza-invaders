@@ -1024,7 +1024,13 @@ function updateExternalMobileHud() {
   if (now < speedUntil) status.push("TOMATE TURBO");
   if (now < (player?.controlsInvertedUntil || 0)) status.push("CONTROLES INVERTIDOS");
   if (now < similaeModeUntil) status.push("ANILLO SIMILAE");
-  if (allyShip) status.push("ALIADO " + (SHIP_DEFS[allyShip.id] || SHIP_DEFS.gino).name);
+  if (allyShip) {
+    status.push(
+      allyShip.secret
+        ? "COPILOTO PAOLO"
+        : "ALIADO " + (SHIP_DEFS[allyShip.id] || SHIP_DEFS.gino).name
+    );
+  }
   if (isRunnerStage()) status.push("RUTA " + Math.floor(runnerDistance) + "m");
   if (isGaiaTunnelStage()) status.push("PISOS " + Math.floor(Math.min(1, tunnelDistance / 1250) * 100) + "%");
   mobileHudScore.textContent = score;
@@ -1376,6 +1382,9 @@ let combatEntityUid = 0;
 let shipVolleyCount = 0;
 let shipUnlockNotice = null;
 let allyShip = null;
+let secretPilotTapCount = 0;
+let secretPilotLastTapAt = 0;
+let secretPilotLastRawEventAt = 0;
 let hangarReturnState = null;
 let hangarOriginalShipId = null;
 let hangarContinueAction = null;
@@ -3000,7 +3009,7 @@ function resetGame() {
   bullets = []; enemyBullets = []; enemies = []; particles = []; powerups = []; runnerObstacles = []; topBomber = null;
   boss = null; formationOffset = 0; formationDir = 1; formationTick = 0;
   bossVictoryLaunch = null;
-  doubleUntil = 0; shieldUntil = selectedShipId === "gaia" ? performance.now() + 6500 : 0; speedUntil = 0; similaeModeUntil = 0; jumpBoostUntil = 0; attackCooldown = 80; runnerObstacleTick = 0; runnerDistance = 0; tunnelObstacleTick = 0; tunnelDistance = 0; dashVelocityY = 0; dashJumpQueued = false; gaiaFloorIndex = 2; shipVolleyCount = 0; allyShip = null;
+  doubleUntil = 0; shieldUntil = selectedShipId === "gaia" ? performance.now() + 6500 : 0; speedUntil = 0; similaeModeUntil = 0; jumpBoostUntil = 0; attackCooldown = 80; runnerObstacleTick = 0; runnerDistance = 0; tunnelObstacleTick = 0; tunnelDistance = 0; dashVelocityY = 0; dashJumpQueued = false; gaiaFloorIndex = 2; shipVolleyCount = 0; allyShip = null; secretPilotTapCount = 0; secretPilotLastTapAt = 0; secretPilotLastRawEventAt = 0;
   couponShown = false; pendingBoss = false; triviaShown = false; triviaAnswered = false; currentTrivia = null; triviaSelectedIndex = null; triviaContinueAction = null; fermentationContinueAction = null; pineappleIntroShown = false; candyIntroShown = false; freezerTransmissionShown = false;
   candyMarshmallowBackdropStartedAt = 0; candyMarshmallowBackdropPlayed = false; candyMarshmallowThreat = null;
   stars = Array.from({length: 150}, () => {
@@ -3987,6 +3996,49 @@ function setTouchTarget(pt) {
   touchControl.targetY = pt.y - player.h / 2 - fingerOffsetY;
 }
 
+function activateSecretPaoloCopilot() {
+  if (!player || state !== "play") return;
+  const now = performance.now();
+  const def = SHIP_DEFS.paolo;
+  allyShip = {
+    id: "paolo",
+    x: player.x - 78,
+    y: player.y + 16,
+    w: 56,
+    h: 62,
+    until: Infinity,
+    lastShot: 0,
+    noticeUntil: now + 3200,
+    side: player.x < W / 2 ? 1 : -1,
+    color: def.color,
+    secret: true
+  };
+  explode(player.x + player.w / 2, player.y, def.color, {
+    count: 32,
+    speed: 7,
+    shape: "spark",
+    size: 6,
+    life: 30
+  });
+  playSfx("powerup");
+}
+
+function registerSecretPilotTap() {
+  if (state !== "play") return;
+  const now = performance.now();
+  // iOS puede emitir touchstart y luego un evento de mouse sintético.
+  if (now - secretPilotLastRawEventAt < 90) return;
+  secretPilotLastRawEventAt = now;
+  if (now - secretPilotLastTapAt > 900) secretPilotTapCount = 0;
+  secretPilotTapCount += 1;
+  secretPilotLastTapAt = now;
+  if (secretPilotTapCount >= 5) {
+    secretPilotTapCount = 0;
+    secretPilotLastTapAt = 0;
+    if (!allyShip?.secret) activateSecretPaoloCopilot();
+  }
+}
+
 
 function pointHitsFullscreenChip(pt) {
   if (isTouchDevice) return false;
@@ -3999,6 +4051,7 @@ function startFromTouch(e) {
   e.preventDefault();
   initGameAudio();
   canvas.focus();1
+  registerSecretPilotTap();
 
   if (state === "coupon") {
     if (performance.now() - couponUnlockedAt < 700) return;
@@ -7499,13 +7552,25 @@ function drawAll() {
     const allyDef = SHIP_DEFS[allyShip.id] || SHIP_DEFS.gino;
     const remaining = Math.ceil(Math.max(0, allyShip.until - performance.now()) / 1000);
     ctx.fillStyle = allyDef.color;
-    ctx.fillText("ALIADO " + allyDef.name + " " + remaining + "s", W-190, 134);
+    ctx.fillText(
+      allyShip.secret
+        ? "COPILOTO PAOLO"
+        : "ALIADO " + allyDef.name + " " + remaining + "s",
+      W-190,
+      134
+    );
     if (performance.now() < allyShip.noticeUntil) {
       ctx.save();
       ctx.textAlign = "center";
       ctx.font = "bold 24px PizzaText";
       ctx.fillStyle = "#ffcc33";
-      ctx.fillText(allyDef.name + " ENTRA AL COMBATE", W/2, 128);
+      ctx.fillText(
+        allyShip.secret
+          ? "MODO SECRETO · COPILOTO PAOLO"
+          : allyDef.name + " ENTRA AL COMBATE",
+        W/2,
+        128
+      );
       ctx.restore();
     }
   }
