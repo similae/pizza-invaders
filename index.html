@@ -69,6 +69,30 @@
       100% 100%,
       100% 100%;
   }
+  body.cola-environment #wrap {
+    background-color: #210006;
+    background-image:
+      radial-gradient(circle at 18px 24px, transparent 0 7px, rgba(255,179,193,.42) 8px 9px, transparent 10px),
+      radial-gradient(circle at 62px 78px, transparent 0 4px, rgba(255,255,255,.30) 5px 6px, transparent 7px),
+      radial-gradient(circle at 104px 38px, transparent 0 11px, rgba(255,80,105,.25) 12px 13px, transparent 14px),
+      radial-gradient(circle at 52% 42%, rgba(116,12,24,.32), transparent 54%),
+      linear-gradient(180deg, #350008 0%, #210006 52%, #130003 100%);
+    background-size:
+      126px 148px,
+      92px 118px,
+      174px 196px,
+      100% 100%,
+      100% 100%;
+    animation: colaMarginBubbles 9s linear infinite;
+  }
+  @keyframes colaMarginBubbles {
+    from {
+      background-position: 0 0, 0 0, 0 0, center, center;
+    }
+    to {
+      background-position: 0 -148px, 18px -118px, -22px -196px, center, center;
+    }
+  }
   canvas {
     background: #050510;
     border: 3px solid #ffcc33;
@@ -891,6 +915,15 @@ function useExternalMobileHud() {
 function updateExternalMobileHud() {
   const active = state === "play" && useExternalMobileHud();
   const bossActive = active && !!boss;
+  const colaEnvironmentActive =
+    wave >= 26 &&
+    wave < 36 &&
+    (
+      state === "play" ||
+      state === "bossExplosion" ||
+      state === "bossVictoryLaunch"
+    );
+  document.body.classList.toggle("cola-environment", colaEnvironmentActive);
   document.body.classList.toggle("external-hud-active", active);
   document.body.classList.toggle("mobile-boss-active", bossActive);
   if (!active) return;
