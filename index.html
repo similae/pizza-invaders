@@ -74,13 +74,15 @@
   body.cola-environment #wrap,
   body.freezer-environment #wrap,
   body.candy-environment #wrap,
-  body.pineapple-environment #wrap {
+  body.pineapple-environment #wrap,
+  body.start-environment #wrap {
     background: transparent;
   }
   body.cola-environment #game,
   body.freezer-environment #game,
   body.candy-environment #game,
-  body.pineapple-environment #game {
+  body.pineapple-environment #game,
+  body.start-environment #game {
     background: transparent;
     outline: none;
   }
@@ -948,6 +950,7 @@ let colaBackgroundBubbles = [];
 let freezerBackgroundStars = [];
 let candyBackgroundStars = [];
 let pineappleBackgroundStars = [];
+let startBackgroundStars = [];
 const mobileHudScore = document.getElementById("mobileHudScore");
 const mobileHudLives = document.getElementById("mobileHudLives");
 const mobileHudWave = document.getElementById("mobileHudWave");
@@ -996,10 +999,12 @@ function updateExternalMobileHud() {
       state === "bossExplosion" ||
       state === "bossVictoryLaunch"
     );
+  const startEnvironmentActive = state === "start";
   document.body.classList.toggle("cola-environment", colaEnvironmentActive);
   document.body.classList.toggle("freezer-environment", freezerEnvironmentActive);
   document.body.classList.toggle("candy-environment", candyEnvironmentActive);
   document.body.classList.toggle("pineapple-environment", pineappleEnvironmentActive);
+  document.body.classList.toggle("start-environment", startEnvironmentActive);
   document.body.classList.toggle("external-hud-active", active);
   document.body.classList.toggle("mobile-boss-active", bossActive);
   if (!active) return;
@@ -1040,7 +1045,8 @@ function drawColaEnvironmentBackground() {
   const freezerActive = document.body.classList.contains("freezer-environment");
   const candyActive = document.body.classList.contains("candy-environment");
   const pineappleActive = document.body.classList.contains("pineapple-environment");
-  if (!colaActive && !freezerActive && !candyActive && !pineappleActive) {
+  const startActive = document.body.classList.contains("start-environment");
+  if (!colaActive && !freezerActive && !candyActive && !pineappleActive && !startActive) {
     colaBackgroundCanvas.style.display = "none";
     return;
   }
@@ -1057,9 +1063,69 @@ function drawColaEnvironmentBackground() {
     freezerBackgroundStars = [];
     candyBackgroundStars = [];
     pineappleBackgroundStars = [];
+    startBackgroundStars = [];
   }
   colaBackgroundCanvas.style.display = "block";
   colaBackgroundCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  if (startActive) {
+    const startGradient = colaBackgroundCtx.createRadialGradient(
+      viewportW * .5,
+      viewportH * .18,
+      10,
+      viewportW * .5,
+      viewportH * .45,
+      Math.max(viewportW, viewportH) * .78
+    );
+    startGradient.addColorStop(0, "#24124c");
+    startGradient.addColorStop(.48, "#090719");
+    startGradient.addColorStop(1, "#04040b");
+    colaBackgroundCtx.fillStyle = startGradient;
+    colaBackgroundCtx.fillRect(0, 0, viewportW, viewportH);
+
+    const desiredStartStars = Math.max(70, Math.round((viewportW * viewportH) / 10500));
+    while (startBackgroundStars.length < desiredStartStars) {
+      startBackgroundStars.push({
+        x: Math.random() * viewportW,
+        y: Math.random() * viewportH,
+        size: .8 + Math.random() * 2.8,
+        speed: .18 + Math.random() * .52,
+        layer: Math.floor(Math.random() * 3)
+      });
+    }
+    for (const star of startBackgroundStars) {
+      star.y += star.speed;
+      if (star.y > viewportH + 8) {
+        star.y = -8;
+        star.x = Math.random() * viewportW;
+      }
+      colaBackgroundCtx.globalAlpha = star.layer === 0 ? .28 : (star.layer === 1 ? .52 : .82);
+      colaBackgroundCtx.fillStyle = star.layer === 2 ? "#56e8ff" : "#ffffff";
+      colaBackgroundCtx.fillRect(star.x, star.y, star.size, star.size);
+    }
+
+    const planetX = viewportW * .18;
+    const planetY = viewportH * .30;
+    const planetRadius = Math.max(38, Math.min(76, Math.min(viewportW, viewportH) * .085));
+    const planetGlow = colaBackgroundCtx.createRadialGradient(
+      planetX - planetRadius * .28,
+      planetY - planetRadius * .32,
+      2,
+      planetX,
+      planetY,
+      planetRadius
+    );
+    planetGlow.addColorStop(0, "rgba(86,232,255,.45)");
+    planetGlow.addColorStop(.48, "rgba(43,26,99,.72)");
+    planetGlow.addColorStop(1, "rgba(9,5,27,0)");
+    colaBackgroundCtx.globalAlpha = .74;
+    colaBackgroundCtx.fillStyle = planetGlow;
+    colaBackgroundCtx.beginPath();
+    colaBackgroundCtx.arc(planetX, planetY, planetRadius, 0, Math.PI * 2);
+    colaBackgroundCtx.fill();
+    colaBackgroundCtx.globalAlpha = 1;
+    return;
+  }
 
   if (pineappleActive) {
     const pineappleGradient = colaBackgroundCtx.createLinearGradient(0, 0, 0, viewportH);
@@ -4957,6 +5023,10 @@ function drawTunnelObstacle(o) {
 }
 
 function drawBackground() {
+  if (state === "start") {
+    ctx.clearRect(0, 0, W, H);
+    return;
+  }
   const isRunnerStageBackground = false;
   const isGaiaTunnelStageBackground = isGaiaDashWave();
   const isIceCubeStageBackground = isIceCubeStage();

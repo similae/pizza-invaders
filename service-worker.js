@@ -1,4 +1,4 @@
-const CACHE_VERSION = "pizza-invaders-v1.0.69";
+const CACHE_VERSION = "pizza-invaders-v1.0.70";
 const CORE_CACHE = `${CACHE_VERSION}-core`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
