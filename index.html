@@ -135,6 +135,21 @@
     box-shadow: none;
     pointer-events: none;
   }
+  #freezerSnowflakeOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 11;
+    display: none;
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+    max-height: none;
+    background: transparent !important;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    pointer-events: none;
+  }
   button { display: none; }
   @media (max-width: 760px) {
     #wrap {
@@ -800,6 +815,7 @@
   </div>
 </div>
 <canvas id="victoryLaunchOverlay" aria-hidden="true"></canvas>
+<canvas id="freezerSnowflakeOverlay" aria-hidden="true"></canvas>
 <button id="fullscreenBtn" type="button">[ ] FULL SCREEN</button>
 <button id="installPwaBtn" type="button">INSTALAR JUEGO</button>
 
@@ -911,6 +927,8 @@ ctx.fillText = function(text, x, y, maxWidth) {
 };
 const victoryLaunchOverlay = document.getElementById("victoryLaunchOverlay");
 const victoryLaunchOverlayCtx = victoryLaunchOverlay.getContext("2d");
+const freezerSnowflakeOverlay = document.getElementById("freezerSnowflakeOverlay");
+const freezerSnowflakeOverlayCtx = freezerSnowflakeOverlay.getContext("2d");
 const colaBackgroundCanvas = document.getElementById("colaBackgroundCanvas");
 const colaBackgroundCtx = colaBackgroundCanvas.getContext("2d");
 let colaBackgroundBubbles = [];
@@ -5625,9 +5643,28 @@ function updateBullets() {
     b.x += b.vx;
     b.y += b.vy;
   });
+  const gameRect = canvas.getBoundingClientRect();
+  const viewportScale = gameRect.width > 0 ? gameRect.width / W : 1;
+  const snowflakeMarginX = isIceCubeStage()
+    ? Math.max(
+        190,
+        Math.max(gameRect.left, window.innerWidth - gameRect.right) / Math.max(.01, viewportScale) + 90
+      )
+    : 190;
+  const snowflakeMarginY = isIceCubeStage()
+    ? Math.max(
+        190,
+        Math.max(gameRect.top, window.innerHeight - gameRect.bottom) / Math.max(.01, viewportScale) + 90
+      )
+    : 190;
   enemyBullets = enemyBullets.filter(b => {
     if (b.type === "snowflake") {
-      return b.y > -190 && b.y < H + 190 && b.x > -190 && b.x < W + 190;
+      return (
+        b.y > -snowflakeMarginY &&
+        b.y < H + snowflakeMarginY &&
+        b.x > -snowflakeMarginX &&
+        b.x < W + snowflakeMarginX
+      );
     }
     return b.y < H+60 && b.x > -70 && b.x < W+70;
   });
@@ -6092,16 +6129,26 @@ function drawFreezerSideBossInDesktopMargin() {
   return true;
 }
 
-function drawSnowflakesAcrossViewport() {
+function clearFreezerSnowflakeOverlay() {
+  freezerSnowflakeOverlay.style.display = "none";
+  freezerSnowflakeOverlayCtx.setTransform(1, 0, 0, 1, 0, 0);
+  freezerSnowflakeOverlayCtx.clearRect(0, 0, freezerSnowflakeOverlay.width, freezerSnowflakeOverlay.height);
+}
+
+function drawFreezerMarginActors() {
   if (drawFreezerSideBossInDesktopMargin()) return;
   if (drawFreezerCarrierInDesktopMargins()) return;
-  if (!useExternalMobileHud() || state !== "play" || !isIceCubeStage()) {
-    clearVictoryLaunchViewportOverlay();
+  if (state === "play") clearVictoryLaunchViewportOverlay();
+}
+
+function drawSnowflakesAcrossViewport() {
+  if (state !== "play" || !isIceCubeStage()) {
+    clearFreezerSnowflakeOverlay();
     return;
   }
   const snowflakes = enemyBullets.filter(b => b.type === "snowflake");
   if (!snowflakes.length) {
-    clearVictoryLaunchViewportOverlay();
+    clearFreezerSnowflakeOverlay();
     return;
   }
 
@@ -6110,17 +6157,17 @@ function drawSnowflakesAcrossViewport() {
   const dpr = Math.max(1, window.devicePixelRatio || 1);
   const targetW = Math.round(window.innerWidth * dpr);
   const targetH = Math.round(window.innerHeight * dpr);
-  if (victoryLaunchOverlay.width !== targetW || victoryLaunchOverlay.height !== targetH) {
-    victoryLaunchOverlay.width = targetW;
-    victoryLaunchOverlay.height = targetH;
+  if (freezerSnowflakeOverlay.width !== targetW || freezerSnowflakeOverlay.height !== targetH) {
+    freezerSnowflakeOverlay.width = targetW;
+    freezerSnowflakeOverlay.height = targetH;
   }
-  victoryLaunchOverlay.style.display = "block";
-  victoryLaunchOverlayCtx.setTransform(1, 0, 0, 1, 0, 0);
-  victoryLaunchOverlayCtx.clearRect(0, 0, targetW, targetH);
-  victoryLaunchOverlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  freezerSnowflakeOverlay.style.display = "block";
+  freezerSnowflakeOverlayCtx.setTransform(1, 0, 0, 1, 0, 0);
+  freezerSnowflakeOverlayCtx.clearRect(0, 0, targetW, targetH);
+  freezerSnowflakeOverlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   const gameCtx = ctx;
-  ctx = victoryLaunchOverlayCtx;
+  ctx = freezerSnowflakeOverlayCtx;
   for (const b of snowflakes) {
     const screenX = rect.left + b.x * scale;
     const screenY = rect.top + b.y * scale;
@@ -7187,13 +7234,13 @@ function drawAll() {
   ctx.save();
   if (isInvertedMarshmallowStage()) ctx.filter = "invert(1) hue-rotate(180deg) saturate(1.18)";
   const snowflakesUseViewport =
-    useExternalMobileHud() &&
     isIceCubeStage();
   for (const b of enemyBullets) {
     if (snowflakesUseViewport && b.type === "snowflake") continue;
     drawShot(b.type, b.x, b.y, false);
   }
   ctx.restore();
+  drawFreezerMarginActors();
   drawSnowflakesAcrossViewport();
   for (const p of powerups) drawPowerup(p);
 
@@ -9054,6 +9101,7 @@ function loop() {
   if (state !== "play" && state !== "bossVictoryLaunch") {
     clearVictoryLaunchViewportOverlay();
   }
+  if (state !== "play") clearFreezerSnowflakeOverlay();
   updateOverlayVisibility();
   updateExternalMobileHud();
   drawColaEnvironmentBackground();
