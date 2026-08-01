@@ -47,6 +47,8 @@
     touch-action: none;
   }
   #wrap {
+    position: relative;
+    z-index: 1;
     width: 100vw;
     height: 100vh;
     height: 100dvh;
@@ -70,28 +72,25 @@
       100% 100%;
   }
   body.cola-environment #wrap {
-    background-color: #210006;
-    background-image:
-      radial-gradient(circle at 18px 24px, transparent 0 7px, rgba(255,179,193,.42) 8px 9px, transparent 10px),
-      radial-gradient(circle at 62px 78px, transparent 0 4px, rgba(255,255,255,.30) 5px 6px, transparent 7px),
-      radial-gradient(circle at 104px 38px, transparent 0 11px, rgba(255,80,105,.25) 12px 13px, transparent 14px),
-      radial-gradient(circle at 52% 42%, rgba(116,12,24,.32), transparent 54%),
-      linear-gradient(180deg, #350008 0%, #210006 52%, #130003 100%);
-    background-size:
-      126px 148px,
-      92px 118px,
-      174px 196px,
-      100% 100%,
-      100% 100%;
-    animation: colaMarginBubbles 9s linear infinite;
+    background: transparent;
   }
-  @keyframes colaMarginBubbles {
-    from {
-      background-position: 0 0, 0 0, 0 0, center, center;
-    }
-    to {
-      background-position: 0 -148px, 18px -118px, -22px -196px, center, center;
-    }
+  body.cola-environment #game {
+    background: transparent;
+  }
+  #colaBackgroundCanvas {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    display: none;
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+    max-height: none;
+    background: #210006;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    pointer-events: none;
   }
   canvas {
     background: #050510;
@@ -732,6 +731,7 @@
 </style>
 </head>
 <body>
+<canvas id="colaBackgroundCanvas" aria-hidden="true"></canvas>
 
   <video id="stayPuffedVideo" class="game-cinematic"
   src="assets/PIZZAINVADERS-STAY-PUFFED-VIDEO.mp4"
@@ -899,6 +899,9 @@ ctx.fillText = function(text, x, y, maxWidth) {
 };
 const victoryLaunchOverlay = document.getElementById("victoryLaunchOverlay");
 const victoryLaunchOverlayCtx = victoryLaunchOverlay.getContext("2d");
+const colaBackgroundCanvas = document.getElementById("colaBackgroundCanvas");
+const colaBackgroundCtx = colaBackgroundCanvas.getContext("2d");
+let colaBackgroundBubbles = [];
 const mobileHudScore = document.getElementById("mobileHudScore");
 const mobileHudLives = document.getElementById("mobileHudLives");
 const mobileHudWave = document.getElementById("mobileHudWave");
@@ -957,6 +960,55 @@ function updateExternalMobileHud() {
   } else {
     mobileBossFill.style.width = "100%";
   }
+}
+
+function drawColaEnvironmentBackground() {
+  const active = document.body.classList.contains("cola-environment");
+  if (!active) {
+    colaBackgroundCanvas.style.display = "none";
+    return;
+  }
+
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const viewportW = window.innerWidth;
+  const viewportH = window.innerHeight;
+  const targetW = Math.round(viewportW * dpr);
+  const targetH = Math.round(viewportH * dpr);
+  if (colaBackgroundCanvas.width !== targetW || colaBackgroundCanvas.height !== targetH) {
+    colaBackgroundCanvas.width = targetW;
+    colaBackgroundCanvas.height = targetH;
+    colaBackgroundBubbles = [];
+  }
+  colaBackgroundCanvas.style.display = "block";
+  colaBackgroundCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  colaBackgroundCtx.fillStyle = "#210006";
+  colaBackgroundCtx.fillRect(0, 0, viewportW, viewportH);
+
+  const desiredCount = Math.max(34, Math.round((viewportW * viewportH) / 17500));
+  while (colaBackgroundBubbles.length < desiredCount) {
+    colaBackgroundBubbles.push({
+      x: Math.random() * viewportW,
+      y: Math.random() * viewportH,
+      r: 2.5 + Math.random() * 9,
+      speed: .28 + Math.random() * .72,
+      alpha: .18 + Math.random() * .35
+    });
+  }
+
+  colaBackgroundCtx.lineWidth = 1;
+  for (const bubble of colaBackgroundBubbles) {
+    bubble.y -= bubble.speed;
+    if (bubble.y < -bubble.r - 4) {
+      bubble.y = viewportH + bubble.r + Math.random() * 60;
+      bubble.x = Math.random() * viewportW;
+    }
+    colaBackgroundCtx.globalAlpha = bubble.alpha;
+    colaBackgroundCtx.strokeStyle = "#ffb3c1";
+    colaBackgroundCtx.beginPath();
+    colaBackgroundCtx.arc(bubble.x, bubble.y, bubble.r, 0, Math.PI * 2);
+    colaBackgroundCtx.stroke();
+  }
+  colaBackgroundCtx.globalAlpha = 1;
 }
 
 mobileAudioBtn.addEventListener("click", () => {
@@ -4930,25 +4982,7 @@ function drawBackground() {
   }
 
   if (isPopColaStage) {
-    px(0, 0, W, H, "#210006");
-
-    for (const s of stars) {
-      s.y -= s.v * 0.55;
-      if (s.y < -12) {
-        s.y = H + Math.random() * 80;
-        s.x = Math.random() * W;
-      }
-
-      const r = Math.max(2, s.s * 2.2);
-      ctx.globalAlpha = Math.min(0.55, 0.18 + s.s / 7);
-      ctx.strokeStyle = "#ffb3c1";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-
-    ctx.globalAlpha = 1;
+    ctx.clearRect(0, 0, W, H);
     return;
   }
 
@@ -8840,6 +8874,7 @@ function loop() {
   }
   updateOverlayVisibility();
   updateExternalMobileHud();
+  drawColaEnvironmentBackground();
   drawBackground();
 
   if (state === "loading") {
