@@ -75,14 +75,16 @@
   body.freezer-environment #wrap,
   body.candy-environment #wrap,
   body.pineapple-environment #wrap,
-  body.start-environment #wrap {
+  body.start-environment #wrap,
+  body.hangar-environment #wrap {
     background: transparent;
   }
   body.cola-environment #game,
   body.freezer-environment #game,
   body.candy-environment #game,
   body.pineapple-environment #game,
-  body.start-environment #game {
+  body.start-environment #game,
+  body.hangar-environment #game {
     background: transparent;
     outline: none;
   }
@@ -1000,11 +1002,13 @@ function updateExternalMobileHud() {
       state === "bossVictoryLaunch"
     );
   const startEnvironmentActive = state === "start";
+  const hangarEnvironmentActive = state === "hangar";
   document.body.classList.toggle("cola-environment", colaEnvironmentActive);
   document.body.classList.toggle("freezer-environment", freezerEnvironmentActive);
   document.body.classList.toggle("candy-environment", candyEnvironmentActive);
   document.body.classList.toggle("pineapple-environment", pineappleEnvironmentActive);
   document.body.classList.toggle("start-environment", startEnvironmentActive);
+  document.body.classList.toggle("hangar-environment", hangarEnvironmentActive);
   document.body.classList.toggle("external-hud-active", active);
   document.body.classList.toggle("mobile-boss-active", bossActive);
   if (!active) return;
@@ -1046,7 +1050,8 @@ function drawColaEnvironmentBackground() {
   const candyActive = document.body.classList.contains("candy-environment");
   const pineappleActive = document.body.classList.contains("pineapple-environment");
   const startActive = document.body.classList.contains("start-environment");
-  if (!colaActive && !freezerActive && !candyActive && !pineappleActive && !startActive) {
+  const hangarActive = document.body.classList.contains("hangar-environment");
+  if (!colaActive && !freezerActive && !candyActive && !pineappleActive && !startActive && !hangarActive) {
     colaBackgroundCanvas.style.display = "none";
     return;
   }
@@ -1067,6 +1072,39 @@ function drawColaEnvironmentBackground() {
   }
   colaBackgroundCanvas.style.display = "block";
   colaBackgroundCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  if (hangarActive) {
+    const hangarGradient = colaBackgroundCtx.createLinearGradient(0, 0, 0, viewportH);
+    hangarGradient.addColorStop(0, "#080b16");
+    hangarGradient.addColorStop(.55, "#12172a");
+    hangarGradient.addColorStop(1, "#050711");
+    colaBackgroundCtx.fillStyle = hangarGradient;
+    colaBackgroundCtx.fillRect(0, 0, viewportW, viewportH);
+
+    const gameRect = canvas.getBoundingClientRect();
+    const scale = gameRect.height > 0 ? gameRect.height / H : 1;
+    const gridSize = Math.max(22, 36 * scale);
+    const gridOriginX = gameRect.left % gridSize;
+    const gridOriginY = gameRect.top % gridSize;
+    colaBackgroundCtx.save();
+    colaBackgroundCtx.globalAlpha = .10;
+    colaBackgroundCtx.strokeStyle = "#56e8ff";
+    colaBackgroundCtx.lineWidth = 1;
+    for (let x = gridOriginX - gridSize; x <= viewportW + gridSize; x += gridSize) {
+      colaBackgroundCtx.beginPath();
+      colaBackgroundCtx.moveTo(x, 0);
+      colaBackgroundCtx.lineTo(x, viewportH);
+      colaBackgroundCtx.stroke();
+    }
+    for (let y = gridOriginY - gridSize; y <= viewportH + gridSize; y += gridSize) {
+      colaBackgroundCtx.beginPath();
+      colaBackgroundCtx.moveTo(0, y);
+      colaBackgroundCtx.lineTo(viewportW, y);
+      colaBackgroundCtx.stroke();
+    }
+    colaBackgroundCtx.restore();
+    return;
+  }
 
   if (startActive) {
     const startGradient = colaBackgroundCtx.createRadialGradient(
@@ -8939,24 +8977,7 @@ function drawHangar() {
   const returningToGame = hangarReturnState === "play" || hangarReturnState === "callback" || selectingReplayStage;
   ctx.save();
 
-  const bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, "#080b16");
-  bg.addColorStop(.55, "#12172a");
-  bg.addColorStop(1, "#050711");
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
-
-  ctx.save();
-  ctx.globalAlpha = .10;
-  ctx.strokeStyle = "#56e8ff";
-  ctx.lineWidth = 1;
-  for (let x = 0; x <= W; x += 36) {
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-  }
-  for (let y = 0; y <= H; y += 36) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
-  }
-  ctx.restore();
+  ctx.clearRect(0, 0, W, H);
 
   ctx.fillStyle = "rgba(3,5,12,.88)";
   ctx.fillRect(28, 70, W - 56, 280);
