@@ -2968,6 +2968,9 @@ function startBoss() {
     popsicleMarshmallowStageBoss: isPopsicleMarshmallowBossWave(),
     pineappleInversionStageBoss: isPineappleInversionBossWave(),
     colorPineappleLaunched: false,
+    sideIceShotFired: false,
+    sideIceBossFireAt: performance.now() + 6500,
+    sideIceBossVisibleUntil: 0,
     t: 0, shootTimer: 45, iceWaveStep: 0
   };
   enemies = [];
@@ -5475,6 +5478,30 @@ function updateBoss() {
   
     return;
   }
+  if (
+    boss.type === "frozenPizzaBoss" &&
+    boss.iceCubeStageBoss &&
+    !boss.sideIceShotFired &&
+    performance.now() >= boss.sideIceBossFireAt
+  ) {
+    const shotX = W + 48;
+    const shotY = Math.max(150, Math.min(H - 180, player.y - 80));
+    const targetX = player.x + player.w / 2;
+    const targetY = player.y + player.h / 2;
+    const dx = targetX - shotX;
+    const dy = targetY - shotY;
+    const distance = Math.max(1, Math.hypot(dx, dy));
+    const shotSpeed = 4.35;
+    addEnemyBullet(
+      shotX,
+      shotY,
+      "ice",
+      (dx / distance) * shotSpeed,
+      (dy / distance) * shotSpeed
+    );
+    boss.sideIceShotFired = true;
+    boss.sideIceBossVisibleUntil = performance.now() + 850;
+  }
   boss.t++;
   boss.x = W/2 - boss.w/2 + Math.sin(boss.t*.025)*110;
   boss.shootTimer--;
@@ -5963,7 +5990,61 @@ function drawFreezerCarrierInDesktopMargins() {
   return true;
 }
 
+function drawFreezerSideBossInDesktopMargin() {
+  if (
+    !window.matchMedia("(min-width: 761px)").matches ||
+    state !== "play" ||
+    !boss ||
+    boss.type !== "frozenPizzaBoss" ||
+    !boss.iceCubeStageBoss ||
+    boss.sideIceShotFired && performance.now() > boss.sideIceBossVisibleUntil
+  ) {
+    return false;
+  }
+
+  const now = performance.now();
+  const revealAt = boss.sideIceBossFireAt - 1750;
+  if (now < revealAt) return false;
+  const rect = canvas.getBoundingClientRect();
+  const scale = rect.width / W;
+  const revealT = Math.max(0, Math.min(1, (now - revealAt) / 700));
+  const retreatT = boss.sideIceShotFired
+    ? Math.max(0, Math.min(1, 1 - (boss.sideIceBossVisibleUntil - now) / 850))
+    : 0;
+  const slide = Math.max(0, Math.min(1, revealT - retreatT));
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const viewportW = window.innerWidth;
+  const viewportH = window.innerHeight;
+  const targetW = Math.round(viewportW * dpr);
+  const targetH = Math.round(viewportH * dpr);
+  if (victoryLaunchOverlay.width !== targetW || victoryLaunchOverlay.height !== targetH) {
+    victoryLaunchOverlay.width = targetW;
+    victoryLaunchOverlay.height = targetH;
+  }
+  victoryLaunchOverlay.style.display = "block";
+  victoryLaunchOverlayCtx.setTransform(1, 0, 0, 1, 0, 0);
+  victoryLaunchOverlayCtx.clearRect(0, 0, targetW, targetH);
+  victoryLaunchOverlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const miniScale = scale * .52;
+  const visibleWidth = 230 * miniScale;
+  const x = rect.right + 8 + (1 - slide) * visibleWidth * .72;
+  const y = Math.max(80, Math.min(viewportH - 182 * miniScale - 30, rect.top + Math.max(150, Math.min(H - 180, player.y - 80)) * scale - 70 * miniScale));
+  const gameCtx = ctx;
+  ctx = victoryLaunchOverlayCtx;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(miniScale, miniScale);
+  ctx.shadowColor = "rgba(114,230,255,.92)";
+  ctx.shadowBlur = 18 / Math.max(miniScale, .01);
+  drawFrozenPizzaBossSprite(0, 0);
+  ctx.restore();
+  ctx = gameCtx;
+  return true;
+}
+
 function drawSnowflakesAcrossViewport() {
+  if (drawFreezerSideBossInDesktopMargin()) return;
   if (drawFreezerCarrierInDesktopMargins()) return;
   if (!useExternalMobileHud() || state !== "play" || !isIceCubeStage()) {
     clearVictoryLaunchViewportOverlay();
