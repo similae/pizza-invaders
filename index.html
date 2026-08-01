@@ -5694,6 +5694,7 @@ function startBossVictoryLaunch(next, options = {}) {
     startedAt: performance.now(),
     duration: options.exitThroughViewportTop ? 1900 : 1450,
     exitThroughViewportTop: options.exitThroughViewportTop === true,
+    phase: "vertical",
     next,
     trailTick: 0
   };
@@ -5705,6 +5706,18 @@ function startBossVictoryLaunch(next, options = {}) {
 function updateBossVictoryLaunch() {
   if (!bossVictoryLaunch) return;
   const now = performance.now();
+  if (bossVictoryLaunch.phase === "desktopFlyby") {
+    const flybyT = Math.max(0, Math.min(1, (now - bossVictoryLaunch.startedAt) / bossVictoryLaunch.duration));
+    updateParticles();
+    if (flybyT >= 1) {
+      const next = bossVictoryLaunch.next;
+      bossVictoryLaunch = null;
+      clearVictoryLaunchViewportOverlay();
+      if (typeof next === "function") next();
+    }
+    return;
+  }
+
   const t = Math.max(0, Math.min(1, (now - bossVictoryLaunch.startedAt) / bossVictoryLaunch.duration));
   // Movimiento acelerado: comienza suave y sale de la pantalla cada vez más rápido.
   const accelerated = t * t * t;
@@ -5741,6 +5754,17 @@ function updateBossVictoryLaunch() {
   updateParticles();
 
   if (t >= 1) {
+    if (
+      bossVictoryLaunch.exitThroughViewportTop &&
+      window.matchMedia("(min-width: 761px)").matches
+    ) {
+      bossVictoryLaunch.phase = "desktopFlyby";
+      bossVictoryLaunch.startedAt = now;
+      bossVictoryLaunch.duration = Math.max(2200, Math.min(3400, window.innerWidth * 1.7));
+      bossVictoryLaunch.trailTick = 0;
+      clearVictoryLaunchViewportOverlay();
+      return;
+    }
     const next = bossVictoryLaunch.next;
     bossVictoryLaunch = null;
     clearVictoryLaunchViewportOverlay();
@@ -5922,10 +5946,82 @@ function drawVictoryLaunchViewportOverlay(t, speedGlow) {
   ctx = gameCtx;
 }
 
+function drawBossVictoryDesktopFlyby() {
+  if (
+    !bossVictoryLaunch ||
+    bossVictoryLaunch.phase !== "desktopFlyby" ||
+    !window.matchMedia("(min-width: 761px)").matches
+  ) {
+    return;
+  }
+
+  const now = performance.now();
+  const t = Math.max(0, Math.min(1, (now - bossVictoryLaunch.startedAt) / bossVictoryLaunch.duration));
+  const eased = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+  const rect = canvas.getBoundingClientRect();
+  const scale = rect.width / W;
+  const shipSize = Math.max(42, player.w * scale);
+  const screenX = -shipSize * 1.8 + eased * (window.innerWidth + shipSize * 3.6);
+  const screenY = Math.max(30, Math.min(window.innerHeight - shipSize - 30, rect.top + 112 * scale));
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const targetW = Math.round(window.innerWidth * dpr);
+  const targetH = Math.round(window.innerHeight * dpr);
+  if (victoryLaunchOverlay.width !== targetW || victoryLaunchOverlay.height !== targetH) {
+    victoryLaunchOverlay.width = targetW;
+    victoryLaunchOverlay.height = targetH;
+  }
+  victoryLaunchOverlay.style.display = "block";
+  victoryLaunchOverlayCtx.setTransform(1, 0, 0, 1, 0, 0);
+  victoryLaunchOverlayCtx.clearRect(0, 0, targetW, targetH);
+  victoryLaunchOverlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const glow = .72 + Math.sin(now * .018) * .16;
+  const trailLength = Math.min(250, 95 + window.innerWidth * .08);
+  const trail = victoryLaunchOverlayCtx.createLinearGradient(
+    screenX - trailLength,
+    screenY,
+    screenX + shipSize * .25,
+    screenY
+  );
+  trail.addColorStop(0, "rgba(86,232,255,0)");
+  trail.addColorStop(.55, `rgba(86,232,255,${.34 * glow})`);
+  trail.addColorStop(.88, `rgba(255,255,255,${.72 * glow})`);
+  trail.addColorStop(1, "rgba(255,204,51,.88)");
+  victoryLaunchOverlayCtx.fillStyle = trail;
+  victoryLaunchOverlayCtx.beginPath();
+  victoryLaunchOverlayCtx.moveTo(screenX - trailLength, screenY + shipSize * .47);
+  victoryLaunchOverlayCtx.lineTo(screenX + shipSize * .30, screenY + shipSize * .34);
+  victoryLaunchOverlayCtx.lineTo(screenX + shipSize * .30, screenY + shipSize * .66);
+  victoryLaunchOverlayCtx.lineTo(screenX - trailLength, screenY + shipSize * .53);
+  victoryLaunchOverlayCtx.closePath();
+  victoryLaunchOverlayCtx.fill();
+
+  const gameCtx = ctx;
+  ctx = victoryLaunchOverlayCtx;
+  ctx.save();
+  ctx.translate(screenX + shipSize / 2, screenY + shipSize / 2);
+  ctx.rotate(Math.PI / 2);
+  ctx.scale(scale, scale);
+  ctx.shadowColor = "rgba(86,232,255,.96)";
+  ctx.shadowBlur = (18 + glow * 16) / Math.max(scale, .01);
+  drawCharacterShip(
+    bossVictoryLaunch.shipId,
+    -player.w / 2,
+    -player.h / 2,
+    1.08
+  );
+  ctx.restore();
+  ctx = gameCtx;
+}
+
 function drawBossVictoryLaunchScreen() {
   drawBackground();
   for (const p of particles) drawParticle(p, 52);
   if (!bossVictoryLaunch) return;
+  if (bossVictoryLaunch.phase === "desktopFlyby") {
+    drawBossVictoryDesktopFlyby();
+    return;
+  }
 
   const t = Math.max(0, Math.min(1, (performance.now() - bossVictoryLaunch.startedAt) / bossVictoryLaunch.duration));
   const speedGlow = Math.max(0, (t - .18) / .82);
