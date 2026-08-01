@@ -1139,13 +1139,14 @@ function drawColaEnvironmentBackground() {
     colaBackgroundCtx.fillStyle = "#01040c";
     colaBackgroundCtx.fillRect(0, 0, viewportW, viewportH);
     const rect = canvas.getBoundingClientRect();
-    const scale = rect.height > 0 ? rect.height / H : 1;
+    const scaleX = rect.width > 0 ? rect.width / W : 1;
+    const scaleY = rect.height > 0 ? rect.height / H : 1;
     const elapsed = transition ? performance.now() - transition.startedAt : 0;
     const auraReveal = Math.max(0, Math.min(1, (elapsed - 450) / 1250));
     const easedAura = 1 - Math.pow(1 - auraReveal, 3);
-    const centerX = rect.left + (W / 2) * scale;
-    const centerY = rect.top + 325 * scale;
-    const radius = Math.max(viewportW, viewportH) * .72;
+    const centerX = rect.left + (W / 2) * scaleX;
+    const centerY = rect.top + 325 * scaleY;
+    const radius = Math.max(410 * Math.max(scaleX, scaleY), Math.max(viewportW, viewportH) * .62);
     const ambient = colaBackgroundCtx.createRadialGradient(centerX, centerY, 5, centerX, centerY, radius);
     ambient.addColorStop(0, `rgba(30,145,255,${easedAura * .34})`);
     ambient.addColorStop(.48, `rgba(4,57,125,${easedAura * .25})`);
@@ -5549,6 +5550,14 @@ function drawBackground() {
     ctx.clearRect(0, 0, W, H);
     return;
   }
+  if (
+    state === "transition" &&
+    transition &&
+    transition.drawCustom === drawEggPrizeUnlockTransition
+  ) {
+    ctx.clearRect(0, 0, W, H);
+    return;
+  }
   const isRunnerStageBackground = false;
   const isGaiaTunnelStageBackground = isGaiaDashWave();
   const isIceCubeStageBackground = isIceCubeStage();
@@ -8965,17 +8974,8 @@ function drawEggPrizeUnlockTransition() {
   const easedEgg = 1 - Math.pow(1 - eggReveal, 3);
   const glowPulse = .76 + Math.sin(performance.now() * .008) * .16;
 
-  // La revelación comienza casi a oscuras y deja crecer lentamente la luz azul.
-  ctx.save();
-  ctx.fillStyle = "#01040c";
-  ctx.fillRect(0, 0, W, H);
-  const ambient = ctx.createRadialGradient(W / 2, 325, 5, W / 2, 325, 410);
-  ambient.addColorStop(0, `rgba(30,145,255,${easedAura * .34})`);
-  ambient.addColorStop(.48, `rgba(4,57,125,${easedAura * .25})`);
-  ambient.addColorStop(1, "rgba(0,8,24,0)");
-  ctx.fillStyle = ambient;
-  ctx.fillRect(0, 0, W, H);
-  ctx.restore();
+  // El fondo oscuro y su halo viven en una única capa de pantalla completa.
+  // Este canvas queda transparente y dibuja solamente el contenido del premio.
 
   ctx.save();
   ctx.textAlign = "center";
