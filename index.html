@@ -989,6 +989,7 @@ let lastDevTapAt = 0;
 let keys = {};
 let score = 0, lives = 3, wave = 1;
 let player, bullets, enemyBullets, enemies, particles, powerups, stars, backgroundPlanets, shootingStars, runnerObstacles, topBomber;
+let freezerCarrierViewportPass = null;
 let formationDir = 1, formationOffset = 0, formationTick = 0;
 let lastShot = 0, doubleUntil = 0, shieldUntil = 0, speedUntil = 0;
 let boss = null;
@@ -4427,6 +4428,27 @@ function spawnTopBomber() {
   };
 }
 
+function startFreezerCarrierViewportPass() {
+  if (!window.matchMedia("(min-width: 761px)").matches) return;
+  const rect = canvas.getBoundingClientRect();
+  const scale = rect.width / W;
+  const carrierSize = 58 * scale;
+  const sideSpace = Math.max(0, (window.innerWidth - rect.width) / 2);
+  const y = Math.max(
+    18,
+    Math.min(
+      window.innerHeight - carrierSize - 18,
+      rect.top + 78 * scale + Math.min(90, sideSpace * .28)
+    )
+  );
+  freezerCarrierViewportPass = {
+    startedAt: performance.now(),
+    duration: Math.max(2400, Math.min(4200, window.innerWidth * 2.35)),
+    y,
+    size: carrierSize
+  };
+}
+
 function updateTopBomber() {
   if ((!isIceCubeStage() && !isPopsicleMarshmallowStage() && !isPineappleInversionStage()) || boss || state !== "play") {
     topBomber = null;
@@ -4454,9 +4476,21 @@ function updateTopBomber() {
     }
   }
   if (topBomber.x > W + 110 || topBomber.x + topBomber.w < -110) {
+    if (topBomber.kind === "iceCube") startFreezerCarrierViewportPass();
     updateTopBomber.nextAt = now + 5200 + Math.random() * 3200;
     topBomber = null;
   }
+}
+
+function drawIceCubeCarrierSprite() {
+  px(5, 5, 48, 48, "#72e6ff");
+  px(9, 9, 40, 40, "#d5fbff");
+  px(14, 14, 30, 30, "#8adfff");
+  px(8, 8, 8, 8, "#ffffff");
+  px(36, 34, 10, 10, "#4fa8d8");
+  ctx.globalAlpha = .72;
+  px(0, 23, 9, 8, "#d5fbff");
+  px(49, 23, 9, 8, "#d5fbff");
 }
 
 function drawTopBomber() {
@@ -4484,14 +4518,7 @@ function drawTopBomber() {
     px(28, 41, 7, 7, "#ffcc33");
     px(47, 41, 7, 7, "#ffcc33");
   } else {
-    px(5, 5, 48, 48, "#72e6ff");
-    px(9, 9, 40, 40, "#d5fbff");
-    px(14, 14, 30, 30, "#8adfff");
-    px(8, 8, 8, 8, "#ffffff");
-    px(36, 34, 10, 10, "#4fa8d8");
-    ctx.globalAlpha = .72;
-    px(0, 23, 9, 8, "#d5fbff");
-    px(49, 23, 9, 8, "#d5fbff");
+    drawIceCubeCarrierSprite();
   }
   ctx.globalAlpha = .85;
   const hpRatio = Math.max(0, topBomber.hp / topBomber.maxHp);
@@ -5748,7 +5775,53 @@ function clearVictoryLaunchViewportOverlay() {
   victoryLaunchOverlayCtx.clearRect(0, 0, victoryLaunchOverlay.width, victoryLaunchOverlay.height);
 }
 
+function drawFreezerCarrierAcrossDesktop() {
+  if (!freezerCarrierViewportPass || state !== "play" || !isIceCubeStage()) {
+    freezerCarrierViewportPass = null;
+    return false;
+  }
+
+  const now = performance.now();
+  const t = Math.max(0, Math.min(1, (now - freezerCarrierViewportPass.startedAt) / freezerCarrierViewportPass.duration));
+  if (t >= 1) {
+    freezerCarrierViewportPass = null;
+    return false;
+  }
+
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const viewportW = window.innerWidth;
+  const viewportH = window.innerHeight;
+  const targetW = Math.round(viewportW * dpr);
+  const targetH = Math.round(viewportH * dpr);
+  if (victoryLaunchOverlay.width !== targetW || victoryLaunchOverlay.height !== targetH) {
+    victoryLaunchOverlay.width = targetW;
+    victoryLaunchOverlay.height = targetH;
+  }
+  victoryLaunchOverlay.style.display = "block";
+  victoryLaunchOverlayCtx.setTransform(1, 0, 0, 1, 0, 0);
+  victoryLaunchOverlayCtx.clearRect(0, 0, targetW, targetH);
+  victoryLaunchOverlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const ease = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+  const size = freezerCarrierViewportPass.size;
+  const x = -size - 24 + ease * (viewportW + size * 2 + 48);
+  const bob = Math.sin(now * .008) * Math.max(2, size * .055);
+  const gameCtx = ctx;
+  ctx = victoryLaunchOverlayCtx;
+  ctx.save();
+  ctx.translate(x, freezerCarrierViewportPass.y + bob);
+  ctx.scale(size / 58, size / 58);
+  ctx.globalAlpha = .96;
+  ctx.shadowColor = "rgba(114,230,255,.88)";
+  ctx.shadowBlur = 16 / Math.max(size / 58, .01);
+  drawIceCubeCarrierSprite();
+  ctx.restore();
+  ctx = gameCtx;
+  return true;
+}
+
 function drawSnowflakesAcrossViewport() {
+  if (drawFreezerCarrierAcrossDesktop()) return;
   if (!useExternalMobileHud() || state !== "play" || !isIceCubeStage()) {
     clearVictoryLaunchViewportOverlay();
     return;
