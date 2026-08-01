@@ -5961,8 +5961,8 @@ function drawBossVictoryDesktopFlyby() {
   const rect = canvas.getBoundingClientRect();
   const scale = rect.width / W;
   const shipSize = Math.max(42, player.w * scale);
-  const screenX = -shipSize * 1.8 + eased * (window.innerWidth + shipSize * 3.6);
-  const screenY = Math.max(30, Math.min(window.innerHeight - shipSize - 30, rect.top + 112 * scale));
+  const centerX = -shipSize * 1.4 + eased * (window.innerWidth + shipSize * 2.8);
+  const centerY = window.innerHeight + shipSize * 1.4 - eased * (window.innerHeight + shipSize * 2.8);
   const dpr = Math.max(1, window.devicePixelRatio || 1);
   const targetW = Math.round(window.innerWidth * dpr);
   const targetH = Math.round(window.innerHeight * dpr);
@@ -5977,30 +5977,29 @@ function drawBossVictoryDesktopFlyby() {
 
   const glow = .72 + Math.sin(now * .018) * .16;
   const trailLength = Math.min(250, 95 + window.innerWidth * .08);
-  const trail = victoryLaunchOverlayCtx.createLinearGradient(
-    screenX - trailLength,
-    screenY,
-    screenX + shipSize * .25,
-    screenY
-  );
+  victoryLaunchOverlayCtx.save();
+  victoryLaunchOverlayCtx.translate(centerX, centerY);
+  victoryLaunchOverlayCtx.rotate(Math.PI / 4);
+  const trail = victoryLaunchOverlayCtx.createLinearGradient(0, trailLength, 0, shipSize * .10);
   trail.addColorStop(0, "rgba(86,232,255,0)");
   trail.addColorStop(.55, `rgba(86,232,255,${.34 * glow})`);
   trail.addColorStop(.88, `rgba(255,255,255,${.72 * glow})`);
   trail.addColorStop(1, "rgba(255,204,51,.88)");
   victoryLaunchOverlayCtx.fillStyle = trail;
   victoryLaunchOverlayCtx.beginPath();
-  victoryLaunchOverlayCtx.moveTo(screenX - trailLength, screenY + shipSize * .47);
-  victoryLaunchOverlayCtx.lineTo(screenX + shipSize * .30, screenY + shipSize * .34);
-  victoryLaunchOverlayCtx.lineTo(screenX + shipSize * .30, screenY + shipSize * .66);
-  victoryLaunchOverlayCtx.lineTo(screenX - trailLength, screenY + shipSize * .53);
+  victoryLaunchOverlayCtx.moveTo(-shipSize * .07, trailLength);
+  victoryLaunchOverlayCtx.lineTo(-shipSize * .24, shipSize * .10);
+  victoryLaunchOverlayCtx.lineTo(shipSize * .24, shipSize * .10);
+  victoryLaunchOverlayCtx.lineTo(shipSize * .07, trailLength);
   victoryLaunchOverlayCtx.closePath();
   victoryLaunchOverlayCtx.fill();
+  victoryLaunchOverlayCtx.restore();
 
   const gameCtx = ctx;
   ctx = victoryLaunchOverlayCtx;
   ctx.save();
-  ctx.translate(screenX + shipSize / 2, screenY + shipSize / 2);
-  ctx.rotate(Math.PI / 2);
+  ctx.translate(centerX, centerY);
+  ctx.rotate(Math.PI / 4);
   ctx.scale(scale, scale);
   ctx.shadowColor = "rgba(86,232,255,.96)";
   ctx.shadowBlur = (18 + glow * 16) / Math.max(scale, .01);
