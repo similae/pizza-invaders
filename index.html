@@ -989,7 +989,6 @@ let lastDevTapAt = 0;
 let keys = {};
 let score = 0, lives = 3, wave = 1;
 let player, bullets, enemyBullets, enemies, particles, powerups, stars, backgroundPlanets, shootingStars, runnerObstacles, topBomber;
-let freezerCarrierViewportPass = null;
 let formationDir = 1, formationOffset = 0, formationTick = 0;
 let lastShot = 0, doubleUntil = 0, shieldUntil = 0, speedUntil = 0;
 let boss = null;
@@ -4428,27 +4427,6 @@ function spawnTopBomber() {
   };
 }
 
-function startFreezerCarrierViewportPass() {
-  if (!window.matchMedia("(min-width: 761px)").matches) return;
-  const rect = canvas.getBoundingClientRect();
-  const scale = rect.width / W;
-  const carrierSize = 58 * scale;
-  const sideSpace = Math.max(0, (window.innerWidth - rect.width) / 2);
-  const y = Math.max(
-    18,
-    Math.min(
-      window.innerHeight - carrierSize - 18,
-      rect.top + 78 * scale + Math.min(90, sideSpace * .28)
-    )
-  );
-  freezerCarrierViewportPass = {
-    startedAt: performance.now(),
-    duration: Math.max(2400, Math.min(4200, window.innerWidth * 2.35)),
-    y,
-    size: carrierSize
-  };
-}
-
 function updateTopBomber() {
   if ((!isIceCubeStage() && !isPopsicleMarshmallowStage() && !isPineappleInversionStage()) || boss || state !== "play") {
     topBomber = null;
@@ -4462,7 +4440,9 @@ function updateTopBomber() {
   topBomber.x += topBomber.vx;
   topBomber.y += Math.sin(now * .006 + topBomber.phase) * .35;
   const crossingCenter = topBomber.vx > 0 ? topBomber.x > W * .45 : topBomber.x < W * .55;
-  if (!topBomber.dropped && crossingCenter) {
+  const enteringGame = topBomber.vx > 0 ? topBomber.x >= 0 : topBomber.x + topBomber.w <= W;
+  const dropNow = topBomber.kind === "iceCube" ? enteringGame : crossingCenter;
+  if (!topBomber.dropped && dropNow) {
     topBomber.dropped = true;
     if (topBomber.kind === "marshmallowMan") {
       addEnemyBullet(topBomber.x + topBomber.w / 2 - 25, topBomber.y + topBomber.h - 12, "marshmallowHead", 0, 3.8);
@@ -4476,7 +4456,6 @@ function updateTopBomber() {
     }
   }
   if (topBomber.x > W + 110 || topBomber.x + topBomber.w < -110) {
-    if (topBomber.kind === "iceCube") startFreezerCarrierViewportPass();
     updateTopBomber.nextAt = now + 5200 + Math.random() * 3200;
     topBomber = null;
   }
@@ -5775,16 +5754,23 @@ function clearVictoryLaunchViewportOverlay() {
   victoryLaunchOverlayCtx.clearRect(0, 0, victoryLaunchOverlay.width, victoryLaunchOverlay.height);
 }
 
-function drawFreezerCarrierAcrossDesktop() {
-  if (!freezerCarrierViewportPass || state !== "play" || !isIceCubeStage()) {
-    freezerCarrierViewportPass = null;
+function drawFreezerCarrierInDesktopMargins() {
+  if (
+    !window.matchMedia("(min-width: 761px)").matches ||
+    !topBomber ||
+    topBomber.kind !== "iceCube" ||
+    state !== "play" ||
+    !isIceCubeStage()
+  ) {
     return false;
   }
 
-  const now = performance.now();
-  const t = Math.max(0, Math.min(1, (now - freezerCarrierViewportPass.startedAt) / freezerCarrierViewportPass.duration));
-  if (t >= 1) {
-    freezerCarrierViewportPass = null;
+  const rect = canvas.getBoundingClientRect();
+  const scale = rect.width / W;
+  const screenX = rect.left + topBomber.x * scale;
+  const screenY = rect.top + topBomber.y * scale;
+  const carrierW = topBomber.w * scale;
+  if (screenX >= rect.left && screenX + carrierW <= rect.right) {
     return false;
   }
 
@@ -5802,26 +5788,40 @@ function drawFreezerCarrierAcrossDesktop() {
   victoryLaunchOverlayCtx.clearRect(0, 0, targetW, targetH);
   victoryLaunchOverlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  const ease = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-  const size = freezerCarrierViewportPass.size;
-  const x = -size - 24 + ease * (viewportW + size * 2 + 48);
-  const bob = Math.sin(now * .008) * Math.max(2, size * .055);
   const gameCtx = ctx;
   ctx = victoryLaunchOverlayCtx;
-  ctx.save();
-  ctx.translate(x, freezerCarrierViewportPass.y + bob);
-  ctx.scale(size / 58, size / 58);
-  ctx.globalAlpha = .96;
-  ctx.shadowColor = "rgba(114,230,255,.88)";
-  ctx.shadowBlur = 16 / Math.max(size / 58, .01);
-  drawIceCubeCarrierSprite();
-  ctx.restore();
+  const marginClips = [
+    { x: 0, y: 0, w: Math.max(0, rect.left), h: viewportH },
+    { x: Math.min(viewportW, rect.right), y: 0, w: Math.max(0, viewportW - rect.right), h: viewportH }
+  ];
+  for (const clip of marginClips) {
+    if (clip.w <= 0) continue;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(clip.x, clip.y, clip.w, clip.h);
+    ctx.clip();
+    ctx.translate(screenX, screenY);
+    ctx.scale(scale, scale);
+    if (topBomber.vx < 0) {
+      ctx.translate(topBomber.w, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.globalAlpha = .96;
+    ctx.shadowColor = "rgba(114,230,255,.88)";
+    ctx.shadowBlur = 14 / Math.max(scale, .01);
+    drawIceCubeCarrierSprite();
+    ctx.globalAlpha = .85;
+    const hpRatio = Math.max(0, topBomber.hp / topBomber.maxHp);
+    px(6, 58, 46, 4, "rgba(255,255,255,.25)");
+    px(6, 58, 46 * hpRatio, 4, "#72e6ff");
+    ctx.restore();
+  }
   ctx = gameCtx;
   return true;
 }
 
 function drawSnowflakesAcrossViewport() {
-  if (drawFreezerCarrierAcrossDesktop()) return;
+  if (drawFreezerCarrierInDesktopMargins()) return;
   if (!useExternalMobileHud() || state !== "play" || !isIceCubeStage()) {
     clearVictoryLaunchViewportOverlay();
     return;
