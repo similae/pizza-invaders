@@ -78,6 +78,7 @@
   body.blockverse-environment #wrap,
   body.toyverse-environment #wrap,
   body.fungi-environment #wrap,
+  body.egg-prize-transition #wrap,
   body.start-environment #wrap,
   body.hangar-environment #wrap {
     background: transparent;
@@ -89,6 +90,7 @@
   body.blockverse-environment #game,
   body.toyverse-environment #game,
   body.fungi-environment #game,
+  body.egg-prize-transition #game,
   body.start-environment #game,
   body.hangar-environment #game {
     background: transparent;
@@ -100,6 +102,12 @@
   body.blockverse-environment #game,
   body.toyverse-environment #game,
   body.fungi-environment #game {
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+  body.egg-prize-transition #game {
     border: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
@@ -1037,6 +1045,10 @@ function updateExternalMobileHud() {
       state === "bossExplosion" ||
       state === "bossVictoryLaunch"
     );
+  const eggPrizeTransitionActive =
+    state === "transition" &&
+    !!transition &&
+    transition.drawCustom === drawEggPrizeUnlockTransition;
   const startEnvironmentActive = state === "start";
   const hangarEnvironmentActive = state === "hangar";
   document.body.classList.toggle("cola-environment", colaEnvironmentActive);
@@ -1046,6 +1058,7 @@ function updateExternalMobileHud() {
   document.body.classList.toggle("blockverse-environment", blockverseEnvironmentActive);
   document.body.classList.toggle("toyverse-environment", toyverseEnvironmentActive);
   document.body.classList.toggle("fungi-environment", fungiEnvironmentActive);
+  document.body.classList.toggle("egg-prize-transition", eggPrizeTransitionActive);
   document.body.classList.toggle("start-environment", startEnvironmentActive);
   document.body.classList.toggle("hangar-environment", hangarEnvironmentActive);
   document.body.classList.toggle("external-hud-active", active);
@@ -1097,9 +1110,10 @@ function drawColaEnvironmentBackground() {
   const blockverseActive = document.body.classList.contains("blockverse-environment");
   const toyverseActive = document.body.classList.contains("toyverse-environment");
   const fungiActive = document.body.classList.contains("fungi-environment");
+  const eggPrizeTransitionActive = document.body.classList.contains("egg-prize-transition");
   const startActive = document.body.classList.contains("start-environment");
   const hangarActive = document.body.classList.contains("hangar-environment");
-  if (!colaActive && !freezerActive && !candyActive && !pineappleActive && !blockverseActive && !toyverseActive && !fungiActive && !startActive && !hangarActive) {
+  if (!colaActive && !freezerActive && !candyActive && !pineappleActive && !blockverseActive && !toyverseActive && !fungiActive && !eggPrizeTransitionActive && !startActive && !hangarActive) {
     colaBackgroundCanvas.style.display = "none";
     return;
   }
@@ -1120,6 +1134,26 @@ function drawColaEnvironmentBackground() {
   }
   colaBackgroundCanvas.style.display = "block";
   colaBackgroundCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  if (eggPrizeTransitionActive) {
+    colaBackgroundCtx.fillStyle = "#01040c";
+    colaBackgroundCtx.fillRect(0, 0, viewportW, viewportH);
+    const rect = canvas.getBoundingClientRect();
+    const scale = rect.height > 0 ? rect.height / H : 1;
+    const elapsed = transition ? performance.now() - transition.startedAt : 0;
+    const auraReveal = Math.max(0, Math.min(1, (elapsed - 450) / 1250));
+    const easedAura = 1 - Math.pow(1 - auraReveal, 3);
+    const centerX = rect.left + (W / 2) * scale;
+    const centerY = rect.top + 325 * scale;
+    const radius = Math.max(viewportW, viewportH) * .72;
+    const ambient = colaBackgroundCtx.createRadialGradient(centerX, centerY, 5, centerX, centerY, radius);
+    ambient.addColorStop(0, `rgba(30,145,255,${easedAura * .34})`);
+    ambient.addColorStop(.48, `rgba(4,57,125,${easedAura * .25})`);
+    ambient.addColorStop(1, "rgba(0,8,24,0)");
+    colaBackgroundCtx.fillStyle = ambient;
+    colaBackgroundCtx.fillRect(0, 0, viewportW, viewportH);
+    return;
+  }
 
   if (hangarActive) {
     const hangarGradient = colaBackgroundCtx.createLinearGradient(0, 0, 0, viewportH);
