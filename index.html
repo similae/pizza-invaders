@@ -2816,6 +2816,14 @@ function drawSimilaeRingSprite(cx, cy, size, spin=0) {
 
 function drawShot(type, x, y, friendly=false) {
   if (friendly) {
+    if (type === "tomatoBomb") {
+      ctx.save();
+      ctx.translate(x - 4, y - 4);
+      ctx.scale(1.35, 1.35);
+      drawPowerup({ type:"speed", x:0, y:0, w:28, h:28 });
+      ctx.restore();
+      return;
+    }
     if (type === "similae") {
       drawSimilaeRingSprite(x + 11, y + 11, 26, -y * .12);
       return;
@@ -4023,6 +4031,80 @@ function activateSecretPaoloCopilot() {
   playSfx("powerup");
 }
 
+function launchSecretTomatoBomb() {
+  if (!player || state !== "play") return;
+  const targets = enemies.length
+    ? enemies.map(e => e.y + e.h / 2)
+    : (boss ? [boss.y + boss.h / 2] : []);
+  const targetY = targets.length
+    ? Math.max(145, Math.min(390, targets.reduce((sum, y) => sum + y, 0) / targets.length))
+    : 260;
+  bullets.push({
+    type: "tomatoBomb",
+    x: player.x + player.w / 2 - 15,
+    y: player.y - 24,
+    w: 36,
+    h: 36,
+    vx: 0,
+    vy: -4.2,
+    age: 0,
+    targetY,
+    secretBomb: true
+  });
+  explode(player.x + player.w / 2, player.y - 10, "#ef3434", {
+    count: 18,
+    speed: 4.5,
+    shape: "spark",
+    size: 5,
+    life: 20
+  });
+  playSfx("powerup");
+}
+
+function detonateSecretTomatoBomb(b) {
+  const cx = b.x + b.w / 2;
+  const cy = b.y + b.h / 2;
+  const radius = 155;
+  let destroyed = 0;
+
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    const ex = e.x + e.w / 2;
+    const ey = e.y + e.h / 2;
+    if (Math.hypot(ex - cx, ey - cy) <= radius) {
+      score += e.data.points;
+      explodeEnemy(e);
+      enemies.splice(i, 1);
+      destroyed += 1;
+    }
+  }
+
+  if (topBomber) {
+    const tx = topBomber.x + topBomber.w / 2;
+    const ty = topBomber.y + topBomber.h / 2;
+    if (Math.hypot(tx - cx, ty - cy) <= radius) {
+      score += 240;
+      explode(tx, ty, "#ffcc33", { count: 32, speed: 8, shape: "spark", size: 7, life: 28 });
+      topBomber = null;
+      updateTopBomber.nextAt = performance.now() + 5200 + Math.random() * 2800;
+    }
+  }
+
+  // La bomba ayuda contra un jefe, pero no lo derrota por sí sola.
+  if (boss) {
+    const bx = boss.x + boss.w / 2;
+    const by = boss.y + boss.h / 2;
+    if (Math.hypot(bx - cx, by - cy) <= radius + 45) {
+      boss.hp = Math.max(1, boss.hp - Math.max(5, boss.maxHp * .16));
+    }
+  }
+
+  explode(cx, cy, "#ef3434", { count: 62, speed: 13, shape: "spark", size: 10, life: 38 });
+  explode(cx, cy, "#65d45a", { count: 34, speed: 9, shape: "spark", size: 7, life: 32 });
+  playSfx("bossDown");
+  b.detonated = true;
+}
+
 function registerSecretPilotTap() {
   if (state !== "play") return;
   const now = performance.now();
@@ -4032,10 +4114,13 @@ function registerSecretPilotTap() {
   if (now - secretPilotLastTapAt > 900) secretPilotTapCount = 0;
   secretPilotTapCount += 1;
   secretPilotLastTapAt = now;
-  if (secretPilotTapCount >= 5) {
+  if (secretPilotTapCount === 5 && !allyShip?.secret) {
+    activateSecretPaoloCopilot();
+  }
+  if (secretPilotTapCount >= 10) {
     secretPilotTapCount = 0;
     secretPilotLastTapAt = 0;
-    if (!allyShip?.secret) activateSecretPaoloCopilot();
+    launchSecretTomatoBomb();
   }
 }
 
@@ -5810,8 +5895,15 @@ function updateBullets() {
     const waveMotion = b.type === "prosciutto" ? Math.sin(b.age * .24) * 1.45 * (b.waveDir || 1) : 0;
     b.x += b.vx + waveMotion;
     b.y += b.vy;
+    if (
+      b.secretBomb &&
+      !b.detonated &&
+      (b.y <= b.targetY || b.age >= 145)
+    ) {
+      detonateSecretTomatoBomb(b);
+    }
   });
-  bullets = bullets.filter(b => b.y > -40 && b.x > -60 && b.x < W + 60);
+  bullets = bullets.filter(b => !b.detonated && b.y > -40 && b.x > -60 && b.x < W + 60);
   enemyBullets.forEach(b => {
     b.age = (b.age || 0) + 1;
     if ((b.type === "snowflake" || b.type === "marshmallowHead" || b.type === "bossMarshmallowHead" || b.type === "colorPineapple") && player) {
@@ -6870,6 +6962,7 @@ function maybePowerup(x,y) {
 function updateCollisions() {
   for (let bi=bullets.length-1; bi>=0; bi--) {
     const b = bullets[bi];
+    if (b.secretBomb) continue;
     let removed = false;
     let hitThisFrame = false;
     if (topBomber && (isIceCubeStage() || isPopsicleMarshmallowStage() || isPineappleInversionStage()) && hitRect({x:b.x, y:b.y, w:b.w, h:b.h}, topBomber)) {
