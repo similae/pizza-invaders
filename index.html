@@ -76,6 +76,7 @@
   body.candy-environment #wrap,
   body.pineapple-environment #wrap,
   body.blockverse-environment #wrap,
+  body.toyverse-environment #wrap,
   body.start-environment #wrap,
   body.hangar-environment #wrap {
     background: transparent;
@@ -85,6 +86,7 @@
   body.candy-environment #game,
   body.pineapple-environment #game,
   body.blockverse-environment #game,
+  body.toyverse-environment #game,
   body.start-environment #game,
   body.hangar-environment #game {
     background: transparent;
@@ -93,7 +95,8 @@
   body.freezer-environment #game,
   body.candy-environment #game,
   body.pineapple-environment #game,
-  body.blockverse-environment #game {
+  body.blockverse-environment #game,
+  body.toyverse-environment #game {
     border: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
@@ -103,7 +106,8 @@
     body.freezer-environment #game,
     body.candy-environment #game,
     body.pineapple-environment #game,
-    body.blockverse-environment #game {
+    body.blockverse-environment #game,
+    body.toyverse-environment #game {
       border: 0;
       border-radius: 0;
       box-shadow: none;
@@ -1013,6 +1017,14 @@ function updateExternalMobileHud() {
       state === "bossExplosion" ||
       state === "bossVictoryLaunch"
     );
+  const toyverseEnvironmentActive =
+    wave >= 56 &&
+    wave <= 60 &&
+    (
+      state === "play" ||
+      state === "bossExplosion" ||
+      state === "bossVictoryLaunch"
+    );
   const startEnvironmentActive = state === "start";
   const hangarEnvironmentActive = state === "hangar";
   document.body.classList.toggle("cola-environment", colaEnvironmentActive);
@@ -1020,6 +1032,7 @@ function updateExternalMobileHud() {
   document.body.classList.toggle("candy-environment", candyEnvironmentActive);
   document.body.classList.toggle("pineapple-environment", pineappleEnvironmentActive);
   document.body.classList.toggle("blockverse-environment", blockverseEnvironmentActive);
+  document.body.classList.toggle("toyverse-environment", toyverseEnvironmentActive);
   document.body.classList.toggle("start-environment", startEnvironmentActive);
   document.body.classList.toggle("hangar-environment", hangarEnvironmentActive);
   document.body.classList.toggle("external-hud-active", active);
@@ -1069,9 +1082,10 @@ function drawColaEnvironmentBackground() {
   const candyActive = document.body.classList.contains("candy-environment");
   const pineappleActive = document.body.classList.contains("pineapple-environment");
   const blockverseActive = document.body.classList.contains("blockverse-environment");
+  const toyverseActive = document.body.classList.contains("toyverse-environment");
   const startActive = document.body.classList.contains("start-environment");
   const hangarActive = document.body.classList.contains("hangar-environment");
-  if (!colaActive && !freezerActive && !candyActive && !pineappleActive && !blockverseActive && !startActive && !hangarActive) {
+  if (!colaActive && !freezerActive && !candyActive && !pineappleActive && !blockverseActive && !toyverseActive && !startActive && !hangarActive) {
     colaBackgroundCanvas.style.display = "none";
     return;
   }
@@ -1163,6 +1177,27 @@ function drawColaEnvironmentBackground() {
     }
 
     colaBackgroundCtx.globalAlpha = 1;
+    return;
+  }
+
+  if (toyverseActive) {
+    const sky = colaBackgroundCtx.createLinearGradient(0, 0, 0, viewportH);
+    sky.addColorStop(0, "#55b8ff");
+    sky.addColorStop(.58, "#bde9ff");
+    sky.addColorStop(1, "#ecfaff");
+    colaBackgroundCtx.fillStyle = sky;
+    colaBackgroundCtx.fillRect(0, 0, viewportW, viewportH);
+    const platformColors = ["#8b5cf6", "#24a3ff", "#ef4444", "#ffcc33", "#62dc70"];
+    for (let i = 0; i < 18; i++) {
+      const w = 70 + (i % 4) * 28;
+      const h = 14 + (i % 3) * 5;
+      const x = (i * 137) % (viewportW + 120) - 60;
+      const y = viewportH * .18 + ((i * 91) % Math.max(120, viewportH * .72));
+      colaBackgroundCtx.fillStyle = platformColors[i % platformColors.length];
+      colaBackgroundCtx.fillRect(x, y, w, h);
+      colaBackgroundCtx.fillStyle = "rgba(255,255,255,.28)";
+      colaBackgroundCtx.fillRect(x + 5, y + 3, w - 10, 3);
+    }
     return;
   }
 
@@ -2162,7 +2197,9 @@ const ENEMY = {
   frozenpizza: { hp:4, points:220, bullet:"ice" },
   popcola: { hp:3, points:180, bullet:"popcola" },
   blockmob: { hp:3, points:210, bullet:"blockShard" },
-  blockguard: { hp:9, points:480, bullet:"blockShard" }
+  blockguard: { hp:9, points:480, bullet:"blockShard" },
+  toyavatar: { hp:4, points:240, bullet:"toyBrick" },
+  toyguard: { hp:10, points:520, bullet:"toyBrick" }
 };
 
 const BOSSES = [
@@ -2173,7 +2210,8 @@ const BOSSES = [
   { type:"frozenPizzaBoss", name:"FROZEN PIZZA BOSS", hp:105, points:1800, bullet:"ice" },
   { type:"colinBoss", name:"COLIN", hp:80, points:900, bullet:"popcola" },
   { type:"popColaBoss", name:"POPCOLA KING", hp:110, points:2200, bullet:"popcola" },
-  { type:"blockGolemBoss", name:"GOLEM DEL HORNO", hp:135, points:3000, bullet:"blockShard" }
+  { type:"blockGolemBoss", name:"GOLEM DEL HORNO", hp:135, points:3000, bullet:"blockShard" },
+  { type:"toyAdminBoss", name:"EL ADMINISTRADOR", hp:150, points:3400, bullet:"toyBrick" }
 ];
 const MARSHMALLOW_MAN_BOSS = { type:"marshmallowBoss", name:"MARSHMALLOW MAN", hp:125, points:2600, bullet:"syrup" };
 
@@ -2799,6 +2837,46 @@ function drawBlockGolemBossSprite(x, y) {
   ctx.restore();
 }
 
+function drawToyAvatar(x, y, guard=false) {
+  ctx.save();
+  ctx.translate(x, y);
+  const shirt = guard ? "#8b5cf6" : "#24a3ff";
+  px(10, 0, 24, 22, "#ffd36b");
+  px(15, 7, 4, 4, "#111827");
+  px(26, 7, 4, 4, "#111827");
+  px(18, 15, 10, 3, "#9b5a22");
+  px(5, 23, 34, 25, shirt);
+  px(-3, 25, 8, 24, "#ffd36b");
+  px(39, 25, 8, 24, "#ffd36b");
+  px(8, 48, 12, 16, guard ? "#202a44" : "#ef4444");
+  px(24, 48, 12, 16, guard ? "#202a44" : "#ef4444");
+  if (guard) {
+    px(6, 25, 32, 5, "#ffcc33");
+    px(13, -6, 18, 6, "#8b5cf6");
+  }
+  ctx.restore();
+}
+
+function drawToyAdminBossSprite(x, y) {
+  ctx.save();
+  ctx.translate(x, y);
+  px(45, 0, 78, 58, "#ffd36b");
+  px(58, 18, 12, 12, "#111827");
+  px(98, 18, 12, 12, "#111827");
+  px(72, 39, 25, 7, "#8f4f20");
+  px(30, 58, 108, 78, "#8b5cf6");
+  px(0, 64, 30, 82, "#ffd36b");
+  px(138, 64, 30, 82, "#ffd36b");
+  px(42, 136, 36, 42, "#202a44");
+  px(91, 136, 36, 42, "#202a44");
+  px(38, 69, 92, 12, "#ffcc33");
+  px(71, 91, 26, 26, "#24a3ff");
+  px(78, -14, 14, 14, "#ef4444");
+  ctx.globalAlpha = .26 + Math.sin(performance.now() * .01) * .08;
+  px(24, 52, 120, 94, "#56e8ff");
+  ctx.restore();
+}
+
 function drawEnemy(e) {
   if (e.mode === "road") {
     drawRoadEnemy(e);
@@ -2820,6 +2898,8 @@ function drawEnemy(e) {
   if (e.type === "popcola") drawPopColaEnemySprite(e.x, e.y);
   if (e.type === "blockmob") drawBlockMob(e.x, e.y, false);
   if (e.type === "blockguard") drawBlockMob(e.x, e.y, true);
+  if (e.type === "toyavatar") drawToyAvatar(e.x, e.y, false);
+  if (e.type === "toyguard") drawToyAvatar(e.x, e.y, true);
 }
 
 function drawRoadEnemy(e) {
@@ -2867,6 +2947,7 @@ function drawBoss() {
   if (boss.type === "colinBoss") drawColinBossSprite(boss.x, boss.y);
   if (boss.type === "popColaBoss") drawPopColaBossSprite(boss.x, boss.y);
   if (boss.type === "blockGolemBoss") drawBlockGolemBossSprite(boss.x, boss.y);
+  if (boss.type === "toyAdminBoss") drawToyAdminBossSprite(boss.x, boss.y);
   
 
   if (!useExternalMobileHud()) {
@@ -2938,6 +3019,11 @@ function drawShot(type, x, y, friendly=false) {
   if (type === "pineapple") {
     ctx.fillStyle = "#f6b72a";
     ctx.beginPath(); ctx.moveTo(x+8,y+18); ctx.lineTo(x+16,y); ctx.lineTo(x,y); ctx.closePath(); ctx.fill();
+  } else if (type === "toyBrick") {
+    px(x, y, 18, 14, "#ef4444");
+    px(x + 2, y - 3, 5, 4, "#ff8b8b");
+    px(x + 11, y - 3, 5, 4, "#ff8b8b");
+    px(x + 3, y + 3, 12, 4, "#ff7474");
   } else if (type === "blockShard") {
     px(x, y, 16, 16, "#7b8792");
     px(x + 3, y + 3, 10, 5, "#b2bbc2");
@@ -3150,6 +3236,13 @@ function createWave() {
       player.y = gaiaFloorY(gaiaFloorIndex) - player.h;
     }
     return;
+  } else if (isToyverseStage()) {
+    rows = [
+      ["toyavatar","toyavatar","toyguard","toyavatar","toyavatar","toyavatar"],
+      ["toyavatar","toyguard","toyavatar","toyavatar","toyguard","toyavatar"],
+      ["toyavatar","toyavatar","toyavatar","toyavatar","toyavatar","toyavatar"],
+      ["toyguard","toyavatar","toyavatar","toyavatar","toyavatar","toyguard"]
+    ];
   } else if (isBlockverseStage()) {
     rows = [
       ["blockmob","blockmob","blockguard","blockmob","blockmob","blockmob"],
@@ -3248,7 +3341,7 @@ function createWave() {
       ["icepizza","icepizza","icepizza","icepizza","icepizza","icepizza"]
     ];
   }
-  const startX = 86, startY = (isIceCubeStage() || isPopsicleMarshmallowStage() || isPineappleInversionStage() || isBlockverseStage()) ? 142 : 100, gapX = 70, gapY = 58;
+  const startX = 86, startY = (isIceCubeStage() || isPopsicleMarshmallowStage() || isPineappleInversionStage() || isBlockverseStage() || isToyverseStage()) ? 142 : 100, gapX = 70, gapY = 58;
   for (let r=0; r<rows.length; r++) {
     for (let c=0; c<rows[r].length; c++) {
       const type = rows[r][c];
@@ -3261,8 +3354,8 @@ function createWave() {
         slotY: startY + r*gapY,
         x: -60 - Math.random()*W,
         y: -60 - Math.random()*220,
-        w: type === "frozenpizza" ? 62 : (type === "marshmallow" ? 54 : (type === "blockguard" ? 48 : 44)),
-        h: type === "frozenpizza" ? 72 : (type === "marshmallow" ? 58 : (type === "blockguard" ? 52 : 48)),
+        w: type === "frozenpizza" ? 62 : (type === "marshmallow" ? 54 : ((type === "blockguard" || type === "toyguard") ? 48 : 44)),
+        h: type === "frozenpizza" ? 72 : (type === "marshmallow" ? 58 : ((type === "blockguard" || type === "toyguard") ? 64 : 58)),
         hp: data.hp,
         mode: "enter",
         phase: Math.random()*Math.PI*2,
@@ -3294,7 +3387,9 @@ function createWave() {
 }
 
 function startBoss() {
-  const b = isBlockverseBossWave()
+  const b = isToyverseBossWave()
+    ? BOSSES.find(bossDef => bossDef.type === "toyAdminBoss")
+    : isBlockverseBossWave()
     ? BOSSES.find(bossDef => bossDef.type === "blockGolemBoss")
     : isPineappleInversionBossWave()
     ? BOSSES.find(bossDef => bossDef.type === "pineappleBoss")
@@ -3305,9 +3400,9 @@ function startBoss() {
       : (isInvertedMarshmallowStage() ? MARSHMALLOW_MAN_BOSS : BOSSES[Math.min(BOSSES.length-1, Math.floor((wave-1)/5))]));
   const fixedBossDifficulty = wave <= 10; // Jefe 1 y Jefe 2 misma dificultad.
   const bossHp = fixedBossDifficulty ? 52 : b.hp;
-  const bossW = b.type === "frozenPizzaBoss" ? 230 : (b.type === "marshmallowBoss" ? 170 : (b.type === "blockGolemBoss" ? 164 : 110));
-  const bossH = b.type === "frozenPizzaBoss" ? 182 : (b.type === "marshmallowBoss" ? 210 : (b.type === "blockGolemBoss" ? 178 : 115));
-  const bossY = b.type === "frozenPizzaBoss" ? 86 : (b.type === "marshmallowBoss" ? 72 : (b.type === "blockGolemBoss" ? 72 : 110));
+  const bossW = b.type === "frozenPizzaBoss" ? 230 : (b.type === "marshmallowBoss" ? 170 : ((b.type === "blockGolemBoss" || b.type === "toyAdminBoss") ? 168 : 110));
+  const bossH = b.type === "frozenPizzaBoss" ? 182 : (b.type === "marshmallowBoss" ? 210 : ((b.type === "blockGolemBoss" || b.type === "toyAdminBoss") ? 178 : 115));
+  const bossY = b.type === "frozenPizzaBoss" ? 86 : (b.type === "marshmallowBoss" ? 72 : ((b.type === "blockGolemBoss" || b.type === "toyAdminBoss") ? 72 : 110));
   boss = {
     ...b,
     uid: ++combatEntityUid,
@@ -3325,6 +3420,7 @@ function startBoss() {
     popsicleMarshmallowStageBoss: isPopsicleMarshmallowBossWave(),
     pineappleInversionStageBoss: isPineappleInversionBossWave(),
     blockverseStageBoss: isBlockverseBossWave(),
+    toyverseStageBoss: isToyverseBossWave(),
     colorPineappleLaunched: false,
     sideIceShotFired: false,
     sideIceBossFireAt: performance.now() + 6500,
@@ -3646,7 +3742,8 @@ function drawWorldMapV12(activeIndex = 0, statusText = "SIGUIENTE DESTINO") {
     { lines:["FREEZER","MACHINE"], color:"#72e6ff", x:336, y:470 },
     { lines:["CANDY","FACTORY"], color:"#ff78d0", x:204, y:470 },
     { lines:["PINEAPPLE","PANIC"], color:"#ffcc33", x:72, y:470 },
-    { lines:["BLOCKVERSE"], color:"#9cff69", x:72, y:575 }
+    { lines:["BLOCKVERSE"], color:"#9cff69", x:72, y:575 },
+    { lines:["TOYVERSE"], color:"#8b5cf6", x:204, y:575 }
   ];
 
   ctx.save();
@@ -4341,8 +4438,8 @@ function startFromTouch(e) {
     return;
 }
 if (state === "stageSelect") {
-  const stageSlot = Math.floor((pt.y - 205) / 52);
-  if (stageSlot >= 0 && stageSlot <= 8 && pt.y <= 205 + stageSlot * 52 + 43) {
+  const stageSlot = Math.floor((pt.y - 190) / 46);
+  if (stageSlot >= 0 && stageSlot <= 9 && pt.y <= 190 + stageSlot * 46 + 38) {
     resetGame();
     if (stageSlot === 0) {
       wave = 1;
@@ -4363,14 +4460,14 @@ if (state === "stageSelect") {
       startBoss();
       state = "play";
     } else {
-      wave = stageSlot === 5 ? 36 : (stageSlot === 6 ? 41 : (stageSlot === 7 ? 46 : 51));
+      wave = stageSlot === 5 ? 36 : (stageSlot === 6 ? 41 : (stageSlot === 7 ? 46 : (stageSlot === 8 ? 51 : 56)));
       createWave();
       state = "play";
     }
     return;
   }
 
-  if (pt.y >= 685 && pt.y <= 745) {
+  if (pt.y >= 665 && pt.y <= 730) {
     if (finaleReplayUnlocked) {
       hangarReturnState = "stageSelect";
       hangarOriginalShipId = selectedShipId;
@@ -4962,6 +5059,14 @@ function isBlockverseBossWave() {
   return wave === 55;
 }
 
+function isToyverseStage() {
+  return wave >= 56 && wave <= 60;
+}
+
+function isToyverseBossWave() {
+  return wave === 60;
+}
+
 function isGaiaDashWave() {
   return false;
 }
@@ -5299,12 +5404,13 @@ function drawBackground() {
   const isPopsicleMarshmallowStageBackground = isPopsicleMarshmallowStage();
   const isPineappleInversionStageBackground = isPineappleInversionStage();
   const isBlockverseStageBackground = isBlockverseStage();
+  const isToyverseStageBackground = isToyverseStage();
   const isInvertedStageBackground = isInvertedMarshmallowStage();
   const isPopColaStage = wave >= 26;
   const isFrozenPizzaStage = wave >= 21 && wave < 26;
   const isPineapplePlanetStage = wave >= 11 && wave < 16;
 
-  if (isBlockverseStageBackground) {
+  if (isToyverseStageBackground || isBlockverseStageBackground) {
     ctx.clearRect(0, 0, W, H);
     return;
   }
@@ -6164,6 +6270,8 @@ function explode(x,y,color="#ffcc33", options={}) {
 }
 
 function enemyExplosionStyle(type) {
+  if (type === "toyavatar") return { colors:["#24a3ff", "#ffd36b", "#ef4444"], shape:"shard", count:24, speed:7, size:8 };
+  if (type === "toyguard") return { colors:["#8b5cf6", "#ffcc33", "#56e8ff"], shape:"shard", count:32, speed:8, size:9 };
   if (type === "blockmob") return { colors:["#4f9f45", "#73c85f", "#285d2b"], shape:"shard", count:22, speed:7, size:8 };
   if (type === "blockguard") return { colors:["#77818b", "#b2bbc2", "#ff8b22"], shape:"shard", count:30, speed:8, size:9 };
   if (type === "pineapple") return { colors:["#facc15", "#ff8b22", "#48c95f"], shape:"triangle", count:22, speed:7, size:7 };
@@ -6201,6 +6309,7 @@ function bossExplosionPalette(type) {
   if (type === "colinBoss") return ["#ff3b30", "#ff78d0", "#ffcc33"];
   if (type === "popColaBoss") return ["#ff3b30", "#7a1b12", "#ffcc33"];
   if (type === "blockGolemBoss") return ["#77818b", "#ff8b22", "#9cff69"];
+  if (type === "toyAdminBoss") return ["#8b5cf6", "#24a3ff", "#ffcc33", "#ef4444"];
   // Congelados S.A. / hielo
   return ["#72e6ff", "#d5fbff", "#2f74db"];
 }
@@ -6214,6 +6323,7 @@ function bossExplosionStyle(type) {
   if (type === "colinBoss") return { shape:"bubble", count:24, speedMin:2.8, speedMax:8.8, size:9, spread:122 };
   if (type === "popColaBoss") return { shape:"bubble", count:32, speedMin:3.2, speedMax:10.5, size:10, spread:165 };
   if (type === "blockGolemBoss") return { shape:"shard", count:36, speedMin:3.2, speedMax:11, size:11, spread:175 };
+  if (type === "toyAdminBoss") return { shape:"shard", count:40, speedMin:3.4, speedMax:11.5, size:11, spread:180 };
   return { shape:"spark", count:18, speedMin:2.5, speedMax:9.5, size:8, spread:120 };
 }
 
@@ -6317,6 +6427,7 @@ function drawBossSnapshot(ex) {
   if (ex.type === "colinBoss") drawColinBossSprite(ex.x, ex.y);
   if (ex.type === "popColaBoss") drawPopColaBossSprite(ex.x, ex.y);
   if (ex.type === "blockGolemBoss") drawBlockGolemBossSprite(ex.x, ex.y);
+  if (ex.type === "toyAdminBoss") drawToyAdminBossSprite(ex.x, ex.y);
   ctx.restore();
 }
 
@@ -7234,8 +7345,8 @@ function updateCollisions() {
               }, 2400);
             }, 2200);
             transition.drawCustom = () => drawStageCompleteV12("CANDY FACTORY", "La fábrica cae. Una piña negra altera la navegación.");
-          } else if (defeatedBoss.type === "blockGolemBoss" && defeatedBoss.blockverseStageBoss) {
-            showTransition("BLOCKVERSE", "ETAPA SUPERADA", () => {
+          } else if (defeatedBoss.type === "toyAdminBoss" && defeatedBoss.toyverseStageBoss) {
+            showTransition("TOYVERSE", "ETAPA SUPERADA", () => {
               enemyBullets = [];
               bullets = [];
               powerups = [];
@@ -7244,7 +7355,19 @@ function updateCollisions() {
               touchControl.autoFire = false;
               touchControl.active = false;
             }, 2400);
-            transition.drawCustom = () => drawStageCompleteV12("BLOCKVERSE", "El Gólem del Horno se desintegra. Gaia está a salvo.");
+            transition.drawCustom = () => drawStageCompleteV12("TOYVERSE", "El Administrador pierde el control. Gaia está a salvo.");
+          } else if (defeatedBoss.type === "blockGolemBoss" && defeatedBoss.blockverseStageBoss) {
+            showTransition("BLOCKVERSE", "ETAPA SUPERADA", () => {
+              enemyBullets = [];
+              bullets = [];
+              powerups = [];
+              showWorldMapTransition(9, "DESTINO: TOYVERSE", () => {
+                wave = 56;
+                createWave();
+                state = "play";
+              }, 2400);
+            }, 2400);
+            transition.drawCustom = () => drawStageCompleteV12("BLOCKVERSE", "El Gólem cae. Un mundo de avatares aparece.");
           } else if (defeatedBoss.type === "pineappleBoss" && defeatedBoss.pineappleInversionStageBoss) {
             showTransition("PINEAPPLE PANIC", "ETAPA SUPERADA", () => {
               topBomber = null;
@@ -8308,6 +8431,7 @@ function drawV12BrandFooter() {
 }
 
 function getBossForWaveV12() {
+  if (isToyverseBossWave()) return BOSSES.find(bossDef => bossDef.type === "toyAdminBoss");
   if (isBlockverseBossWave()) return BOSSES.find(bossDef => bossDef.type === "blockGolemBoss");
   if (isPineappleInversionBossWave()) return BOSSES.find(bossDef => bossDef.type === "pineappleBoss");
   if (isPopsicleMarshmallowBossWave()) return BOSSES.find(bossDef => bossDef.type === "popsicleBoss");
@@ -8329,6 +8453,7 @@ function drawBossPortraitV12(b, cx, cy) {
   if (b.type === "popsicleBoss") drawPopsicle(cx - 49, cy - 78, 1.35, true);
   if (b.type === "colaBoss") drawCola(cx - 54, cy - 76, 1.25, true);
   if (b.type === "blockGolemBoss") drawBlockGolemBossSprite(cx - 82, cy - 88);
+  if (b.type === "toyAdminBoss") drawToyAdminBossSprite(cx - 84, cy - 88);
   if (b.type === "pineappleBoss") drawPineapple(cx - 62, cy - 76, 3.0);
   if (b.type === "marshmallowBoss") drawMarshmallowBossSprite(cx - 85, cy - 112);
   if (b.type === "frozenPizzaBoss") drawFrozenPizzaBossSprite(cx - 115, cy - 92);
@@ -9490,16 +9615,17 @@ function drawStageSelect() {
     "6. FREEZER MACHINE",
     "7. CANDY FACTORY",
     "8. PINEAPPLE PANIC",
-    "9. BLOCKVERSE"
+    "9. BLOCKVERSE",
+    "10. TOYVERSE"
   ];
-  stageNames.forEach((name, index) => ctx.fillText(name, W/2, 234 + index * 52));
+  stageNames.forEach((name, index) => ctx.fillText(name, W/2, 218 + index * 46));
   ctx.font = "18px PizzaText";
   ctx.fillStyle = "#9cff69";
-  ctx.fillText(finaleReplayUnlocked ? "VOLVER AL HANGAR" : "BACK TO DEV MENU", W/2, 718);
+  ctx.fillText(finaleReplayUnlocked ? "VOLVER AL HANGAR" : "BACK TO DEV MENU", W/2, 700);
 
   ctx.fillStyle = "#56e8ff";
   ctx.font = "12px PizzaText";
-  ctx.fillText(finaleReplayUnlocked ? "ACCESO TOTAL DESBLOQUEADO" : "V13 STAGE TEST", W/2, 748);
+  ctx.fillText(finaleReplayUnlocked ? "ACCESO TOTAL DESBLOQUEADO" : "V13 STAGE TEST", W/2, 738);
 
   ctx.textAlign = "left";
 }
