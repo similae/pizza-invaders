@@ -6251,6 +6251,27 @@ function startBossVictoryLaunch(next, options = {}) {
   touchControl.active = false;
 }
 
+function finishBossVictoryLaunchSequence() {
+  if (!bossVictoryLaunch) return;
+  const next = bossVictoryLaunch.next;
+  bossVictoryLaunch = null;
+  clearVictoryLaunchViewportOverlay();
+  state = "play";
+  if (typeof next === "function") {
+    try {
+      next();
+    } catch (error) {
+      console.error("No se pudo completar el cierre de victoria:", error);
+      enemyBullets = [];
+      bullets = [];
+      powerups = [];
+      wave += 1;
+      createWave();
+      state = "play";
+    }
+  }
+}
+
 function updateBossVictoryLaunch() {
   if (!bossVictoryLaunch) return;
   const now = performance.now();
@@ -6258,10 +6279,7 @@ function updateBossVictoryLaunch() {
     const flybyT = Math.max(0, Math.min(1, (now - bossVictoryLaunch.startedAt) / bossVictoryLaunch.duration));
     updateParticles();
     if (flybyT >= 1) {
-      const next = bossVictoryLaunch.next;
-      bossVictoryLaunch = null;
-      clearVictoryLaunchViewportOverlay();
-      if (typeof next === "function") next();
+      finishBossVictoryLaunchSequence();
     }
     return;
   }
@@ -6313,10 +6331,7 @@ function updateBossVictoryLaunch() {
       clearVictoryLaunchViewportOverlay();
       return;
     }
-    const next = bossVictoryLaunch.next;
-    bossVictoryLaunch = null;
-    clearVictoryLaunchViewportOverlay();
-    if (typeof next === "function") next();
+    finishBossVictoryLaunchSequence();
   }
 }
 
@@ -9435,6 +9450,7 @@ videoStartBtn.addEventListener("click", async () => {
 });
 
 function loop() {
+  try {
   if (state !== "play" && state !== "bossVictoryLaunch") {
     clearVictoryLaunchViewportOverlay();
   }
@@ -9513,8 +9529,32 @@ function loop() {
     drawAll();
     drawGameOver();
   }
-
-  requestAnimationFrame(loop);
+  } catch (error) {
+    console.error("Se recuperó un error del ciclo principal:", error);
+    // Algunas escenas dibujan temporalmente en un canvas externo.
+    // Restablecer el contexto evita que el juego continúe dibujando fuera de pantalla.
+    ctx = canvas.getContext("2d");
+    if (state === "bossExplosion" && bossExplosion) {
+      const next = bossExplosion.next;
+      bossExplosion = null;
+      state = "play";
+      if (typeof next === "function") {
+        try {
+          next();
+        } catch (transitionError) {
+          console.error("Falló la recuperación posterior a la explosión:", transitionError);
+          wave += 1;
+          createWave();
+          state = "play";
+        }
+      }
+    } else if (state === "bossVictoryLaunch" && bossVictoryLaunch) {
+      finishBossVictoryLaunchSequence();
+    }
+  } finally {
+    // El juego nunca debe detener su animación por un error aislado.
+    requestAnimationFrame(loop);
+  }
 }
 resetGame();
 loop();
