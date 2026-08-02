@@ -301,7 +301,8 @@
       text-align: left;
     }
     #mobileShipsBtn,
-    #mobileAudioBtn {
+    #mobileAudioBtn,
+    #mobileHomeBtn {
       display: block;
       flex: 0 0 auto;
       margin: 0;
@@ -318,14 +319,16 @@
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
     }
-    #mobileAudioBtn {
+    #mobileAudioBtn,
+    #mobileHomeBtn {
       position: relative;
       width: 56px;
       min-width: 56px;
       padding: 10px;
       color: #9cff69;
     }
-    #mobileAudioBtn svg {
+    #mobileAudioBtn svg,
+    #mobileHomeBtn svg {
       display: block;
       width: 28px;
       height: 28px;
@@ -476,7 +479,7 @@
     border-color: var(--sim-neon-green);
     filter: brightness(1.12);
   }
-  .ui-card button:active, #fullscreenBtn:active, #installPwaBtn:active, #mobileShipsBtn:active, #mobileAudioBtn:active {
+  .ui-card button:active, #fullscreenBtn:active, #installPwaBtn:active, #mobileShipsBtn:active, #mobileAudioBtn:active, #mobileHomeBtn:active {
     transform: translate(3px, 3px);
     box-shadow: 1px 1px 0 #000;
     background: #183528;
@@ -490,6 +493,7 @@
     #installPwaBtn,
     #mobileShipsBtn,
     #mobileAudioBtn,
+    #mobileHomeBtn,
     #updatePwaBanner,
     #updatePwaBanner button,
     #videoStartBtn,
@@ -896,6 +900,11 @@
       <span id="mobileHudShip" class="mobile-hud-label">LUCA</span>
       <span id="mobileHudStatus">LISTO</span>
     </div>
+    <button id="mobileHomeBtn" type="button" aria-label="Volver al inicio" title="Volver al inicio">
+      <svg viewBox="0 0 28 28" aria-hidden="true">
+        <path fill="currentColor" d="M5 14L21 4v20z"></path>
+      </svg>
+    </button>
     <button id="mobileAudioBtn" type="button" aria-label="Desactivar sonido" title="Desactivar sonido">
       <svg viewBox="0 0 28 28" aria-hidden="true">
         <path fill="currentColor" d="M3 11h5l6-5v16l-6-5H3z"></path>
@@ -1035,6 +1044,7 @@ const mobileHudShip = document.getElementById("mobileHudShip");
 const mobileHudStatus = document.getElementById("mobileHudStatus");
 const mobileShipsBtn = document.getElementById("mobileShipsBtn");
 const mobileAudioBtn = document.getElementById("mobileAudioBtn");
+const mobileHomeBtn = document.getElementById("mobileHomeBtn");
 const mobileBossFill = document.getElementById("mobileBossFill");
 
 function useExternalMobileHud() {
@@ -1507,6 +1517,10 @@ mobileAudioBtn.addEventListener("click", () => {
     unlockGameAudio(true);
   }
   updateExternalMobileHud();
+});
+
+mobileHomeBtn.addEventListener("click", () => {
+  returnToGameStart();
 });
 
 mobileShipsBtn.addEventListener("click", () => {
@@ -4310,9 +4324,11 @@ function startStageFromMap(stageIndex) {
 
 function drawGlobalHomeButton() {
   if (state === "start" || state === "loading") return;
-  const touchSize = isTouchDevice ? 60 : 46;
-  const buttonX = 8;
-  const buttonY = 8;
+  if (state === "play" && useExternalMobileHud()) return;
+  const inDesktopGame = state === "play" && !useExternalMobileHud();
+  const touchSize = 46;
+  const buttonX = inDesktopGame ? W - 208 : 8;
+  const buttonY = inDesktopGame ? 136 : 8;
   ctx.save();
   ctx.fillStyle = "rgba(3,7,16,.88)";
   roundRect(buttonX, buttonY, touchSize, touchSize, 10);
@@ -4336,9 +4352,13 @@ function drawGlobalHomeButton() {
 }
 
 function pointHitsGlobalHome(pt) {
-  const hitSize = isTouchDevice ? 68 : 54;
-  return state !== "start" && state !== "loading" &&
-    pt.x >= 4 && pt.x <= 4 + hitSize && pt.y >= 4 && pt.y <= 4 + hitSize;
+  if (state === "start" || state === "loading") return false;
+  if (state === "play" && useExternalMobileHud()) return false;
+  const inDesktopGame = state === "play" && !useExternalMobileHud();
+  const buttonX = inDesktopGame ? W - 208 : 8;
+  const buttonY = inDesktopGame ? 136 : 8;
+  return pt.x >= buttonX - 4 && pt.x <= buttonX + 54 &&
+    pt.y >= buttonY - 4 && pt.y <= buttonY + 54;
 }
 
 function returnToGameStart() {
@@ -8528,12 +8548,12 @@ function drawAll() {
   if (!useExternalMobileHud()) {
   ctx.fillStyle = "white";
   ctx.font = "19px PizzaText";
-  ctx.fillText("Score: " + score, 76, 28);
-  ctx.fillText("Vidas: " + lives, 76, 56);
-  for (let i=0;i<lives;i++) drawCharacterShip(selectedShipId, 146+i*26, 38, .34, false);
+  ctx.fillText("Score: " + score, 16, 28);
+  ctx.fillText("Vidas: " + lives, 16, 56);
+  for (let i=0;i<lives;i++) drawCharacterShip(selectedShipId, 86+i*26, 38, .34, false);
   ctx.fillStyle = (SHIP_DEFS[selectedShipId] || SHIP_DEFS.luca).color;
   ctx.font = "bold 14px PizzaText";
-  ctx.fillText((SHIP_DEFS[selectedShipId] || SHIP_DEFS.luca).name, 76, 82);
+  ctx.fillText((SHIP_DEFS[selectedShipId] || SHIP_DEFS.luca).name, 16, 82);
   ctx.fillStyle = "white";
   ctx.font = "19px PizzaText";
   ctx.fillText("Oleada: " + wave, W-118, 28);
@@ -10174,7 +10194,6 @@ function drawHangar() {
   drawTriviaButtonV12(95, 584, 350, 60, selectingReplayStage ? "EQUIPAR Y ELEGIR ETAPA" : (returningToGame ? "EQUIPAR Y CONTINUAR" : "INICIAR MISION"));
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 14px PizzaText";
-  ctx.fillText("SELECCIONA UNA NAVE DESBLOQUEADA", W/2, 671);
   ctx.fillStyle = "#56e8ff";
   ctx.font = "bold 17px PizzaText";
   ctx.fillText(selectingReplayStage ? "IR A SELECCIÓN DE ETAPA" : (returningToGame ? "CONTINUAR SIN CAMBIOS" : "VOLVER"), W/2, 704);
