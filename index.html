@@ -4005,19 +4005,21 @@ function drawTransitionScreen() {
 function drawWorldMapV12(activeIndex = 0, statusText = "SIGUIENTE DESTINO") {
   const secondWorld = activeIndex >= 8;
   const now = performance.now();
-  drawV12Backdrop(secondWorld ? "rgba(91,55,190,.27)" : "rgba(16,105,174,.22)", .7);
+  // El mapa queda transparente para que el fondo galáctico del viewport sea
+  // realmente uno solo y continúe detrás de los márgenes del teléfono.
+  ctx.clearRect(0, 0, W, H);
   ctx.save();
   ctx.textAlign = "center";
 
   ctx.font = "bold 15px PizzaText";
   ctx.fillStyle = secondWorld ? "#c4a7ff" : "#56e8ff";
-  ctx.fillText(secondWorld ? "MUNDO 2" : "MUNDO 1", W / 2, 20);
+  ctx.fillText(secondWorld ? "MUNDO 2" : "MUNDO 1", W / 2, 16);
   ctx.font = "bold 34px PizzaText";
   ctx.fillStyle = "#ffcc33";
-  ctx.fillText(secondWorld ? "TRES NUEVOS UNIVERSOS" : "CAMINO HACIA GAIA", W / 2, 57);
+  ctx.fillText(secondWorld ? "TRES NUEVOS UNIVERSOS" : "CAMINO HACIA GAIA", W / 2, 46);
   ctx.font = "bold 14px PizzaText";
   ctx.fillStyle = "#ffffff";
-  ctx.fillText(statusText || "SIGUIENTE DESTINO", W / 2, 87);
+  ctx.fillText(statusText || "SIGUIENTE DESTINO", W / 2, 75);
 
   function drawStageDot(x, y, stageIndex, color, active, cleared, radius = 21) {
     const hasPrize = !secondWorld && (stageIndex === 0 || stageIndex === 2 || stageIndex === 4);
