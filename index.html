@@ -1620,6 +1620,12 @@ let bossVictoryLaunch = null;
 let similaeFinaleStartedAt = 0;
 let similaeFinaleMode = "final";
 let finaleReplayUnlocked = false;
+let highestUnlockedStage = Math.max(
+  0,
+  Math.min(10, Number.parseInt(localStorage.getItem("pizzaInvadersHighestStage") || "0", 10) || 0)
+);
+let selectedMapStage = 0;
+let worldMapPage = 0;
 const COUPON_CODE = "RESCUEGAIA";
 const GAME_URL = "https://www.similae.com/pages/pizza-invaders";
 const FERMENTATION_SHOP_URL = "https://www.similae.com/collections/del-horno";
@@ -2066,6 +2072,15 @@ function loadUnlockedShips() {
 let unlockedShips = loadUnlockedShips();
 let selectedShipId = localStorage.getItem("pizzaInvadersSelectedShip") || "luca";
 if (!SHIP_DEFS[selectedShipId] || !unlockedShips.has(selectedShipId)) selectedShipId = "luca";
+// Quienes ya terminaron una versión anterior conservan acceso a todo el mapa.
+if (unlockedShips.has("gaia") && highestUnlockedStage < 10) {
+  highestUnlockedStage = 10;
+  try {
+    localStorage.setItem("pizzaInvadersHighestStage", "10");
+  } catch (error) {
+    console.warn("No se pudo migrar el avance anterior al nuevo mapa.", error);
+  }
+}
 
 function unlockShip(id) {
   if (!SHIP_DEFS[id] || unlockedShips.has(id)) return false;
@@ -2088,6 +2103,27 @@ function selectShip(id) {
     console.warn("No se pudo guardar la nave seleccionada.", error);
   }
   return true;
+}
+
+function unlockStage(stageIndex) {
+  const safeIndex = Math.max(0, Math.min(10, Number(stageIndex) || 0));
+  if (safeIndex <= highestUnlockedStage) return;
+  highestUnlockedStage = safeIndex;
+  try {
+    localStorage.setItem("pizzaInvadersHighestStage", String(highestUnlockedStage));
+  } catch (error) {
+    console.warn("No se pudo guardar el avance del mapa.", error);
+  }
+}
+
+function openWorldMapSelector() {
+  selectedMapStage = Math.min(highestUnlockedStage, 10);
+  worldMapPage = selectedMapStage >= 8 ? 1 : 0;
+  state = "worldMapSelect";
+  touchControl.autoFire = false;
+  touchControl.active = false;
+  touchControl.targetX = null;
+  touchControl.targetY = null;
 }
 
 function confirmHangarSelection() {
@@ -2113,10 +2149,7 @@ function confirmHangarSelection() {
     return;
   }
   resetGame();
-  introStoryDone = false;
-  lastIntroAdvanceAt = 0;
-  state = "intro";
-  introStartedAt = performance.now();
+  openWorldMapSelector();
 }
 
 function leaveHangar() {
@@ -3822,6 +3855,9 @@ function finishTransition() {
 }
 
 function showWorldMapTransition(activeIndex, statusText, next, duration=2100) {
+  if (state !== "devMenu" && activeIndex >= 0 && activeIndex <= 10) {
+    unlockStage(activeIndex);
+  }
   showTransition("", "", next, duration);
   transition.drawCustom = () => drawWorldMapV12(activeIndex, statusText);
 }
@@ -4196,6 +4232,144 @@ function drawWorldMapV12(activeIndex = 0, statusText = "SIGUIENTE DESTINO") {
   ctx.fillStyle = secondWorld ? "#c4a7ff" : "#9dbf40";
   ctx.fillText(secondWorld ? "UN MUNDO APARTE" : "CUPÓN  •  DINERO  •  HUEVO", W / 2, 773);
   ctx.restore();
+}
+
+function drawWorldMapSelector() {
+  const displayedStage = worldMapPage === 1
+    ? Math.max(8, selectedMapStage)
+    : Math.min(7, selectedMapStage);
+  drawWorldMapV12(displayedStage, "SELECCIONA UNA ETAPA DESBLOQUEADA");
+
+  ctx.save();
+  ctx.textAlign = "center";
+  if (worldMapPage === 0) {
+    for (let index = highestUnlockedStage + 1; index <= 7; index++) {
+      const y = 150 + index * 75;
+      ctx.fillStyle = "rgba(2,5,12,.66)";
+      ctx.fillRect(27, y - 28, 268, 56);
+      ctx.font = "bold 15px PizzaText";
+      ctx.fillStyle = "rgba(255,255,255,.58)";
+      ctx.fillText("🔒", 70, y + 6);
+    }
+    if (highestUnlockedStage >= 8) {
+      drawTriviaButtonV12(382, 650, 130, 48, "MUNDO 2");
+    }
+  } else {
+    const worldTwoStages = [
+      { index:8, y:215 },
+      { index:9, y:405 },
+      { index:10, y:595 }
+    ];
+    worldTwoStages.forEach(stage => {
+      if (stage.index <= highestUnlockedStage) return;
+      ctx.fillStyle = "rgba(2,5,12,.68)";
+      ctx.fillRect(160, stage.y - 60, 220, 120);
+      ctx.font = "bold 20px PizzaText";
+      ctx.fillStyle = "rgba(255,255,255,.58)";
+      ctx.fillText("🔒", W / 2, stage.y + 7);
+    });
+    drawTriviaButtonV12(28, 710, 128, 48, "MUNDO 1");
+  }
+
+  drawTriviaButtonV12(170, 710, 200, 48, "INICIAR ETAPA");
+  ctx.font = "bold 11px PizzaText";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(
+    "ETAPA ELEGIDA: " + (selectedMapStage + 1),
+    W / 2,
+    690
+  );
+  ctx.restore();
+}
+
+function startStageFromMap(stageIndex) {
+  const index = Math.max(0, Math.min(highestUnlockedStage, Number(stageIndex) || 0));
+  resetGame();
+  selectedMapStage = index;
+  introStoryDone = index !== 0;
+  lastIntroAdvanceAt = 0;
+  pineappleIntroShown = index > 1;
+  candyIntroShown = index > 2;
+  freezerTransmissionShown = index > 3;
+  couponShown = index > 0;
+
+  if (index === 0) {
+    state = "intro";
+    introStartedAt = performance.now();
+    return;
+  }
+
+  const startingWaves = [1, 11, 16, 21, 26, 36, 41, 46, 51, 56, 61];
+  wave = startingWaves[index];
+  createWave();
+  state = "play";
+  touchControl.autoFire = isTouchDevice;
+  touchControl.active = false;
+  canvas.focus();
+}
+
+function drawGlobalHomeButton() {
+  if (state === "start" || state === "loading") return;
+  const touchSize = isTouchDevice ? 60 : 46;
+  const buttonX = 8;
+  const buttonY = 8;
+  ctx.save();
+  ctx.fillStyle = "rgba(3,7,16,.88)";
+  roundRect(buttonX, buttonY, touchSize, touchSize, 10);
+  ctx.fill();
+  ctx.strokeStyle = "#9dbf40";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.shadowColor = "rgba(157,191,64,.72)";
+  ctx.shadowBlur = 9;
+  ctx.fillStyle = "#9dbf40";
+  const centerY = buttonY + touchSize / 2;
+  const leftX = buttonX + touchSize * .23;
+  const rightX = buttonX + touchSize * .72;
+  ctx.beginPath();
+  ctx.moveTo(leftX, centerY);
+  ctx.lineTo(rightX, buttonY + touchSize * .20);
+  ctx.lineTo(rightX, buttonY + touchSize * .80);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function pointHitsGlobalHome(pt) {
+  const hitSize = isTouchDevice ? 68 : 54;
+  return state !== "start" && state !== "loading" &&
+    pt.x >= 4 && pt.x <= 4 + hitSize && pt.y >= 4 && pt.y <= 4 + hitSize;
+}
+
+function returnToGameStart() {
+  hideOverlays();
+  resetGame();
+  state = "start";
+  touchControl.autoFire = false;
+  touchControl.active = false;
+  touchControl.targetX = null;
+  touchControl.targetY = null;
+  canvas.focus();
+}
+
+function resetSavedGameProgress() {
+  [
+    "pizzaInvadersHighestStage",
+    "pizzaInvadersUnlockedShips",
+    "pizzaInvadersSelectedShip"
+  ].forEach(key => {
+    try { localStorage.removeItem(key); } catch (error) {}
+  });
+  highestUnlockedStage = 0;
+  unlockedShips = new Set(["luca"]);
+  selectedShipId = "luca";
+  finaleReplayUnlocked = false;
+  selectedMapStage = 0;
+  worldMapPage = 0;
+  resetGame();
+  state = "start";
+  touchControl.autoFire = false;
+  touchControl.active = false;
 }
 
 function showTrivia(afterAction) {
@@ -4716,12 +4890,17 @@ function pointHitsFullscreenChip(pt) {
 function startFromTouch(e) {
   e.preventDefault();
   initGameAudio();
-  canvas.focus();1
+  canvas.focus();
+  const pt = canvasPointFromEvent(e);
+  if (pointHitsGlobalHome(pt)) {
+    returnToGameStart();
+    return;
+  }
   registerSecretPilotTap();
 
   if (state === "coupon") {
     if (performance.now() - couponUnlockedAt < 700) return;
-    handleCouponTap(canvasPointFromEvent(e));
+    handleCouponTap(pt);
     return;
   }
 
@@ -4729,7 +4908,51 @@ function startFromTouch(e) {
 
   // Pantalla completa ahora es opcional con el botón ⛶.
 
-  const pt = canvasPointFromEvent(e);
+  if (state === "worldMapSelect") {
+    if (worldMapPage === 0) {
+      for (let index = 0; index <= Math.min(7, highestUnlockedStage); index++) {
+        const stageY = 150 + index * 75;
+        if (pt.x >= 25 && pt.x <= 305 && Math.abs(pt.y - stageY) <= 30) {
+          selectedMapStage = index;
+          return;
+        }
+      }
+      if (
+        highestUnlockedStage >= 8 &&
+        pt.x >= 372 && pt.x <= 522 &&
+        pt.y >= 642 && pt.y <= 706
+      ) {
+        worldMapPage = 1;
+        selectedMapStage = Math.max(8, Math.min(highestUnlockedStage, 10));
+        return;
+      }
+    } else {
+      const worldTwoStages = [
+        { index:8, y:215 },
+        { index:9, y:405 },
+        { index:10, y:595 }
+      ];
+      for (const stage of worldTwoStages) {
+        if (
+          stage.index <= highestUnlockedStage &&
+          pt.x >= 150 && pt.x <= 430 &&
+          Math.abs(pt.y - stage.y) <= 65
+        ) {
+          selectedMapStage = stage.index;
+          return;
+        }
+      }
+      if (pt.x >= 20 && pt.x <= 160 && pt.y >= 700 && pt.y <= 766) {
+        worldMapPage = 0;
+        selectedMapStage = Math.min(7, highestUnlockedStage);
+        return;
+      }
+    }
+    if (pt.x >= 165 && pt.x <= 375 && pt.y >= 700 && pt.y <= 766) {
+      startStageFromMap(selectedMapStage);
+    }
+    return;
+  }
 
   if (state === "similaeFinale") {
     if (
@@ -4822,6 +5045,11 @@ function startFromTouch(e) {
 
   if (pt.y >= 475 && pt.y <= 525) {
       state = "start";
+      return;
+  }
+
+  if (pt.y >= 555 && pt.y <= 605) {
+      resetSavedGameProgress();
       return;
   }
 
@@ -8300,12 +8528,12 @@ function drawAll() {
   if (!useExternalMobileHud()) {
   ctx.fillStyle = "white";
   ctx.font = "19px PizzaText";
-  ctx.fillText("Score: " + score, 16, 28);
-  ctx.fillText("Vidas: " + lives, 16, 56);
-  for (let i=0;i<lives;i++) drawCharacterShip(selectedShipId, 86+i*26, 38, .34, false);
+  ctx.fillText("Score: " + score, 76, 28);
+  ctx.fillText("Vidas: " + lives, 76, 56);
+  for (let i=0;i<lives;i++) drawCharacterShip(selectedShipId, 146+i*26, 38, .34, false);
   ctx.fillStyle = (SHIP_DEFS[selectedShipId] || SHIP_DEFS.luca).color;
   ctx.font = "bold 14px PizzaText";
-  ctx.fillText((SHIP_DEFS[selectedShipId] || SHIP_DEFS.luca).name, 16, 82);
+  ctx.fillText((SHIP_DEFS[selectedShipId] || SHIP_DEFS.luca).name, 76, 82);
   ctx.fillStyle = "white";
   ctx.font = "19px PizzaText";
   ctx.fillText("Oleada: " + wave, W-118, 28);
@@ -10046,10 +10274,12 @@ function drawDevMenu() {
   ctx.fillText("2. VIDEO TEST", W/2, 340);
   ctx.fillText("3. GALACTIC MAP", W/2, 420);
   ctx.fillText("4. BACK TO START", W/2, 500);
+  ctx.fillStyle = "#ff78d0";
+  ctx.fillText("5. RESET PROGRESS", W/2, 580);
 
   ctx.fillStyle = "#56e8ff";
   ctx.font = "18px PizzaText";
-  ctx.fillText("V13 DEVELOPMENT TOOLS", W/2, 570);
+  ctx.fillText("V13 DEVELOPMENT TOOLS", W/2, 650);
 
   ctx.textAlign = "left";
 }
@@ -10214,6 +10444,8 @@ function loop() {
     drawDevMenu();
   } else if (state === "stageSelect") {
     drawStageSelect();
+  } else if (state === "worldMapSelect") {
+    drawWorldMapSelector();
   } else if (state === "videoTest") {
     prepareCinematicVideo("stayPuffedVideo");
   } else if (state === "frozenPizzaVideo") {
@@ -10244,6 +10476,7 @@ function loop() {
     drawAll();
     drawGameOver();
   }
+  drawGlobalHomeButton();
   } catch (error) {
     console.error("Se recuperó un error del ciclo principal:", error);
     // Algunas escenas dibujan temporalmente en un canvas externo.
