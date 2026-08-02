@@ -80,7 +80,8 @@
   body.fungi-environment #wrap,
   body.egg-prize-transition #wrap,
   body.start-environment #wrap,
-  body.hangar-environment #wrap {
+  body.hangar-environment #wrap,
+  body.world-map-environment #wrap {
     background: transparent;
   }
   body.cola-environment #game,
@@ -92,9 +93,27 @@
   body.fungi-environment #game,
   body.egg-prize-transition #game,
   body.start-environment #game,
-  body.hangar-environment #game {
+  body.hangar-environment #game,
+  body.world-map-environment #game {
     background: transparent;
     outline: none;
+  }
+  body.world-map-environment {
+    background-color: #050510;
+    background-image:
+      radial-gradient(circle at 14% 22%, rgba(255,255,255,.82) 0 1px, transparent 1.8px),
+      radial-gradient(circle at 76% 18%, rgba(86,232,255,.70) 0 1px, transparent 2px),
+      radial-gradient(circle at 38% 72%, rgba(255,204,51,.64) 0 1px, transparent 1.8px),
+      radial-gradient(circle at 88% 82%, rgba(255,120,208,.52) 0 1px, transparent 2px),
+      radial-gradient(circle at 50% 18%, rgba(16,105,174,.25), transparent 42%),
+      linear-gradient(180deg, #070719 0%, #03030c 48%, #09051b 100%);
+    background-size:
+      91px 113px,
+      137px 157px,
+      173px 131px,
+      211px 179px,
+      100% 100%,
+      100% 100%;
   }
   body.freezer-environment #game,
   body.candy-environment #game,
@@ -900,7 +919,7 @@
       <span id="mobileHudShip" class="mobile-hud-label">LUCA</span>
       <span id="mobileHudStatus">LISTO</span>
     </div>
-    <button id="mobileHomeBtn" type="button" aria-label="Volver al inicio" title="Volver al inicio">
+    <button id="mobileHomeBtn" type="button" aria-label="Volver" title="Volver">
       <svg viewBox="0 0 28 28" aria-hidden="true">
         <path fill="currentColor" d="M5 14L21 4v20z"></path>
       </svg>
@@ -1116,6 +1135,7 @@ function updateExternalMobileHud() {
     transition.drawCustom === drawEggPrizeUnlockTransition;
   const startEnvironmentActive = state === "start";
   const hangarEnvironmentActive = state === "hangar";
+  const worldMapEnvironmentActive = state === "worldMapSelect";
   document.body.classList.toggle("cola-environment", colaEnvironmentActive);
   document.body.classList.toggle("freezer-environment", freezerEnvironmentActive);
   document.body.classList.toggle("candy-environment", candyEnvironmentActive);
@@ -1126,6 +1146,7 @@ function updateExternalMobileHud() {
   document.body.classList.toggle("egg-prize-transition", eggPrizeTransitionActive);
   document.body.classList.toggle("start-environment", startEnvironmentActive);
   document.body.classList.toggle("hangar-environment", hangarEnvironmentActive);
+  document.body.classList.toggle("world-map-environment", worldMapEnvironmentActive);
   document.body.classList.toggle("external-hud-active", active);
   document.body.classList.toggle("mobile-boss-active", bossActive);
   if (!active) return;
@@ -1520,7 +1541,7 @@ mobileAudioBtn.addEventListener("click", () => {
 });
 
 mobileHomeBtn.addEventListener("click", () => {
-  returnToGameStart();
+  handleGlobalBack();
 });
 
 mobileShipsBtn.addEventListener("click", () => {
@@ -1598,6 +1619,7 @@ let secretPilotLastRawEventAt = 0;
 let hangarReturnState = null;
 let hangarOriginalShipId = null;
 let hangarContinueAction = null;
+let worldMapReturnToGame = false;
 let cheeseCount = 0;
 let tripleUntil = 0;
 let similaeModeUntil = 0;
@@ -2130,7 +2152,8 @@ function unlockStage(stageIndex) {
   }
 }
 
-function openWorldMapSelector() {
+function openWorldMapSelector(returnToCurrentGame = false) {
+  worldMapReturnToGame = returnToCurrentGame;
   selectedMapStage = Math.min(highestUnlockedStage, 10);
   worldMapPage = selectedMapStage >= 8 ? 1 : 0;
   state = "worldMapSelect";
@@ -3986,15 +4009,15 @@ function drawWorldMapV12(activeIndex = 0, statusText = "SIGUIENTE DESTINO") {
   ctx.save();
   ctx.textAlign = "center";
 
-  ctx.font = "bold 13px PizzaText";
+  ctx.font = "bold 15px PizzaText";
   ctx.fillStyle = secondWorld ? "#c4a7ff" : "#56e8ff";
-  ctx.fillText(secondWorld ? "MUNDO 2" : "MUNDO 1", W / 2, 34);
-  ctx.font = "bold 30px PizzaText";
+  ctx.fillText(secondWorld ? "MUNDO 2" : "MUNDO 1", W / 2, 20);
+  ctx.font = "bold 34px PizzaText";
   ctx.fillStyle = "#ffcc33";
-  ctx.fillText(secondWorld ? "TRES NUEVOS UNIVERSOS" : "CAMINO HACIA GAIA", W / 2, 74);
-  ctx.font = "bold 12px PizzaText";
+  ctx.fillText(secondWorld ? "TRES NUEVOS UNIVERSOS" : "CAMINO HACIA GAIA", W / 2, 57);
+  ctx.font = "bold 14px PizzaText";
   ctx.fillStyle = "#ffffff";
-  ctx.fillText(statusText || "SIGUIENTE DESTINO", W / 2, 103);
+  ctx.fillText(statusText || "SIGUIENTE DESTINO", W / 2, 87);
 
   function drawStageDot(x, y, stageIndex, color, active, cleared, radius = 21) {
     const hasPrize = !secondWorld && (stageIndex === 0 || stageIndex === 2 || stageIndex === 4);
@@ -4181,7 +4204,7 @@ function drawWorldMapV12(activeIndex = 0, statusText = "SIGUIENTE DESTINO") {
     stages.forEach(stage => {
       drawStageDot(stage.x, stage.y, stage.index, stage.color, stage.index === activeIndex, stage.index < activeIndex);
       ctx.textAlign = "left";
-      ctx.font = "bold 11px PizzaText";
+      ctx.font = "bold 14px PizzaText";
       ctx.fillStyle = stage.index === activeIndex ? "#ffffff" : stage.color;
       ctx.fillText(stage.name, 152, stage.y + 5);
       ctx.textAlign = "center";
@@ -4203,10 +4226,10 @@ function drawWorldMapV12(activeIndex = 0, statusText = "SIGUIENTE DESTINO") {
       ctx.stroke();
       ctx.setLineDash([]);
       drawPrizeIcon(reward.kind, reward.x, reward.y, reward.color, activeIndex > reward.after);
-      ctx.font = "bold 13px PizzaText";
+      ctx.font = "bold 15px PizzaText";
       ctx.fillStyle = reward.color;
       ctx.fillText(reward.title, reward.x, reward.y + 51);
-      ctx.font = "bold 9px PizzaText";
+      ctx.font = "bold 11px PizzaText";
       ctx.fillStyle = "#ffffff";
       ctx.fillText(reward.detail, reward.x, reward.y + 67);
     });
@@ -4216,7 +4239,7 @@ function drawWorldMapV12(activeIndex = 0, statusText = "SIGUIENTE DESTINO") {
     ctx.beginPath();
     ctx.ellipse(425, 680, 53, 17, 0, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.font = "bold 10px PizzaText";
+    ctx.font = "bold 12px PizzaText";
     ctx.fillStyle = "#c4a7ff";
     ctx.fillText("MUNDO 2", 425, 715);
   } else {
@@ -4237,12 +4260,12 @@ function drawWorldMapV12(activeIndex = 0, statusText = "SIGUIENTE DESTINO") {
       ctx.fillStyle = stage.color;
       ctx.fillText(stage.name, W / 2, stage.y + 72);
     });
-    ctx.font = "bold 11px PizzaText";
+    ctx.font = "bold 13px PizzaText";
     ctx.fillStyle = "#ffffff";
     ctx.fillText("TRES PORTALES. UNA ÚLTIMA MISIÓN.", W / 2, 700);
   }
 
-  ctx.font = "bold 10px PizzaText";
+  ctx.font = "bold 12px PizzaText";
   ctx.fillStyle = secondWorld ? "#c4a7ff" : "#9dbf40";
   ctx.fillText(secondWorld ? "UN MUNDO APARTE" : "CUPÓN  •  DINERO  •  HUEVO", W / 2, 773);
   ctx.restore();
@@ -4286,7 +4309,7 @@ function drawWorldMapSelector() {
   }
 
   drawTriviaButtonV12(170, 710, 200, 48, "INICIAR ETAPA");
-  ctx.font = "bold 11px PizzaText";
+  ctx.font = "bold 13px PizzaText";
   ctx.fillStyle = "#ffffff";
   ctx.fillText(
     "ETAPA ELEGIDA: " + (selectedMapStage + 1),
@@ -4298,6 +4321,7 @@ function drawWorldMapSelector() {
 
 function startStageFromMap(stageIndex) {
   const index = Math.max(0, Math.min(highestUnlockedStage, Number(stageIndex) || 0));
+  worldMapReturnToGame = false;
   resetGame();
   selectedMapStage = index;
   introStoryDone = index !== 0;
@@ -4323,7 +4347,7 @@ function startStageFromMap(stageIndex) {
 }
 
 function drawGlobalHomeButton() {
-  if (state === "start" || state === "loading") return;
+  if (!["play", "hangar", "worldMapSelect"].includes(state)) return;
   if (state === "play" && useExternalMobileHud()) return;
   const inDesktopGame = state === "play" && !useExternalMobileHud();
   const touchSize = 46;
@@ -4352,7 +4376,7 @@ function drawGlobalHomeButton() {
 }
 
 function pointHitsGlobalHome(pt) {
-  if (state === "start" || state === "loading") return false;
+  if (!["play", "hangar", "worldMapSelect"].includes(state)) return false;
   if (state === "play" && useExternalMobileHud()) return false;
   const inDesktopGame = state === "play" && !useExternalMobileHud();
   const buttonX = inDesktopGame ? W - 208 : 8;
@@ -4361,11 +4385,21 @@ function pointHitsGlobalHome(pt) {
     pt.y >= buttonY - 4 && pt.y <= buttonY + 54;
 }
 
-function returnToGameStart() {
+function handleGlobalBack() {
   hideOverlays();
-  resetGame();
-  state = "start";
-  touchControl.autoFire = false;
+  if (state === "play") {
+    openWorldMapSelector(true);
+  } else if (state === "hangar") {
+    leaveHangar();
+  } else if (state === "worldMapSelect") {
+    if (worldMapReturnToGame) {
+      worldMapReturnToGame = false;
+      state = "play";
+    } else {
+      state = "hangar";
+    }
+  }
+  touchControl.autoFire = state === "play" && isTouchDevice;
   touchControl.active = false;
   touchControl.targetX = null;
   touchControl.targetY = null;
@@ -4913,7 +4947,7 @@ function startFromTouch(e) {
   canvas.focus();
   const pt = canvasPointFromEvent(e);
   if (pointHitsGlobalHome(pt)) {
-    returnToGameStart();
+    handleGlobalBack();
     return;
   }
   registerSecretPilotTap();
@@ -5026,16 +5060,15 @@ function startFromTouch(e) {
 
   if (state === "hangar") {
     if (pt.y >= 455 && pt.y <= 555) {
-      const slot = Math.floor((pt.x - 30) / 96);
+      const selectorCardWidth = 84;
+      const selectorCardGap = 12;
+      const selectorStartX = (W - (SHIP_ORDER.length * selectorCardWidth + (SHIP_ORDER.length - 1) * selectorCardGap)) / 2;
+      const slot = Math.floor((pt.x - selectorStartX) / (selectorCardWidth + selectorCardGap));
       if (slot >= 0 && slot < SHIP_ORDER.length) selectShip(SHIP_ORDER[slot]);
       return;
     }
     if (pt.x >= 95 && pt.x <= 445 && pt.y >= 590 && pt.y <= 646) {
       confirmHangarSelection();
-      return;
-    }
-    if (pt.x >= 145 && pt.x <= 395 && pt.y >= 666 && pt.y <= 714) {
-      leaveHangar();
       return;
     }
     return;
@@ -10164,9 +10197,12 @@ function drawHangar() {
   drawHangarStat("COBERTURA", ship.coverage, 75, 412, ship.color);
   drawHangarStat("MOVILIDAD", ship.mobility, 320, 412, ship.color);
 
+  const selectorCardWidth = 84;
+  const selectorCardGap = 12;
+  const selectorStartX = (W - (SHIP_ORDER.length * selectorCardWidth + (SHIP_ORDER.length - 1) * selectorCardGap)) / 2;
   SHIP_ORDER.forEach((id, index) => {
     const def = SHIP_DEFS[id];
-    const x = 30 + index * 96;
+    const x = selectorStartX + index * (selectorCardWidth + selectorCardGap);
     const unlocked = unlockedShips.has(id);
     ctx.globalAlpha = unlocked ? 1 : .58;
     ctx.fillStyle = selectedShipId === id ? "rgba(157,191,64,.24)" : "rgba(8,11,20,.96)";
@@ -10192,11 +10228,6 @@ function drawHangar() {
   });
 
   drawTriviaButtonV12(95, 584, 350, 60, selectingReplayStage ? "EQUIPAR Y ELEGIR ETAPA" : (returningToGame ? "EQUIPAR Y CONTINUAR" : "INICIAR MISION"));
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 14px PizzaText";
-  ctx.fillStyle = "#56e8ff";
-  ctx.font = "bold 17px PizzaText";
-  ctx.fillText(selectingReplayStage ? "IR A SELECCIÓN DE ETAPA" : (returningToGame ? "CONTINUAR SIN CAMBIOS" : "VOLVER"), W/2, 704);
   ctx.restore();
 }
 
